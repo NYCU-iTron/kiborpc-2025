@@ -79,6 +79,3 @@ RUN echo "y" | $ANDROID_HOME/tools/bin/sdkmanager \
 
 # Set working directory
 WORKDIR /app
-
-# Make gradlew executable (if present, avoid build failure if not)
-RUN chmod +x /app/gradlew || true
