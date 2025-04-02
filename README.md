@@ -26,6 +26,9 @@ For more details, see [Progress](./docs/progress/progress.md)
 - [2025競賽內容](https://2025kiborpc.ncku.edu.tw/%E7%AB%B6%E8%B3%BD%E5%85%A7%E5%AE%B9)
 - [Astrobee Command API](https://nasa.github.io/astrobee/v/develop/command_dictionary.html)
 - [Kibo Robot Programming Challenge official website](https://jaxa.krpc.jp/)
+  - [6th Kibo-RPC Tutorial Video: 01 How to Login to My Page](https://youtu.be/PPwQDeAJsqg?si=ljjorvINLsrGOTF3)
+  - [6th Kibo-RPC Tutorial Video: 02 How to Set up Android Studio](https://youtu.be/bN47LxLWkbU?si=dVKal4-G-o9Y2tIs)
+  - [6th Kibo-RPC Tutorial Video: 03 How to Build APK and Simulator](https://youtu.be/LeC3sIL1sWE?si=6Vczm36ZKfC2GNsv)
 
 ## Repo of past competition
 
