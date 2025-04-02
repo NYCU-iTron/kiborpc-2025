@@ -34,4 +34,6 @@ public class Landmark {
 
 ## Progress
 
+- Complete apk compile using docker, the apk will be generated in `app/app/build/outputs/apk/debug/` folder.
+
 ## Next
