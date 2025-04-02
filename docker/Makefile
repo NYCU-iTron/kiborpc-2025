@@ -42,6 +42,7 @@ run:
 		--net=host \
 		--name kiborpc-2025 \
 		--ulimit nofile=1024:524288 \
+		--mount type=bind,source=$(CURDIR)/../app,target=/app \
 		kiborpc-2025:latest $(ARG)
 	xhost -local:root
 
