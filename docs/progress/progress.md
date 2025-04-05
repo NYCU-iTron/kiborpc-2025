@@ -4,12 +4,12 @@
 
 | 日期 | 時長 | 內容 |
 |-|-|-|
-| 4/1 – 4/7   | 1 週 | 建立、熟悉環境（Java、Docker、模擬器）|
-| 4/8 – 4/28  | 3 週 | 導航至定點、巡邏 landmarks 、拍照、辨識、儲存地點資訊 |
-| 4/29 – 5/13 | 2 週 | 綠洲停留時間計算、與太空人互動|
-| 5/14 – 5/21 | 1 週 | 導航至真寶藏區、拍照、啟動訊號燈 |
-| 5/28 – 6/11 | 2 週 | 測試 |
-| 6/12 – 6/19 | 1 週 | 繳交 |
+| 4/1 – 4/7   | 1 週 | Build the enviroment（Java、Docker、Simulator）|
+| 4/8 – 4/28  | 3 週 | Navigator、CameraHandler、MainController |
+| 4/29 – 5/13 | 2 週 | Integrate the modules |
+| 5/14 – 5/21 | 1 週 | Actions after interact with the asronaut |
+| 5/28 – 6/11 | 2 週 | Test |
+| 6/12 – 6/19 | 1 週 | Submit the APK |
 
 ## Weeks
 
