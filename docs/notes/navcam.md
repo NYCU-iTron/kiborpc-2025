@@ -1,6 +1,6 @@
 # NavCam
 
-A camera equipped by Astrobee to capture images of the environment.
+A camera on Astrobee to capture images of the environment.
 
 ---
 
@@ -36,7 +36,7 @@ $$
 \text{VFOV} = 130° \times \frac{3/4}{\sqrt{1 + (3/4)^2}} = 78°
 $$
 
-2. Calculate Field of View Range, assuming the robot is 70cm away from the target plane.
+1. Calculate Field of View Range.
 
 $$
 \text{Horizontal Range} = 2 \times \tan\left(\frac{\text{HFOV}}{2}\right) \times \text{Distance}
@@ -49,13 +49,20 @@ $$
 3. Results
 
 - Distance: 0.7m
-  - Horizontal Range: 1.79m
-  - Vertical Range: 1.13m
+  - Range: 1.79m x 1.13m
+- Distance: 0.6m
+  - Range: 1.54m x 0.97m
 - Distance: 0.5m
-  - Horizontal Range: 1.28m
-  - Vertical Range: 0.81m
+  - Range: 1.28m x 0.81m
 
 ---
+
+## Comparison with Kibo-RPC Area
+
+- Area 1: 1.06m x 0.75m
+- Area 2: 1.25m x 0.75m
+- Area 3: 1.25m x 0.95m
+- Area 4: 1.25m x 0.975m
 
 ## Reference
 
