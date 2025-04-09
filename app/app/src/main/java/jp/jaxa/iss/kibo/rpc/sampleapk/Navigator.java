@@ -46,8 +46,8 @@ public class Navigator extends KiboRpcService {
 
   public Pose getCurrentPose() {
     // TODO : Deal with measure error and low confidence
-    Kinemaics kinemaics = api.getRobotKinematics();
-    return new Pose(kinemaics.getPosition(), kinemaics.getOrientation());
+    Kinematics kinematics = api.getRobotKinematics();
+    return new Pose(kinematics.getPosition(), kinematics.getOrientation());
   }
 
   public Result moveTo(Pose target) {
