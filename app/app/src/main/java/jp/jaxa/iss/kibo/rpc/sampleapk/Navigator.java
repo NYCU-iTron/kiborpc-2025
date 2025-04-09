@@ -93,9 +93,12 @@ public class Navigator extends KiboRpcService {
    * @return A list of poses representing the interpolated path.
    */
   public static List<Pose> interpolate(Pose start, Pose end) {
-    float dx = targetPoint.getX() - currentPoint.getX();
-    float dy = targetPoint.getY() - currentPoint.getY();
-    float dz = targetPoint.getZ() - currentPoint.getZ();
+    Point startPoint = start.getPoint();
+    Point endPoint = end.getPoint();
+
+    float dx = endPoint.getX() - startPoint.getX();
+    float dy = endPoint.getY() - startPoint.getY();
+    float dz = endPoint.getZ() - startPoint.getZ();
 
     float linearUnit = 0.08f;
     float distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
