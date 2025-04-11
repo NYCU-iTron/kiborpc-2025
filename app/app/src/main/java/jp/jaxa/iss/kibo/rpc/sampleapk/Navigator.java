@@ -34,11 +34,11 @@ public class Navigator extends KiboRpcService {
   
   public Navigator() {
     // Precompute each route
-    // dockToPatrol1 = interpolate(Dock, Patrol1);
-    // patrol1ToPatrol2 = interpolate(Patrol1, Patrol2);
-    // patrol2ToPatrol3 = interpolate(Patrol2, Patrol3);
-    // patrol3ToPatrol4 = interpolate(Patrol3, Patrol4);
-    // patrol4ToReport = interpolate(Patrol4, Report);
+    dockToPatrol1 = interpolate(Dock, Patrol1);
+    patrol1ToPatrol2 = interpolate(Patrol1, Patrol2);
+    patrol2ToPatrol3 = interpolate(Patrol2, Patrol3);
+    patrol3ToPatrol4 = interpolate(Patrol3, Patrol4);
+    patrol4ToReport = interpolate(Patrol4, Report);
   }
 
   public Pose getCurrentPose() {
