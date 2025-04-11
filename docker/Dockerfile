@@ -77,6 +77,9 @@ RUN echo "y" | $ANDROID_HOME/tools/bin/sdkmanager \
     "platform-tools" \
     "ndk;20.0.5594570"
 
+# Install GNU Make
+RUN apt-get update && apt-get install -y build-essential
+
 # Remove apt cache
 RUN rm -rf /var/lib/apt/lists/*
 
