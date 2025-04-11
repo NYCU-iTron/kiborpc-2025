@@ -1,6 +1,7 @@
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
+import jp.jaxa.iss.kibo.rpc.api.KiboRpcApi;
 
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
@@ -15,7 +16,8 @@ import android.util.Log;
 /**
  * Class to handle navigation commands for the Astrobee robot.
  */
-public class Navigator extends KiboRpcService {
+public class Navigator {
+  private final KiboRpcApi api;
 
   // Target poses in each area
   public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
@@ -32,7 +34,9 @@ public class Navigator extends KiboRpcService {
   public final List<Pose> patrol3ToPatrol4;
   public final List<Pose> patrol4ToReport;
   
-  public Navigator() {
+  public Navigator(KiboRpcApi apiRef) {
+    this.api = apiRef;
+
     // Precompute each route
     dockToPatrol1 = interpolate(Dock, Patrol1);
     patrol1ToPatrol2 = interpolate(Patrol1, Patrol2);
