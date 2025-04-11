@@ -1,35 +1,16 @@
-import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
+package jp.jaxa.iss.kibo.rpc.sampleapk;
 
-import android.util.Log;
+import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 import gov.nasa.arc.astrobee.Kinematics;
 import gov.nasa.arc.astrobee.Result;
 
-/**
- * Class to represent a 3D pose consisting of a position and orientation.
- * 
- * @param point The position in 3D space.
- * @param quaternion The orientation represented as a quaternion.
- */
-public class Pose {
-  private Point point;
-  private Quaternion quaternion;
+import java.util.List;
+import java.util.ArrayList;
+import android.util.Log;
 
-  public Pose(Point point, Quaternion quaternion) {
-    this.point = point;
-    this.quaternion = quaternion;
-  }
-
-  public Point getPoint() {
-    return point;
-  }
-
-  public Quaternion getQuaternion() {
-    return quaternion;
-  }
-}
 
 /**
  * Class to handle navigation commands for the Astrobee robot.
@@ -37,12 +18,28 @@ public class Pose {
 public class Navigator extends KiboRpcService {
 
   // Target poses in each area
-  public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1, 0, 0, 0));
-  public static final Pose Patrol1 = new Pose(new Point(10.95, -10, 4.8), new Quaternion(0, -0.398, -0.584, 0.707));
-  public static final Pose Patrol2 = new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(0, 0.707, 0, 0.707));
-  public static final Pose Patrol3 = new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0, 0.707, 0, 0.707));
-  public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0, 0, 1, 0));
-  public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0, 0, 0.707, 0.707));
+  public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+  public static final Pose Patrol1 = new Pose(new Point(10.95, -10, 4.8), new Quaternion(0.0f, -0.398f, -0.584f, 0.707f));
+  public static final Pose Patrol2 = new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
+  public static final Pose Patrol3 = new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
+  public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0.0f, 0.0f, 1.0f, 0.0f));
+  public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f));
+
+  // Route between each area
+  public final List<Pose> dockToPatrol1;
+  public final List<Pose> patrol1ToPatrol2;
+  public final List<Pose> patrol2ToPatrol3;
+  public final List<Pose> patrol3ToPatrol4;
+  public final List<Pose> patrol4ToReport;
+  
+  public Navigator() {
+    // Precompute each route
+    // dockToPatrol1 = interpolate(Dock, Patrol1);
+    // patrol1ToPatrol2 = interpolate(Patrol1, Patrol2);
+    // patrol2ToPatrol3 = interpolate(Patrol2, Patrol3);
+    // patrol3ToPatrol4 = interpolate(Patrol3, Patrol4);
+    // patrol4ToReport = interpolate(Patrol4, Report);
+  }
 
   public Pose getCurrentPose() {
     // TODO : Deal with measure error and low confidence
@@ -52,7 +49,7 @@ public class Navigator extends KiboRpcService {
 
   public Result moveTo(Pose target) {
     // TODO : Deal with failure
-    Result result = api.moveTo(target.getPoint(), target.getQuaternion());
+    Result result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
     return result;
   }
 
@@ -66,22 +63,22 @@ public class Navigator extends KiboRpcService {
     Result lastResult = null;
 
     for (Pose pose : waypoints) {
-      lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion());
+      lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
       
       int maxRetries = 3;
-      while (lastResult != Result.SUCCESS && maxRetries > 0) {
+      while (!lastResult.hasSucceeded() && maxRetries > 0) {
         Log.d("Navigator", "Retrying move to: " + pose.toString());
-        lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion());
+        lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
         maxRetries--;
       }
 
       // If still not successful after retries, log the error and continue to the next waypoint
-      if (lastResult != Result.SUCCESS) {
+      if (!lastResult.hasSucceeded()) {
         Log.e("Navigator", "Failed to move to: " + pose.toString());
       }
 
     }
-    Log.d("Navigator", "Moved to: " + pose.toString());
+
     return lastResult;
   }
 
@@ -96,12 +93,12 @@ public class Navigator extends KiboRpcService {
     Point startPoint = start.getPoint();
     Point endPoint = end.getPoint();
 
-    float dx = endPoint.getX() - startPoint.getX();
-    float dy = endPoint.getY() - startPoint.getY();
-    float dz = endPoint.getZ() - startPoint.getZ();
+    double dx = endPoint.getX() - startPoint.getX();
+    double dy = endPoint.getY() - startPoint.getY();
+    double dz = endPoint.getZ() - startPoint.getZ();
 
-    float linearUnit = 0.08f;
-    float distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    double linearUnit = 0.08;
+    double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     int numSteps = (int) (distance / linearUnit);
     List<Pose> poses = new ArrayList<>();
 
@@ -111,10 +108,10 @@ public class Navigator extends KiboRpcService {
     }
     
     for (int i = 0; i <= numSteps; i++) {
-      float t = (float) i / numSteps;
-      new Pose current = new Pose(
+      double t = (double) i / numSteps;
+      Pose current = new Pose(
         lerpPoint(start.getPoint(), end.getPoint(), t),
-        slerp(start.getQuaternion(), end.getQuaternion(), t)
+        slerp(start.getQuaternion(), end.getQuaternion(), (float) t)
       );
       poses.add(current);
     }
@@ -130,10 +127,10 @@ public class Navigator extends KiboRpcService {
    * @param t The interpolation parameter (0 <= t <= 1).
    * @return A new point that is the result of the interpolation.
    */
-  public static Point lerpPoint(Point a, Point b, float t) {
-    float x = a.getX() + (b.getX() - a.getX()) * t;
-    float y = a.getY() + (b.getY() - a.getY()) * t;
-    float z = a.getZ() + (b.getZ() - a.getZ()) * t;
+  public static Point lerpPoint(Point a, Point b, double t) {
+    double x = a.getX() + (b.getX() - a.getX()) * t;
+    double y = a.getY() + (b.getY() - a.getY()) * t;
+    double z = a.getZ() + (b.getZ() - a.getZ()) * t;
     return new Point(x, y, z);
   }
 
@@ -193,12 +190,12 @@ public class Navigator extends KiboRpcService {
     Point targetPoint = target.getPoint();
 
     // Calculate direction vector
-    float dx = targetPoint.getX() - currentPoint.getX();
-    float dy = targetPoint.getY() - currentPoint.getY();
-    float dz = targetPoint.getZ() - currentPoint.getZ();
+    float dx = (float) targetPoint.getX() - (float) currentPoint.getX();
+    float dy = (float) targetPoint.getY() - (float) currentPoint.getY();
+    float dz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
 
     // Normalize the direction vector
-    float length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (length == 0) {
       return current; // No movement needed
     }
@@ -222,7 +219,7 @@ public class Navigator extends KiboRpcService {
       return current;
     } else if (Math.abs(dot + 1) < 1e-6) { // 180° opposite to default direction
       // Choose an arbitrary perpendicular axis (e.g., x-axis or y-axis)
-      return new Pose(currentPoint, new Quaternion(1, 0, 0, 0)); // If aligned with x, rotate around x
+      return new Pose(currentPoint, new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)); // If aligned with x, rotate around x
     }
 
     // Cross product to find rotation axis
@@ -233,7 +230,7 @@ public class Navigator extends KiboRpcService {
 
     // Avoid division by zero
     if (axisMagnitude < 1e-6) {
-      return new Pose(currentPoint, new Quaternion(0, 0, 0, 1));
+      return new Pose(currentPoint, new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
     }
 
     axisX /= axisMagnitude;
