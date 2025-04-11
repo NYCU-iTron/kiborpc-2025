@@ -77,5 +77,8 @@ RUN echo "y" | $ANDROID_HOME/tools/bin/sdkmanager \
     "platform-tools" \
     "ndk;20.0.5594570"
 
+# Remove apt cache
+RUN rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
