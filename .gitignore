@@ -1,2 +1,3 @@
 docker/tmp/*
 venv/
+assets/
