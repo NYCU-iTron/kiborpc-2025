@@ -18,6 +18,8 @@ import android.util.Log;
  */
 public class Navigator {
   private final KiboRpcApi api;
+  private final String TAG = this.getClass().getSimpleName();
+  long startTime;
 
   // Target poses in each area
   public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
@@ -27,33 +29,89 @@ public class Navigator {
   public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0.0f, 0.0f, 1.0f, 0.0f));
   public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f));
 
-  // Route between each area
-  public final List<Pose> dockToPatrol1;
-  public final List<Pose> patrol1ToPatrol2;
-  public final List<Pose> patrol2ToPatrol3;
-  public final List<Pose> patrol3ToPatrol4;
-  public final List<Pose> patrol4ToReport;
-  
+  /**
+   * Constructor
+   * 
+   * @param apiRef API reference from runPlan in YourService.java
+   * @return The current average pose
+   */
   public Navigator(KiboRpcApi apiRef) {
     this.api = apiRef;
-
-    // Precompute each route
-    dockToPatrol1 = interpolate(Dock, Patrol1);
-    patrol1ToPatrol2 = interpolate(Patrol1, Patrol2);
-    patrol2ToPatrol3 = interpolate(Patrol2, Patrol3);
-    patrol3ToPatrol4 = interpolate(Patrol3, Patrol4);
-    patrol4ToReport = interpolate(Patrol4, Report);
+    startTime = System.currentTimeMillis();
+    Log.i(TAG,  "Initialized at " + startTime);
   }
 
   public Pose getCurrentPose() {
-    // TODO : Deal with measure error and low confidence
-    Kinematics kinematics = api.getRobotKinematics();
-    return new Pose(kinematics.getPosition(), kinematics.getOrientation());
+    int numAttempts = 10;
+    double accPosX = 0, accPosY = 0, accPosZ = 0;
+    double accOriX = 0, accOriY = 0, accOriZ = 0, accOriW = 0;
+    double weight = 0, totalWeight = 0;
+
+    // Collect kinematics data from API
+    for (int i = 0; i < numAttempts; i++) {
+      Kinematics kinematics = api.getRobotKinematics();
+      Kinematics.Confidence confidence = kinematics.getConfidence();
+
+      if (confidence == Kinematics.Confidence.GOOD) {
+        weight = 1.0;
+      } else if (confidence == Kinematics.Confidence.POOR) {
+        weight = 0.5;
+      } else { // confidence == Confidence.LOST
+        Log.w(TAG, "Get current pose with low confidence");
+        continue;      
+      }
+
+      totalWeight += weight;
+
+      Point position = kinematics.getPosition();
+      accPosX += position.getX() * weight;
+      accPosY += position.getY() * weight;
+      accPosZ += position.getZ() * weight;
+
+      Quaternion orientation = kinematics.getOrientation();
+      accOriX += (double) orientation.getX() * weight;
+      accOriY += (double) orientation.getY() * weight;
+      accOriZ += (double) orientation.getZ() * weight;
+      accOriW += (double) orientation.getW() * weight;
+    }
+    
+    // Compute avergae
+    double avgPosX = accPosX / totalWeight;
+    double avgPosY = accPosY / totalWeight;
+    double avgPosZ = accPosZ / totalWeight;
+    
+    float avgOriX = (float) (accOriX / totalWeight);
+    float avgOriY = (float) (accOriY / totalWeight);
+    float avgOriZ = (float) (accOriZ / totalWeight);
+    float avgOriW = (float) (accOriW / totalWeight);
+
+    // Normalize
+    float norm = (float) Math.sqrt(avgOriX * avgOriX + avgOriY * avgOriY + avgOriZ * avgOriZ + avgOriW * avgOriW);
+    avgOriX /= norm;
+    avgOriY /= norm;
+    avgOriZ /= norm;
+    avgOriW /= norm;
+
+    Pose pose = new Pose(new Point(avgPosX, avgPosY, avgPosZ), new Quaternion(avgOriX, avgOriY, avgOriZ, avgOriW));
+    return pose;
   }
 
   public Result moveTo(Pose target) {
-    // TODO : Deal with failure
+    int maxRetries = 5;
     Result result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
+    
+    // Enter retry loop if failed
+    while (!result.hasSucceeded() && maxRetries > 0) {
+      Log.i(TAG, "Retrying move to: " + target.toString());
+      result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
+      maxRetries--;
+    }
+
+    // If still not successful after retries, log the error.
+    if (!result.hasSucceeded()) {
+      Log.w(TAG, "Failed to move to: " + target.toString());
+    }
+    
     return result;
   }
 
@@ -63,27 +121,22 @@ public class Navigator {
    * @param waypoints A list of poses representing the waypoints to navigate through.
    * @return The result of the last move command.
    */
-  public Result navigateThrough(List<Pose> waypoints) {
-    Result lastResult = null;
+  public Result navigateThrough(Pose targetPose) {
+    Pose currentPose = getCurrentPose();
+    List<Pose> poses = interpolate(currentPose, targetPose);
+    Result result = null;
 
-    for (Pose pose : waypoints) {
-      lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
-      
-      int maxRetries = 3;
-      while (!lastResult.hasSucceeded() && maxRetries > 0) {
-        Log.d("Navigator", "Retrying move to: " + pose.toString());
-        lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
-        maxRetries--;
-      }
-
-      // If still not successful after retries, log the error and continue to the next waypoint
-      if (!lastResult.hasSucceeded()) {
-        Log.e("Navigator", "Failed to move to: " + pose.toString());
-      }
-
+    for (Pose pose : poses) {
+      result = moveTo(pose);
     }
 
-    return lastResult;
+    return result;
+  }
+
+  public static List<Pose> astar(Pose start, Pose end) {
+    Point startPoint = start.getPoint();
+    Point endPoint = end.getPoint();
+
   }
 
   /**
@@ -101,7 +154,7 @@ public class Navigator {
     double dy = endPoint.getY() - startPoint.getY();
     double dz = endPoint.getZ() - startPoint.getZ();
 
-    double linearUnit = 0.08;
+    double linearUnit = 0.2;
     double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     int numSteps = (int) (distance / linearUnit);
     List<Pose> poses = new ArrayList<>();
@@ -250,5 +303,17 @@ public class Navigator {
     float qw = (float) Math.cos(halfTheta);
 
     return new Pose(currentPoint, new Quaternion(qx, qy, qz, qw));
+  }
+
+  public static Pose getBodyPoseFromCamera(Pose cameraPose) {
+    Point cameraPoint = cameraPose.getPoint();
+    
+    double bodyX = cameraPoint.getX() - 0.1177;
+    double bodyY = cameraPoint.getY() + 0.0422;
+    double bodyZ = cameraPoint.getZ() + 0.0826;
+
+    Pose bodyPose = new Pose(new Point(bodyX, bodyY, bodyZ), cameraPose.getQuaternion());
+
+    return bodyPose;
   }
 }
