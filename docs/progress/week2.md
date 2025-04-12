@@ -2,6 +2,11 @@
 
 ## Meeting Record
 
+- Remind wrong file location
+- Remind git command
+- Check generated data set
+- [Android log](https://stackoverflow.com/questions/7959263/android-log-v-log-d-log-i-log-w-log-e-when-to-use-each-one)
+
 ## Progress
 
 - Complete signing up for the competition
