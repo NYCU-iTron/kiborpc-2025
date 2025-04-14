@@ -10,6 +10,12 @@ import gov.nasa.arc.astrobee.Result;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.io.FileReader;
+import java.lang.reflect.Type;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import android.util.Log;
 
 
@@ -133,11 +139,36 @@ public class Navigator {
     return result;
   }
 
-  public static List<Pose> astar(Pose start, Pose end) {
-    Point startPoint = start.getPoint();
-    Point endPoint = end.getPoint();
+  public Result navigatePrecomputed() {
+    List<Pose> poses = loadPathFromJson("pose_path.json");
+    Result result = null;
 
+    for (Pose pose : poses) {
+      result = moveTo(pose);
+    }
+
+    return result;
   }
+
+  public List<Pose> loadPathFromJson(String filename) {
+    List<Pose> poses = new ArrayList<>();
+    try {
+      Gson gson = new Gson();
+      FileReader reader = new FileReader(filename);
+      Type poseListType = new TypeToken<List<Pose>>(){}.getType();
+      poses = gson.fromJson(reader, poseListType);
+      reader.close();
+    } catch (Exception e) {
+      e.printStackTrace();
+      Log.e(TAG, "No file found");
+    }
+    return poses;
+  }
+  // public static List<Pose> astar(Pose start, Pose end) {
+  //   Point startPoint = start.getPoint();
+  //   Point endPoint = end.getPoint();
+
+  // }
 
   /**
    * Interpolates between two poses to create a smooth transition.
