@@ -197,10 +197,10 @@ class Astar:
         return path[::-1]
       
       for neighbor in self.get_neighbors(current):
-        # Edge cost in time
-        dx = neighbor[0] * 0.05 - current[0] * 0.05
-        dy = neighbor[1] * 0.05 - current[1] * 0.05
-        dz = neighbor[2] * 0.05 - current[2] * 0.05
+        # Edge cost
+        dx = neighbor[0] - current[0]
+        dy = neighbor[1] - current[1]
+        dz = neighbor[2] - current[2]
 
         distance = ((dx) ** 2 + (dy) ** 2 + (dz) ** 2) ** 0.5
         edge_time = distance / speed
@@ -208,16 +208,16 @@ class Astar:
         if self.grid[neighbor[0]][neighbor[1]][neighbor[2]]["oasis"]:
           edge_time *= oasis_factor
         
-        tentative_g = g_score[current] + edge_time
+        tentative_g = g_score[current] + distance
         if tentative_g < g_score.get(neighbor, float("inf")):
           came_from[neighbor] = current
           g_score[neighbor] = tentative_g
-          f_score[neighbor] = tentative_g + self.h_compound(neighbor, goal, speed)
+          f_score[neighbor] = tentative_g + self.h_compound(neighbor, goal)
           heapq.heappush(open_set, (f_score[neighbor], neighbor))
   
     return None  # No path
   
-  def h_compound(self, cell, goal, speed=0.05, w_time=0.1, w_oasis=0.9):
+  def h_compound(self, cell, goal, w_distance=0.8, w_oasis=0.2):
     """
     Compound heuristic combining time, Oasis, and KIZ factors.
     
@@ -234,13 +234,12 @@ class Astar:
       Estimated time (seconds) to goal.
     """
     # Convert indices to real-world coordinates
-    dx = goal[0] * 0.05 - cell[0] * 0.05
-    dy = goal[1] * 0.05 - cell[1] * 0.05
-    dz = goal[2] * 0.05 - cell[2] * 0.0
+    dx = goal[0] - cell[0]
+    dy = goal[1] - cell[1]
+    dz = goal[2] - cell[2]
     
     # Time term: Euclidean distance / speed
     distance = ((dx) ** 2 + (dy) ** 2 + (dz) ** 2) ** 0.5
-    h_time = distance / speed
     
     # Oasis term: Discount if in Oasis zone
     h_oasis = 0
@@ -249,7 +248,7 @@ class Astar:
       h_oasis = -min(0.05 * h_time, 0.5)
     
     # Combine with weights
-    return w_time * h_time + w_oasis * h_oasis
+    return w_distance * distance + w_oasis * h_oasis
   
   def show_grid_info(self):
     total_cells = self.grid_shape[0] * self.grid_shape[1] * self.grid_shape[2]
