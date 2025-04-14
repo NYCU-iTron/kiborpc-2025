@@ -283,6 +283,32 @@ class Astar:
     print(f"Total cells: {total_cells}")
     print(f"Valid cells (in KIZ): {valid_cells}")
     print(f"Oasis cells: {oasis_cells}")
+  
+  def write_json(self):
+    pose_list = []
+    threshold=0.15
+    last = None
+
+    for subpath in self.paths:
+      for i, j, k in subpath:          
+        x = self.x_min + i * self.step
+        y = self.y_min + j * self.step
+        z = self.z_min + k * self.step
+        if last is None or self.euclidean((x, y, z), last) >= threshold:
+          pose = {
+            "point": {"x": x, "y": y, "z": z},
+            "quaternion": {"x": 0, "y": 0, "z": 0, "w": 1}
+          }
+          pose_list.append(pose)
+          last = (x, y, z)
+
+    with open("pose_path.json", "w") as f:
+      json.dump(pose_list, f, indent=2)
+
+  def euclidean(self, p1, p2):
+    return math.sqrt(sum((a - b) ** 2 for a, b in zip(p1, p2)))
+
+
                       
 fig = plt.figure(figsize=(10, 7))
 ax = fig.add_subplot(111, projection='3d')
