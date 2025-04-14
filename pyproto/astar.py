@@ -46,6 +46,17 @@ class Astar:
       int((self.z_max - self.z_min) / self.step) + 1   # 32
     )
 
+    self.areas_grid = {}
+    for area_name, bounds in self.areas.items():
+      min_point = (bounds[0], bounds[1], bounds[2])
+      max_point = (bounds[3], bounds[4], bounds[5])
+
+      # Convert bounding corners to grid indices
+      min_i, min_j, min_k = self.get_cell(min_point)
+      max_i, max_j, max_k = self.get_cell(max_point)
+
+      self.areas_grid[area_name] = [min_i, min_j, min_k, max_i, max_j, max_k]
+
     self.grid = self.get_grid()
     self.path1 = self.get_astar_path(self.get_cell(self.points['dock']), self.get_cell(self.points['patrol1']))
     self.path2 = self.get_astar_path(self.get_cell(self.points['patrol1']), self.get_cell(self.points['patrol2']))
@@ -128,7 +139,7 @@ class Astar:
           x = self.x_min + i * self.step
           y = self.y_min + j * self.step
           z = self.z_min + k * self.step
-          cell = {"valid": False, "oasis": False}
+          cell = {"valid": False, "oasis": None}
 
           # Check if the cell is in any KIZ
           if self.is_in_zone(x, y, z, self.areas["KIZ 1"]) or self.is_in_zone(x, y, z, self.areas["KIZ 2"]):
@@ -137,7 +148,7 @@ class Astar:
             # Check if the cell is in any Oasis
             for zone_name, coords in self.areas.items():
               if zone_name.startswith("Oasis") and self.is_in_zone(x, y, z, coords):
-                cell["oasis"] = True
+                cell["oasis"] = zone_name
                 break
 
           grid[i][j][k] = cell
@@ -203,10 +214,18 @@ class Astar:
         dz = neighbor[2] - current[2]
 
         distance = ((dx) ** 2 + (dy) ** 2 + (dz) ** 2) ** 0.5
-        edge_time = distance / speed
-        oasis_factor = 0.1
-        if self.grid[neighbor[0]][neighbor[1]][neighbor[2]]["oasis"]:
-          edge_time *= oasis_factor
+        
+        oasis_factor = 0.7
+        oasis_name = self.grid[neighbor[0]][neighbor[1]][neighbor[2]]["oasis"]
+        if oasis_name:
+          if oasis_name == "Oasis 1":
+            oasis_factor *= (self.areas_grid[oasis_name][4] - neighbor[1]) / (self.areas_grid[oasis_name][4] - self.areas_grid[oasis_name][1])
+          elif oasis_name == "Oasis 2" or oasis_name == "Oasis 3":
+            oasis_factor *=(self.areas_grid[oasis_name][5] - neighbor[2]) / (self.areas_grid[oasis_name][5] - self.areas_grid[oasis_name][2])
+          elif oasis_name == "Oasis 4":
+            oasis_factor *= (self.areas_grid[oasis_name][3] - neighbor[0]) / (self.areas_grid[oasis_name][3] - self.areas_grid[oasis_name][0])
+          
+          distance *= oasis_factor
         
         tentative_g = g_score[current] + distance
         if tentative_g < g_score.get(neighbor, float("inf")):
