@@ -4,7 +4,8 @@ import heapq
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.animation import FuncAnimation
-
+import json
+import math
 
 class Astar:
   colors = {
@@ -15,6 +16,10 @@ class Astar:
   alpha = 0.2
 
   areas = {
+    # "Area 1": (10.42, -10.58, 4.82, 11.48, -10.58, 5.57),
+    # "Area 2": (10.3, -9.25, 3.76203, 11.55, -8.5, 3.76203),
+    # "Area 3": (10.3, -8.4, 3.76093, 11.55, -7.45, 3.76093),
+    # "Area 4": (9.866984, -7.34, 4.32, 9.866984, -6.365, 5.57),
     "Oasis 1": (10.425, -10.2, 4.445, 11.425, -9.5, 4.945),
     "Oasis 2": (10.925, -9.5, 4.945, 11.425, -8.45, 5.445),
     "Oasis 3": (10.425, -8.45, 4.945, 10.975, -7.4, 5.445),
@@ -26,10 +31,18 @@ class Astar:
   points = {
     "dock": (9.815, -9.806, 4.293),
     "patrol1":(10.95, -10, 4.8),
+    "enhance1":(10.925, -8.875, 5.32),
     "patrol2":(10.925, -8.875, 4.462),
+    "enhance2":(10.925, -8.45, 5.32),
     "patrol3":(10.925, -7.925, 4.462),
+    "enhance3":(10.925, -6.853, 4.945),
     "patrol4":(10.567, -6.853, 4.945),
     "report": (11.143, -6.7607, 4.9654),
+
+    "oasis1Center":((areas["Oasis 1"][0]+areas["Oasis 1"][3])/2, (areas["Oasis 1"][1]+areas["Oasis 1"][4])/2, (areas["Oasis 1"][2]+areas["Oasis 1"][5])/2),
+    "oasis2Center":((areas["Oasis 2"][0]+areas["Oasis 2"][3])/2, (areas["Oasis 2"][1]+areas["Oasis 2"][4])/2, (areas["Oasis 2"][2]+areas["Oasis 2"][5])/2),
+    "oasis3Center":((areas["Oasis 3"][0]+areas["Oasis 3"][3])/2, (areas["Oasis 3"][1]+areas["Oasis 3"][4])/2, (areas["Oasis 3"][2]+areas["Oasis 3"][5])/2),
+    "oasis4Center":((areas["Oasis 4"][0]+areas["Oasis 4"][3])/2, (areas["Oasis 4"][1]+areas["Oasis 4"][4])/2, (areas["Oasis 4"][2]+areas["Oasis 4"][5])/2),
   }
 
   def __init__(self, ax):
@@ -57,13 +70,26 @@ class Astar:
 
       self.areas_grid[area_name] = [min_i, min_j, min_k, max_i, max_j, max_k]
 
-    self.grid = self.get_grid()
-    self.path1 = self.get_astar_path(self.get_cell(self.points['dock']), self.get_cell(self.points['patrol1']))
-    self.path2 = self.get_astar_path(self.get_cell(self.points['patrol1']), self.get_cell(self.points['patrol2']))
-    self.path3 = self.get_astar_path(self.get_cell(self.points['patrol2']), self.get_cell(self.points['patrol3']))
-    self.path4 = self.get_astar_path(self.get_cell(self.points['patrol3']), self.get_cell(self.points['patrol4']))
-    self.path5 = self.get_astar_path(self.get_cell(self.points['patrol4']), self.get_cell(self.points['report']))
+    self.points_grid = {}
+    for point_name, point in self.points.items():
+      i, j, k = self.get_cell(point)
+      self.points_grid[point_name] = (i, j, k)
 
+    self.grid = self.get_grid()
+    point_order = ["dock", "patrol1", "enhance1", "patrol2", "enhance2", "patrol3", "enhance3", "patrol4", "report"]
+    # point_order = ["dock", "patrol1", "patrol2", "patrol3", "patrol4", "report"]
+
+    self.paths = []
+    for i in range(len(point_order) - 1):
+      start_name = point_order[i]
+      end_name = point_order[i + 1]
+      
+      start_cell = self.points_grid[start_name]
+      end_cell = self.points_grid[end_name]
+      
+      path = self.get_astar_path(start_cell, end_cell)
+      self.paths.append(path)
+ 
   def draw_areas(self) -> None:
     for label, area in self.areas.items():
       self.draw_area(area, self.colors[label.split()[0]])
@@ -84,26 +110,31 @@ class Astar:
     self.ax.add_collection3d(Poly3DCollection(verts5, color=color, alpha=self.alpha))
     self.ax.add_collection3d(Poly3DCollection(verts6, color=color, alpha=self.alpha))
 
-  def draw_path(self):
-    xs, ys, zs = zip(*[(9.5 + i * 0.05, -10.5 + j * 0.05, 4.02 + k * 0.05) 
-                  for i, j, k in self.path1])
-    self.ax.plot(xs, ys, zs, 'r-', label='Path')
+  def draw_path(self):    
+    for path in self.paths:
+      xs, ys, zs = zip(*[(9.5 + i * 0.05, -10.5 + j * 0.05, 4.02 + k * 0.05) for i, j, k in path])
+      self.ax.plot(xs, ys, zs, 'r-', label='Path')
 
-    xs, ys, zs = zip(*[(9.5 + i * 0.05, -10.5 + j * 0.05, 4.02 + k * 0.05) 
-                  for i, j, k in self.path2])
-    self.ax.plot(xs, ys, zs, 'r-', label='Path')
+  def draw_oasis_score(self):
+    xs, ys, zs, scores = [], [], [], []
 
-    xs, ys, zs = zip(*[(9.5 + i * 0.05, -10.5 + j * 0.05, 4.02 + k * 0.05) 
-                  for i, j, k in self.path3])
-    self.ax.plot(xs, ys, zs, 'r-', label='Path')
+    for i in range(len(self.grid)):
+      for j in range(len(self.grid[0])):
+        for k in range(len(self.grid[0][0])):
+          cell = self.grid[i][j][k]
+          if cell["oasis"] > 0:
+            x = self.x_min + i * self.step
+            y = self.y_min + j * self.step
+            z = self.z_min + k * self.step
+            xs.append(x)
+            ys.append(y)
+            zs.append(z)
+            scores.append(cell["oasis"])  # score between 0.0 ~ 1.0
 
-    xs, ys, zs = zip(*[(9.5 + i * 0.05, -10.5 + j * 0.05, 4.02 + k * 0.05) 
-                  for i, j, k in self.path4])
-    self.ax.plot(xs, ys, zs, 'r-', label='Path')
+    sc = self.ax.scatter(xs, ys, zs, c=scores, cmap='viridis', s=5, alpha=0.8)
+    # plt.colorbar(sc, label='Oasis Score')
+    # plt.title("3D Oasis Score Distribution")
 
-    xs, ys, zs = zip(*[(9.5 + i * 0.05, -10.5 + j * 0.05, 4.02 + k * 0.05) 
-                  for i, j, k in self.path5])
-    self.ax.plot(xs, ys, zs, 'r-', label='Path')
 
   def set_axes_equal(self):
     x_limits = self.ax.get_xlim()
@@ -139,7 +170,7 @@ class Astar:
           x = self.x_min + i * self.step
           y = self.y_min + j * self.step
           z = self.z_min + k * self.step
-          cell = {"valid": False, "oasis": None}
+          cell = {"valid": False, "oasis": 0}
 
           # Check if the cell is in any KIZ
           if self.is_in_zone(x, y, z, self.areas["KIZ 1"]) or self.is_in_zone(x, y, z, self.areas["KIZ 2"]):
@@ -147,10 +178,26 @@ class Astar:
 
             # Check if the cell is in any Oasis
             for zone_name, coords in self.areas.items():
-              if zone_name.startswith("Oasis") and self.is_in_zone(x, y, z, coords):
-                cell["oasis"] = zone_name
+              if zone_name == "Oasis 1" and self.is_in_zone(x, y, z, coords):
+                cell["oasis"] = (j - self.areas_grid[zone_name][1]) / (self.areas_grid[zone_name][4] - self.areas_grid[zone_name][1])
                 break
+              elif (zone_name == "Oasis 2" or zone_name == "Oasis 3") and self.is_in_zone(x, y, z, coords):
+                cell["oasis"] = (k - self.areas_grid[zone_name][2]) / (self.areas_grid[zone_name][5] - self.areas_grid[zone_name][2])
+                break
+              elif zone_name == "Oasis 4" and self.is_in_zone(x, y, z, coords):
+                cell["oasis"] = (i - self.areas_grid[zone_name][0]) / (self.areas_grid[zone_name][3] - self.areas_grid[zone_name][0])
+                break
+              else:
+                continue
 
+            if cell['oasis'] == 0:
+              # Not in oasis
+              min_dist = float("inf")
+              for point_name, point in self.points_grid.items():
+                if point_name == "oasis1Center" or point_name == "oasis2Center" or point_name == "oasis3Center" or point_name == "oasis4Center":
+                  l, m, n = point
+                  min_dist = min(min_dist, ((i-l)**2+(j-m)**2+(k-n)**2)**0.5)
+              cell["oasis_dist"] = min_dist                
           grid[i][j][k] = cell
     
     return grid
@@ -181,7 +228,7 @@ class Astar:
             neighbors.append((ni, nj, nk))
     return neighbors
   
-  def get_astar_path(self, start, goal, speed=0.05):
+  def get_astar_path(self, start, goal):
     """"
     g_score: The exact cost from the start node to the current node.
     h_score, heuristic: The estimated cost from the current node to the goal.
@@ -194,7 +241,7 @@ class Astar:
     open_set = [(0, start)] # (f_score, cell)
     came_from = {}
     g_score = {start: 0} # Time from start
-    f_score = {start: self.h_compound(start, goal, speed)}  # g + h
+    f_score = {start: self.h_compound(start, goal)}  # g + h
     
     while open_set:
       _, current = heapq.heappop(open_set)
@@ -214,29 +261,19 @@ class Astar:
         dz = neighbor[2] - current[2]
 
         distance = ((dx) ** 2 + (dy) ** 2 + (dz) ** 2) ** 0.5
-        
-        oasis_factor = 0.7
-        oasis_name = self.grid[neighbor[0]][neighbor[1]][neighbor[2]]["oasis"]
-        if oasis_name:
-          if oasis_name == "Oasis 1":
-            oasis_factor *= (self.areas_grid[oasis_name][4] - neighbor[1]) / (self.areas_grid[oasis_name][4] - self.areas_grid[oasis_name][1])
-          elif oasis_name == "Oasis 2" or oasis_name == "Oasis 3":
-            oasis_factor *=(self.areas_grid[oasis_name][5] - neighbor[2]) / (self.areas_grid[oasis_name][5] - self.areas_grid[oasis_name][2])
-          elif oasis_name == "Oasis 4":
-            oasis_factor *= (self.areas_grid[oasis_name][3] - neighbor[0]) / (self.areas_grid[oasis_name][3] - self.areas_grid[oasis_name][0])
-          
-          distance *= oasis_factor
+        distance -= self.grid[neighbor[0]][neighbor[1]][neighbor[2]]["oasis"]
         
         tentative_g = g_score[current] + distance
         if tentative_g < g_score.get(neighbor, float("inf")):
           came_from[neighbor] = current
           g_score[neighbor] = tentative_g
-          f_score[neighbor] = tentative_g + self.h_compound(neighbor, goal)
+          h = self.h_compound(neighbor, goal)
+          f_score[neighbor] = tentative_g + h
           heapq.heappush(open_set, (f_score[neighbor], neighbor))
   
     return None  # No path
   
-  def h_compound(self, cell, goal, w_distance=0.8, w_oasis=0.2):
+  def h_compound(self, cell, goal, w_distance=0.2, w_oasis=0.8):
     """
     Compound heuristic combining time, Oasis, and KIZ factors.
     
@@ -250,7 +287,7 @@ class Astar:
       w_oasis: Weight for Oasis discount (default 0.5).
     
     Returns:
-      Estimated time (seconds) to goal.
+      Estimated distance to goal.
     """
     # Convert indices to real-world coordinates
     dx = goal[0] - cell[0]
@@ -262,10 +299,18 @@ class Astar:
     
     # Oasis term: Discount if in Oasis zone
     h_oasis = 0
-    if self.grid[cell[0]][cell[1]][cell[2]]["oasis"]:
-      # Cap discount at 5% of time or 0.5 seconds
-      h_oasis = -min(0.05 * h_time, 0.5)
-    
+    if self.grid[cell[0]][cell[1]][cell[2]]["oasis"] > 0:
+      # Cap discount at 10% of time or 0.5 m
+      h_oasis = -max(0.1 * distance, 1)
+    else:
+      oasis_dist = self.grid[cell[0]][cell[1]][cell[2]]["oasis_dist"]
+      max_effect = 1.2  # 最大吸引力
+      min_dist = 5
+      max_dist = 15
+      normalized = max(0, min(1, (oasis_dist - min_dist) / (max_dist - min_dist)))
+      h_oasis = -max_effect * (1 - normalized)      
+      # print(h_oasis)
+
     # Combine with weights
     return w_distance * distance + w_oasis * h_oasis
   
@@ -278,7 +323,7 @@ class Astar:
     oasis_cells = sum(1 for i in range(self.grid_shape[0]) 
                         for j in range(self.grid_shape[1]) 
                         for k in range(self.grid_shape[2]) 
-                        if self.grid[i][j][k]["oasis"])
+                        if self.grid[i][j][k]["oasis"] > 0)
 
     print(f"Total cells: {total_cells}")
     print(f"Valid cells (in KIZ): {valid_cells}")
@@ -321,13 +366,14 @@ astar.set_axes_equal()
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
-ax.view_init(elev=200, azim=0)
+ax.view_init(elev=200, azim=-45)
 
 # Function to update the view angle for animation
-def update(frame):
-  ax.view_init(elev=200, azim=frame*0.5)
-  return []
-ani = FuncAnimation(fig, update, frames=np.arange(0, 360, 2), interval=50, blit=False)
+# def update(frame):
+#   ax.view_init(elev=200, azim=frame*0.5)
+#   return []
+# ani = FuncAnimation(fig, update, frames=np.arange(0, 360, 2), interval=50, blit=False)
 
+astar.write_json()
 fig.tight_layout()
 plt.show()
