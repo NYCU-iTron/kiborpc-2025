@@ -1,7 +1,7 @@
 ARG ?= zsh
 
 all: ensure-build container-rm
-	$(MAKE) run ARG=$(ARG)
+	$(MAKE) run ARG="$(ARG)"
 
 ###############################
 ### Docker Builtin Commands ###
@@ -39,6 +39,7 @@ run:
 		--name kiborpc-2025 \
 		--ulimit nofile=1024:524288 \
 		--mount type=bind,source=$(CURDIR)/../app,target=/root/app \
+		--mount type=bind,source=$(CURDIR)/tmp/.gradle,target=/root/.gradle \
 		kiborpc-2025:latest $(ARG)
 	xhost -local:root
 
@@ -51,7 +52,7 @@ start:
 stop:
 	-docker stop kiborpc-2025
 
-container-rm:
+container-rm: stop
 	-docker container rm kiborpc-2025
 
 rmi:
