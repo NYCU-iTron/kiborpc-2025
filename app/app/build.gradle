@@ -52,5 +52,4 @@ dependencies {
         exclude group: 'junit'
     }
     implementation 'com.quickbirdstudios:opencv-contrib:4.5.3.0'
-    implementation 'com.google.code.gson:gson:2.10.1'
 }
