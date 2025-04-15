@@ -1,0 +1,19 @@
+<application>
+  <component name="NotRoamableUiSettings">
+    <option name="fontScale" value="2.0" />
+    <option name="fontSize" value="27" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="AndroidInitConfigurator.V1" value="true" />
+    <property name="AndroidInitConfigurator.V3" value="true" />
+    <property name="AndroidInitConfigurator.V5" value="true" />
+    <property name="Default.SavedEditorTheme" value="_@user_Default" />
+    <property name="SettingsSearchHistory" value="sdk" />
+    <property name="ask.about.ctrl.y.shortcut" value="true" />
+    <property name="installed.kotlin.plugin.version" value="1.3.71-release-Studio3.6-1" />
+    <property name="kotlin.plugin.releaseDate" value="1.3.71-release-Studio3.6-1:2020-03-23" />
+    <property name="newly.installed.api.level" value="28" />
+    <property name="studio.activity.count" value="2" />
+    <property name="tasks.pass.word.conversion.enforced" value="true" />
+  </component>
+</application>

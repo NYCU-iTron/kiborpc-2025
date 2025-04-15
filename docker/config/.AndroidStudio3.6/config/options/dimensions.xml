@@ -1,0 +1,6 @@
+<application>
+  <component name="DimensionService">
+    <location key="WELCOME_SCREEN.0.0.2880.1920@192dpi" x="1155" y="733" />
+    <location key="SettingsEditor.0.0.2880.1920@192dpi" x="335" y="212" />
+  </component>
+</application>

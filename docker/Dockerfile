@@ -58,11 +58,13 @@ RUN apt-get update && apt-get install -y openjdk-8-jdk
 RUN apt-get update && apt-get install -y wget
 RUN apt-get update && apt-get install -y unzip
 RUN apt-get update && apt-get install -y gradle
+RUN apt-get update && apt-get install -y adb
+RUN apt-get update && apt-get install -y aria2
 RUN rm -rf /var/lib/apt/lists/*
 
 # Install Android SDK
 RUN mkdir -p $ANDROID_HOME && cd $ANDROID_HOME \
-    && wget -q https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip \
+    && aria2c -x 16 -s 16 -d $ANDROID_HOME -o sdk-tools-linux-4333796.zip https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip \
     && unzip sdk-tools-linux-4333796.zip \
     && rm sdk-tools-linux-4333796.zip
 
@@ -76,12 +78,25 @@ RUN echo "y" | $ANDROID_HOME/tools/bin/sdkmanager \
     "build-tools;28.0.3" \
     "platform-tools" \
     "ndk;20.0.5594570"
+RUN mkdir -p /root/Android/
+RUN ln -s /opt/android-sdk /root/Android/Sdk
 
 # Install GNU Make
 RUN apt-get update && apt-get install -y build-essential
+
+# Install android studio
+RUN aria2c -x 16 -s 16 -d /tmp -o android-studio.tar.gz https://redirector.gvt1.com/edgedl/android/studio/ide-zips/3.6.3.0/android-studio-ide-192.6392135-linux.tar.gz
+RUN echo "33ec9f61b20b71ca175cd39083b1379ebba896de78b826ea5df5d440c6adfd2a /tmp/android-studio.tar.gz" | sha256sum -c -
+RUN tar -xzf /tmp/android-studio.tar.gz -C /opt
+RUN rm -rf /tmp/android-studio.tar.gz
+ENV PATH="/opt/android-studio/bin:${PATH}"
+RUN ln -s /opt/android-studio/bin/studio.sh /usr/local/bin/studio
+COPY config/.android /root/.android
+COPY config/.AndroidStudio3.6 /root/.AndroidStudio3.6
+COPY config/.java /root/.java
 
 # Remove apt cache
 RUN rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /app
+WORKDIR /root/app

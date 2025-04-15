@@ -1,11 +1,7 @@
 ARG ?= zsh
 
-all:
-### Build
-	make ensure-build
-### Run
-	make container-rm
-	make run ARG=$(ARG)
+all: ensure-build container-rm
+	$(MAKE) run ARG=$(ARG)
 
 ###############################
 ### Docker Builtin Commands ###
@@ -42,7 +38,7 @@ run:
 		--net=host \
 		--name kiborpc-2025 \
 		--ulimit nofile=1024:524288 \
-		--mount type=bind,source=$(CURDIR)/../app,target=/app \
+		--mount type=bind,source=$(CURDIR)/../app,target=/root/app \
 		kiborpc-2025:latest $(ARG)
 	xhost -local:root
 
@@ -81,21 +77,22 @@ clean: stop container-rm rmi
 # If cached image is not present, check if the image is already present
 # If all fail, exit with error code
 ensure-build:
-	@if ping -c 1 -W 1 8.8.8.8 > /dev/null 2>&1; then \
+	@set -e; \
+	if ping -c 1 -W 1 8.8.8.8 > /dev/null 2>&1; then \
 		echo -e "\e[1;36mNetwork is up, building the image\e[0m"; \
-		make build; \
+		$(MAKE) build; \
 		if [ -f "tmp/dockerfile-hash.txt" ] && sha256sum -c tmp/dockerfile-hash.txt > /dev/null 2>&1; then \
 			echo -e "\e[1;36mCached image is up to date\e[0m"; \
 		else \
 			echo -e "\e[1;36mCached image is different, replacing the cached image\e[0m"; \
-			make save; \
+			$(MAKE) save; \
 			sha256sum Dockerfile > tmp/dockerfile-hash.txt; \
 		fi; \
 	else \
 		echo -e "\e[1;36mNetwork is down, finding the cached image\e[0m"; \
 		if [ -f "tmp/image/kiborpc-2025.tar" ]; then \
 			echo -e "\e[1;36mCached image found, loading the image\e[0m"; \
-			make load; \
+			$(MAKE) load; \
 		else \
 			echo -e "\e[1;36mCached image not found, checking if the image is already present\e[0m"; \
 			if [ -z "$$(docker images -q kiborpc-2025:latest)" ]; then \
