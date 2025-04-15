@@ -10,13 +10,16 @@ import gov.nasa.arc.astrobee.Result;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.io.FileReader;
 import java.lang.reflect.Type;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import android.util.Log;
+import android.content.Context;
+import android.content.res.AssetManager;
 
 
 /**
@@ -102,6 +105,10 @@ public class Navigator {
     return pose;
   }
 
+  /* -------------------------------------------------------------------------- */
+  /*                                  Movement                                  */
+  /* -------------------------------------------------------------------------- */
+
   public Result moveTo(Pose target) {
     int maxRetries = 5;
     Result result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
@@ -139,8 +146,8 @@ public class Navigator {
     return result;
   }
 
-  public Result navigatePrecomputed() {
-    List<Pose> poses = loadPathFromJson("pose_path.json");
+  public Result navigatePrecomputed(Context context) {
+    List<Pose> poses = loadPathFromJson(context, "pose_path.json");
     Result result = null;
 
     for (Pose pose : poses) {
@@ -150,14 +157,111 @@ public class Navigator {
     return result;
   }
 
-  public List<Pose> loadPathFromJson(String filename) {
+  public void navigateArea1() {
+    // Pose point1 = new Pose (
+    //   new Point(10.45, -9.7, 4.47), 
+    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
+    // );
+    // Pose point2 = new Pose (
+    //   new Point(10.45, -9.52, 4.47), 
+    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
+    // );
+    // Pose point3 = new Pose(
+    //   new Point(10.95, -9.52, 4.9), 
+    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.95, -9.9, 4.9),
+      new Quaternion(0.0f, -0.281f, -0.649f, 0.707f)
+    );
+
+    // moveTo(point1);
+    // moveTo(point2);
+    // moveTo(point3);
+    moveTo(finalPose);
+  }
+
+  public void navigateArea2() {
+    // Pose point1 = new Pose(
+    //   new Point(10.94, -9.5, 4.9), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    // Pose point2 = new Pose(
+    //   new Point(10.94, -9.48, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    // Pose point3 = new Pose(
+    //   new Point(10.94, -8.875, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.925, -8.875, 4.462),
+      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    );
+    // moveTo(point1);
+    // moveTo(point2);
+    // moveTo(point3);
+    moveTo(finalPose);
+  }
+
+  public void navigateArea3() {
+    // Pose point1 = new Pose(
+    //   new Point(10.925, -8.875, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    // Pose point2 = new Pose(
+    //   new Point(10.925, -7.925, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.925, -7.925, 4.462),
+      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    );
+    // moveTo(point1);
+    // moveTo(point2);
+    moveTo(finalPose);
+  }
+
+  public void navigateArea4() {
+    // Pose point1 = new Pose(
+    //   new Point(11.4, -7.4, 4.462), 
+    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
+    // );
+    // Pose point2 = new Pose(
+    //   new Point(11.4, -6.853, 4.92), 
+    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.567, -6.853, 4.92),
+      new Quaternion(0.0f, -1.0f, 0.02f, 0.02f)
+    );
+    // moveTo(point1);
+    // moveTo(point2);
+    moveTo(finalPose);
+  }
+
+  public void navigateReport() {
+    Pose finalPose = new Pose(
+      new Point(11.143, -6.7607, 4.9654),
+      new Quaternion(0.0f, 0.0f, 0.707f, 0.707f)
+    );
+    moveTo(finalPose);
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                               Tool Functions                               */
+  /* -------------------------------------------------------------------------- */
+
+  public List<Pose> loadPathFromJson(Context context, String filename) {
     List<Pose> poses = new ArrayList<>();
     try {
-      Gson gson = new Gson();
-      FileReader reader = new FileReader(filename);
-      Type poseListType = new TypeToken<List<Pose>>(){}.getType();
-      poses = gson.fromJson(reader, poseListType);
-      reader.close();
+        AssetManager assetManager = context.getAssets();
+        InputStream inputStream = assetManager.open(filename);
+        InputStreamReader reader = new InputStreamReader(inputStream);
+        Gson gson = new Gson();
+        Type poseListType = new TypeToken<List<Pose>>(){}.getType();
+        poses = gson.fromJson(reader, poseListType);
+        reader.close();
     } catch (Exception e) {
       e.printStackTrace();
       Log.e(TAG, "No file found");
