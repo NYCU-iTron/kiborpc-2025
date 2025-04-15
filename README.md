@@ -10,16 +10,16 @@ For more details, see [Progress](./docs/progress/progress.md)
 
 ## Task Distribution
 
-- 影像辨識, 資訊處理
-  - 拍照時機控制、儲存 landmark 對應寶藏資訊
-  - 辨識太空人提示的真寶藏、比對與記錄
-  - 資料儲存格式
-- 導航
-  - 巡邏導航
-  - 綠洲停留時間邏輯
-  - 計算機體狀態、定位轉向、角度
-- 任務管理
-  - 決定何時作什麼
+- CameraHandler
+  - Take pictures
+  - Process the image
+  - Extract and store the items information
+- Navigator
+  - Move to the target
+  - Path planning
+  - Deal with the sensor error
+- Main controller
+  - Determine the current state
 
 ## Useful links
 

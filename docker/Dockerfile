@@ -48,46 +48,55 @@ RUN apt-get update && apt-get install -y qtwayland5
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yqq xserver-xorg
 RUN apt-get update && apt-get install -y xwayland
 
-# android studio
-RUN apt-get update && apt-get install -y openjdk-8-jdk adb gradle
-RUN mkdir -p /root/Downloads/
-# # curl (uncomment if aria2c is not available)
-# RUN curl -L --retry 5 --continue-at - https://redirector.gvt1.com/edgedl/android/studio/ide-zips/3.6.3.0/android-studio-ide-192.6392135-linux.tar.gz -o /root/Downloads/android-studio.tar.gz
-# aria2c for faster download
+# Set android environment variables
+ENV JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+ENV ANDROID_HOME=/opt/android-sdk
+ENV PATH=$PATH:$JAVA_HOME/bin:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools
+
+# Install required packages
+RUN apt-get update && apt-get install -y openjdk-8-jdk
+RUN apt-get update && apt-get install -y wget
+RUN apt-get update && apt-get install -y unzip
+RUN apt-get update && apt-get install -y gradle
+RUN apt-get update && apt-get install -y adb
 RUN apt-get update && apt-get install -y aria2
-RUN aria2c -x 16 -s 16 -d /root/Downloads -o android-studio.tar.gz https://redirector.gvt1.com/edgedl/android/studio/ide-zips/3.6.3.0/android-studio-ide-192.6392135-linux.tar.gz
-RUN echo "33ec9f61b20b71ca175cd39083b1379ebba896de78b826ea5df5d440c6adfd2a /root/Downloads/android-studio.tar.gz" | sha256sum -c -
-RUN tar -xzf /root/Downloads/android-studio.tar.gz -C /opt
-RUN rm -rf /root/Downloads/android-studio.tar.gz
-ENV PATH="/opt/android-studio/bin:${PATH}"
-# a link in home folder to run studio easilyq
-RUN ln -s /opt/android-studio/bin/studio.sh /root/studio
-# install android sdk
-ENV ANDROID_SDK_ROOT=/opt/android-sdk
-ENV PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH"
-RUN apt-get update && apt-get install -y openjdk-17-jdk
-RUN mkdir -p ${ANDROID_SDK_ROOT}/cmdline-tools/latest \
-    && aria2c -x 16 -s 16 -d /tmp -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
-    && unzip /tmp/tools.zip -d /tmp/cmdline-tools-tmp \
-    && mv /tmp/cmdline-tools-tmp/cmdline-tools/* ${ANDROID_SDK_ROOT}/cmdline-tools/latest/ \
-    && rm -rf /tmp/tools.zip /tmp/cmdline-tools-tmp
-RUN JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
-    PATH=$JAVA_HOME/bin:$PATH \
-    yes | sdkmanager --licenses && \
-    JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64 \
-    PATH=$JAVA_HOME/bin:$PATH \
-    sdkmanager \
-        "platform-tools" \
-        "platforms;android-25" \
-        "platforms;android-26" \
-        "platforms;android-28" \
-        "build-tools;25.0.3" \
-        "build-tools;26.0.2" \
-        "build-tools;28.0.3" \
-        "ndk;20.0.5594570"
+RUN rm -rf /var/lib/apt/lists/*
+
+# Install Android SDK
+RUN mkdir -p $ANDROID_HOME && cd $ANDROID_HOME \
+    && aria2c -x 16 -s 16 -d $ANDROID_HOME -o sdk-tools-linux-4333796.zip https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip \
+    && unzip sdk-tools-linux-4333796.zip \
+    && rm sdk-tools-linux-4333796.zip
+
+# Install required Android SDK components
+RUN echo "y" | $ANDROID_HOME/tools/bin/sdkmanager \
+    "platforms;android-25" \
+    "platforms;android-26" \
+    "platforms;android-28" \
+    "build-tools;25.0.3" \
+    "build-tools;26.0.2" \
+    "build-tools;28.0.3" \
+    "platform-tools" \
+    "ndk;20.0.5594570"
 RUN mkdir -p /root/Android/
 RUN ln -s /opt/android-sdk /root/Android/Sdk
-# copy config files
+
+# Install GNU Make
+RUN apt-get update && apt-get install -y build-essential
+
+# Install android studio
+RUN aria2c -x 16 -s 16 -d /tmp -o android-studio.tar.gz https://redirector.gvt1.com/edgedl/android/studio/ide-zips/3.6.3.0/android-studio-ide-192.6392135-linux.tar.gz
+RUN echo "33ec9f61b20b71ca175cd39083b1379ebba896de78b826ea5df5d440c6adfd2a /tmp/android-studio.tar.gz" | sha256sum -c -
+RUN tar -xzf /tmp/android-studio.tar.gz -C /opt
+RUN rm -rf /tmp/android-studio.tar.gz
+ENV PATH="/opt/android-studio/bin:${PATH}"
+RUN ln -s /opt/android-studio/bin/studio.sh /usr/local/bin/studio
 COPY config/.android /root/.android
 COPY config/.AndroidStudio3.6 /root/.AndroidStudio3.6
 COPY config/.java /root/.java
+
+# Remove apt cache
+RUN rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /root/app

@@ -2,36 +2,25 @@
 
 ## Meeting Record
 
-- 定義資料儲存格式 (待修改)
-
-```java
-public class Treasure {
-  private int id;
-  private String featureData; 
-  private Landmark landmark;
-}
-```
-
-```java
-public class Landmark {
-  private Int Id;
-  private String name;
-  private Point pose;
-  private Quaternion orientation;
-}
-```
-
-- 定義 Class (待修改)
-  - Navigator: 移動控制, 路徑演算法
-  - LandmarkScanner: 掃描地標, 辨識寶藏
-  - TreasureManager: 紀錄寶藏, 比對真寶藏
-  - Mission Controller: 決定何時作什麼
-- Other
-  - Nameing convention: camel case for variables and functions
-  - 把yolo模型打包進apk: `.pt model -> .pb model -> .tflite model, use tflite model in android app`
-  - 要考慮干擾 相機：光線、移動誤差（?）
-  - 多執行序
+- Task distribution
+  - 典謀: Main controller, thread
+  - 穎沛: Navigator
+  - Rich: Train yolo model
+  - 昌駿: EKF
+- Using pipline or cache memory for communication between modules.
+- Nameing convention: camel case for variables and functions
+- To use yolo model in apk: `.pt model -> .pb model -> .tflite model, use tflite model in android app`
+- To deal with the localization error, we will try EKF and simply call the api multiple times and then take the average.
+- Multi-threading, the PGManual suggest don't use more than 2 threads.
+  - One thread for camera handler.
+  - The other thread for main controller to call navigator.
 
 ## Progress
 
+- Complete apk compile using docker, the apk will be generated in `app/app/build/outputs/apk/debug/` folder.
+
 ## Next
+
+- Integrate the camera handler and navigator
+- Test the local simulator
+- Test the apk on online simulator
