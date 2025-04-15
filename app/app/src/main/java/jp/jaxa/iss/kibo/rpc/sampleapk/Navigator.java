@@ -34,7 +34,6 @@ public class Navigator {
    * Constructor
    * 
    * @param apiRef API reference from runPlan in YourService.java
-   * @return The current average pose
    */
   public Navigator(KiboRpcApi apiRef) {
     this.api = apiRef;
@@ -42,6 +41,15 @@ public class Navigator {
     Log.i(TAG,  "Initialized at " + startTime);
   }
 
+  /* -------------------------------------------------------------------------- */
+  /*                                 Measurement                                */
+  /* -------------------------------------------------------------------------- */
+
+  /**
+   * Process and return the measured pose.
+   * 
+   * @return current pose.
+   */
   public Pose getCurrentPose() {
     int numAttempts = 10;
     double accPosX = 0, accPosY = 0, accPosZ = 0;
@@ -101,29 +109,35 @@ public class Navigator {
   /*                                  Movement                                  */
   /* -------------------------------------------------------------------------- */
 
-  public Result moveTo(Pose target) {
+  /**
+   * Move the robot to target pose.
+   * 
+   * @param targetPose
+   * @return The result of the last move command.
+   */
+  public Result moveTo(Pose targetPose) {
     int maxRetries = 5;
-    Result result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
+    Result result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
     
     // Enter retry loop if failed
     while (!result.hasSucceeded() && maxRetries > 0) {
-      Log.i(TAG, "Retrying move to: " + target.toString());
-      result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
+      Log.i(TAG, "Retrying move to: " + targetPose.toString());
+      result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
       maxRetries--;
     }
 
     // If still not successful after retries, log the error.
     if (!result.hasSucceeded()) {
-      Log.w(TAG, "Failed to move to: " + target.toString());
+      Log.w(TAG, "Failed to move to " + targetPose.toString() + "because " + result.getMessage());
     }
     
     return result;
   }
 
   /**
-   * Moves the robot through a series of waypoints.
+   * Moves the robot from currentPose to targetPose through a series of waypoints.
    * 
-   * @param waypoints A list of poses representing the waypoints to navigate through.
+   * @param targetPose
    * @return The result of the last move command.
    */
   public Result navigateThrough(Pose targetPose) {
@@ -135,30 +149,25 @@ public class Navigator {
       result = moveTo(pose);
     }
 
+    Log.i(TAG, "Move to: " + targetPose.toString() + " Result: " + result.getMessage());
     return result;
   }
 
-  public Result navigatePrecomputed(Context context) {
-    List<Pose> poses = loadPathFromJson(context, "pose_path.json");
-    Result result = null;
-
-    for (Pose pose : poses) {
-      result = moveTo(pose);
-    }
-
-    return result;
-  }
-
-  public void navigateArea1() {
-    // Pose point1 = new Pose (
+  /**
+   * Moves the robot to the pose of taking photo in area 1.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea1() {
+    // Pose subPose1 = new Pose (
     //   new Point(10.45, -9.7, 4.47), 
     //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
     // );
-    // Pose point2 = new Pose (
+    // Pose subPose2 = new Pose (
     //   new Point(10.45, -9.52, 4.47), 
     //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
     // );
-    // Pose point3 = new Pose(
+    // Pose subPose3 = new Pose(
     //   new Point(10.95, -9.52, 4.9), 
     //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
     // );
@@ -167,22 +176,30 @@ public class Navigator {
       new Quaternion(0.0f, -0.281f, -0.649f, 0.707f)
     );
 
-    // moveTo(point1);
-    // moveTo(point2);
-    // moveTo(point3);
-    moveTo(finalPose);
+    // moveTo(subPoint1);
+    // moveTo(subPoint2);
+    // moveTo(subPoint3);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 1. " + " Result: " + result.getMessage());
+    return result;
   }
 
-  public void navigateArea2() {
-    // Pose point1 = new Pose(
+  /**
+   * Moves the robot to the pose of taking photo in area 2.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea2() {
+    // Pose subPose1 = new Pose(
     //   new Point(10.94, -9.5, 4.9), 
     //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     // );
-    // Pose point2 = new Pose(
+    // Pose subPose2 = new Pose(
     //   new Point(10.94, -9.48, 5.43), 
     //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     // );
-    // Pose point3 = new Pose(
+    // Pose subPose3 = new Pose(
     //   new Point(10.94, -8.875, 5.43), 
     //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     // );
@@ -190,18 +207,27 @@ public class Navigator {
       new Point(10.925, -8.875, 4.462),
       new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     );
-    // moveTo(point1);
-    // moveTo(point2);
-    // moveTo(point3);
-    moveTo(finalPose);
+
+    // moveTo(subPose1);
+    // moveTo(subPose2);
+    // moveTo(subPose3);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 2. " + " Result: " + result.getMessage());
+    return result;
   }
 
-  public void navigateArea3() {
-    // Pose point1 = new Pose(
+  /**
+   * Moves the robot to the pose of taking photo in area 3.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea3() {
+    // Pose subPose1 = new Pose(
     //   new Point(10.925, -8.875, 5.43), 
     //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     // );
-    // Pose point2 = new Pose(
+    // Pose subPose2 = new Pose(
     //   new Point(10.925, -7.925, 5.43), 
     //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     // );
@@ -209,17 +235,26 @@ public class Navigator {
       new Point(10.925, -7.925, 4.462),
       new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
     );
-    // moveTo(point1);
-    // moveTo(point2);
-    moveTo(finalPose);
+
+    // moveTo(subPose1);
+    // moveTo(subPose2);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 3. " + " Result: " + result.getMessage());
+    return result;
   }
 
-  public void navigateArea4() {
-    // Pose point1 = new Pose(
+  /**
+   * Moves the robot to the pose of taking item's picture in area 4.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea4() {
+    // Pose subPose1 = new Pose(
     //   new Point(11.4, -7.4, 4.462), 
     //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
     // );
-    // Pose point2 = new Pose(
+    // Pose subPose2 = new Pose(
     //   new Point(11.4, -6.853, 4.92), 
     //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
     // );
@@ -227,17 +262,30 @@ public class Navigator {
       new Point(10.567, -6.853, 4.92),
       new Quaternion(0.0f, -1.0f, 0.02f, 0.02f)
     );
-    // moveTo(point1);
-    // moveTo(point2);
-    moveTo(finalPose);
+
+    // moveTo(subPose1);
+    // moveTo(subPose2);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 4. " + " Result: " + result.getMessage());
+    return result;
   }
 
-  public void navigateReport() {
+  /**
+   * Moves the robot to in front of the astronaut.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToReport() {
     Pose finalPose = new Pose(
       new Point(11.143, -6.7607, 4.9654),
       new Quaternion(0.0f, 0.0f, 0.707f, 0.707f)
     );
-    moveTo(finalPose);
+    
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to report. " + " Result: " + result.getMessage());
+    return result;
   }
 
   /* -------------------------------------------------------------------------- */
@@ -410,6 +458,12 @@ public class Navigator {
     return new Pose(currentPoint, new Quaternion(qx, qy, qz, qw));
   }
 
+  /**
+   * Given the pose of Navcam, compute the body pose.
+   * 
+   * @param cameraPose the pose of NavCam.
+   * @return The pose of center body. 
+   */
   public static Pose getBodyPoseFromCamera(Pose cameraPose) {
     Point cameraPoint = cameraPose.getPoint();
     
