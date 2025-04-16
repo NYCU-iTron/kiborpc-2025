@@ -9,3 +9,7 @@ studio:
 # build app
 build:
 	$(MAKE) -C docker all ARG="zsh -c 'cd /root/app && make build-no-daemon'"
+
+# run local simulator
+local-sim:
+	$(MAKE) -C simulation all
