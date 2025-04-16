@@ -6,16 +6,22 @@ import random
 import math
 
 # 創建輸出目錄
-os.makedirs('dataset/images', exist_ok=True)
-os.makedirs('dataset/labels', exist_ok=True)
+os.makedirs('../assets/dataset/images', exist_ok=True)
+os.makedirs('../assets/dataset/labels', exist_ok=True)
 
 # 讀取所有物品圖片
 items = []
 class_names = []
-for item in os.listdir('.'):
+input_dir = '../assets/item_template_images/processed'
+print(f"正在從 {input_dir} 讀取圖片...")
+print(f"目錄內容: {os.listdir(input_dir)}")
+
+for item in os.listdir(input_dir):
     if item.endswith('.png'):
         # 使用PIL讀取圖片以保持透明度
-        pil_img = Image.open(item)
+        item_path = os.path.join(input_dir, item)
+        print(f"處理圖片: {item_path}")
+        pil_img = Image.open(item_path)
         # 確保圖片是RGBA模式
         if pil_img.mode != 'RGBA':
             pil_img = pil_img.convert('RGBA')
@@ -48,8 +54,13 @@ def generate_image():
     # 創建白色背景（RGBA）
     background = np.full((output_size[0], output_size[1], 4), 255, dtype=np.uint8)
     
-    # 隨機選擇2-4個物品
-    num_items = random.randint(2, 4)
+    # 隨機選擇2-4個物品，但確保不超過可用的物品數量
+    available_items = len(items)
+    if available_items < 2:
+        print(f"警告：只有{available_items}個物品可用，無法生成包含多個物品的圖片")
+        return background, []
+    
+    num_items = min(random.randint(2, 4), available_items)
     selected_items = random.sample(items, num_items)
     
     annotations = []
@@ -92,15 +103,20 @@ for i in range(100):
     image, annotations = generate_image()
     
     # 保存圖片
-    cv2.imwrite(f'dataset/images/image_{i:04d}.png', image)
+    cv2.imwrite(f'../assets/dataset/images/image_{i:04d}.png', image)
     
     # 保存標註
-    with open(f'dataset/labels/image_{i:04d}.txt', 'w') as f:
+    with open(f'../assets/dataset/labels/image_{i:04d}.txt', 'w') as f:
         f.write('\n'.join(annotations))
 
 # 生成classes.txt，使用原始檔名
-with open('dataset/classes.txt', 'w') as f:
+with open('../assets/dataset/classes.txt', 'w') as f:
     for class_name in class_names:
         f.write(f'{class_name}\n')
+
+print(f"找到 {len(items)} 個物品: {class_names}")
+if len(items) < 2:
+    print("錯誤：需要至少2個物品才能生成數據集")
+    exit(1)
 
 print("數據集生成完成！") 
