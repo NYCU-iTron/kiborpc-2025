@@ -10,6 +10,7 @@ import gov.nasa.arc.astrobee.Result;
 
 import java.util.List;
 import java.util.ArrayList;
+
 import android.util.Log;
 
 
@@ -18,6 +19,8 @@ import android.util.Log;
  */
 public class Navigator {
   private final KiboRpcApi api;
+  private final String TAG = this.getClass().getSimpleName();
+  long startTime;
 
   // Target poses in each area
   public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
@@ -27,64 +30,267 @@ public class Navigator {
   public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0.0f, 0.0f, 1.0f, 0.0f));
   public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f));
 
-  // Route between each area
-  public final List<Pose> dockToPatrol1;
-  public final List<Pose> patrol1ToPatrol2;
-  public final List<Pose> patrol2ToPatrol3;
-  public final List<Pose> patrol3ToPatrol4;
-  public final List<Pose> patrol4ToReport;
-  
+  /**
+   * Constructor
+   * 
+   * @param apiRef API reference from runPlan in YourService.java
+   */
   public Navigator(KiboRpcApi apiRef) {
     this.api = apiRef;
-
-    // Precompute each route
-    dockToPatrol1 = interpolate(Dock, Patrol1);
-    patrol1ToPatrol2 = interpolate(Patrol1, Patrol2);
-    patrol2ToPatrol3 = interpolate(Patrol2, Patrol3);
-    patrol3ToPatrol4 = interpolate(Patrol3, Patrol4);
-    patrol4ToReport = interpolate(Patrol4, Report);
+    startTime = System.currentTimeMillis();
+    Log.i(TAG,  "Initialized at " + startTime);
   }
 
+  /* -------------------------------------------------------------------------- */
+  /*                                 Measurement                                */
+  /* -------------------------------------------------------------------------- */
+
+  /**
+   * Process and return the measured pose.
+   * 
+   * @return current pose.
+   */
   public Pose getCurrentPose() {
-    // TODO : Deal with measure error and low confidence
-    Kinematics kinematics = api.getRobotKinematics();
-    return new Pose(kinematics.getPosition(), kinematics.getOrientation());
+    int numAttempts = 10;
+    double accPosX = 0, accPosY = 0, accPosZ = 0;
+    double accOriX = 0, accOriY = 0, accOriZ = 0, accOriW = 0;
+    double weight = 0, totalWeight = 0;
+
+    // Collect kinematics data from API
+    for (int i = 0; i < numAttempts; i++) {
+      Kinematics kinematics = api.getRobotKinematics();
+      Kinematics.Confidence confidence = kinematics.getConfidence();
+
+      if (confidence == Kinematics.Confidence.GOOD) {
+        weight = 1.0;
+      } else if (confidence == Kinematics.Confidence.POOR) {
+        weight = 0.5;
+      } else { // confidence == Confidence.LOST
+        Log.w(TAG, "Get current pose with low confidence");
+        continue;      
+      }
+
+      totalWeight += weight;
+
+      Point position = kinematics.getPosition();
+      accPosX += position.getX() * weight;
+      accPosY += position.getY() * weight;
+      accPosZ += position.getZ() * weight;
+
+      Quaternion orientation = kinematics.getOrientation();
+      accOriX += (double) orientation.getX() * weight;
+      accOriY += (double) orientation.getY() * weight;
+      accOriZ += (double) orientation.getZ() * weight;
+      accOriW += (double) orientation.getW() * weight;
+    }
+    
+    // Compute avergae
+    double avgPosX = accPosX / totalWeight;
+    double avgPosY = accPosY / totalWeight;
+    double avgPosZ = accPosZ / totalWeight;
+    
+    float avgOriX = (float) (accOriX / totalWeight);
+    float avgOriY = (float) (accOriY / totalWeight);
+    float avgOriZ = (float) (accOriZ / totalWeight);
+    float avgOriW = (float) (accOriW / totalWeight);
+
+    // Normalize
+    float norm = (float) Math.sqrt(avgOriX * avgOriX + avgOriY * avgOriY + avgOriZ * avgOriZ + avgOriW * avgOriW);
+    avgOriX /= norm;
+    avgOriY /= norm;
+    avgOriZ /= norm;
+    avgOriW /= norm;
+
+    Pose pose = new Pose(new Point(avgPosX, avgPosY, avgPosZ), new Quaternion(avgOriX, avgOriY, avgOriZ, avgOriW));
+    return pose;
   }
 
-  public Result moveTo(Pose target) {
-    // TODO : Deal with failure
-    Result result = api.moveTo(target.getPoint(), target.getQuaternion(), false);
+  /* -------------------------------------------------------------------------- */
+  /*                                  Movement                                  */
+  /* -------------------------------------------------------------------------- */
+
+  /**
+   * Move the robot to target pose.
+   * 
+   * @param targetPose
+   * @return The result of the last move command.
+   */
+  public Result moveTo(Pose targetPose) {
+    int maxRetries = 5;
+    Result result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
+    
+    // Enter retry loop if failed
+    while (!result.hasSucceeded() && maxRetries > 0) {
+      Log.i(TAG, "Retrying move to: " + targetPose.toString());
+      result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
+      maxRetries--;
+    }
+
+    // If still not successful after retries, log the error.
+    if (!result.hasSucceeded()) {
+      Log.w(TAG, "Failed to move to " + targetPose.toString() + "because " + result.getMessage());
+    }
+    
     return result;
   }
 
   /**
-   * Moves the robot through a series of waypoints.
+   * Moves the robot from currentPose to targetPose through a series of waypoints.
    * 
-   * @param waypoints A list of poses representing the waypoints to navigate through.
+   * @param targetPose
    * @return The result of the last move command.
    */
-  public Result navigateThrough(List<Pose> waypoints) {
-    Result lastResult = null;
+  public Result navigateThrough(Pose targetPose) {
+    Pose currentPose = getCurrentPose();
+    List<Pose> poses = interpolate(currentPose, targetPose);
+    Result result = null;
 
-    for (Pose pose : waypoints) {
-      lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
-      
-      int maxRetries = 3;
-      while (!lastResult.hasSucceeded() && maxRetries > 0) {
-        Log.d("Navigator", "Retrying move to: " + pose.toString());
-        lastResult = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
-        maxRetries--;
-      }
-
-      // If still not successful after retries, log the error and continue to the next waypoint
-      if (!lastResult.hasSucceeded()) {
-        Log.e("Navigator", "Failed to move to: " + pose.toString());
-      }
-
+    for (Pose pose : poses) {
+      result = moveTo(pose);
     }
 
-    return lastResult;
+    Log.i(TAG, "Move to: " + targetPose.toString() + " Result: " + result.getMessage());
+    return result;
   }
+
+  /**
+   * Moves the robot to the pose of taking photo in area 1.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea1() {
+    // Pose subPose1 = new Pose (
+    //   new Point(10.45, -9.7, 4.47), 
+    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
+    // );
+    // Pose subPose2 = new Pose (
+    //   new Point(10.45, -9.52, 4.47), 
+    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
+    // );
+    // Pose subPose3 = new Pose(
+    //   new Point(10.95, -9.52, 4.9), 
+    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.95, -9.9, 4.9),
+      new Quaternion(0.0f, -0.281f, -0.649f, 0.707f)
+    );
+
+    // moveTo(subPoint1);
+    // moveTo(subPoint2);
+    // moveTo(subPoint3);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 1. " + " Result: " + result.getMessage());
+    return result;
+  }
+
+  /**
+   * Moves the robot to the pose of taking photo in area 2.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea2() {
+    // Pose subPose1 = new Pose(
+    //   new Point(10.94, -9.5, 4.9), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    // Pose subPose2 = new Pose(
+    //   new Point(10.94, -9.48, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    // Pose subPose3 = new Pose(
+    //   new Point(10.94, -8.875, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.925, -8.875, 4.462),
+      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    );
+
+    // moveTo(subPose1);
+    // moveTo(subPose2);
+    // moveTo(subPose3);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 2. " + " Result: " + result.getMessage());
+    return result;
+  }
+
+  /**
+   * Moves the robot to the pose of taking photo in area 3.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea3() {
+    // Pose subPose1 = new Pose(
+    //   new Point(10.925, -8.875, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    // Pose subPose2 = new Pose(
+    //   new Point(10.925, -7.925, 5.43), 
+    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.925, -7.925, 4.462),
+      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+    );
+
+    // moveTo(subPose1);
+    // moveTo(subPose2);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 3. " + " Result: " + result.getMessage());
+    return result;
+  }
+
+  /**
+   * Moves the robot to the pose of taking item's picture in area 4.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToArea4() {
+    // Pose subPose1 = new Pose(
+    //   new Point(11.4, -7.4, 4.462), 
+    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
+    // );
+    // Pose subPose2 = new Pose(
+    //   new Point(11.4, -6.853, 4.92), 
+    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
+    // );
+    Pose finalPose = new Pose(
+      new Point(10.567, -6.853, 4.92),
+      new Quaternion(0.0f, -1.0f, 0.02f, 0.02f)
+    );
+
+    // moveTo(subPose1);
+    // moveTo(subPose2);
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to area 4. " + " Result: " + result.getMessage());
+    return result;
+  }
+
+  /**
+   * Moves the robot to in front of the astronaut.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToReport() {
+    Pose finalPose = new Pose(
+      new Point(11.143, -6.7607, 4.9654),
+      new Quaternion(0.0f, 0.0f, 0.707f, 0.707f)
+    );
+    
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to report. " + " Result: " + result.getMessage());
+    return result;
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                               Tool Functions                               */
+  /* -------------------------------------------------------------------------- */
 
   /**
    * Interpolates between two poses to create a smooth transition.
@@ -101,7 +307,7 @@ public class Navigator {
     double dy = endPoint.getY() - startPoint.getY();
     double dz = endPoint.getZ() - startPoint.getZ();
 
-    double linearUnit = 0.08;
+    double linearUnit = 0.2;
     double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     int numSteps = (int) (distance / linearUnit);
     List<Pose> poses = new ArrayList<>();
@@ -250,5 +456,23 @@ public class Navigator {
     float qw = (float) Math.cos(halfTheta);
 
     return new Pose(currentPoint, new Quaternion(qx, qy, qz, qw));
+  }
+
+  /**
+   * Given the pose of Navcam, compute the body pose.
+   * 
+   * @param cameraPose the pose of NavCam.
+   * @return The pose of center body. 
+   */
+  public static Pose getBodyPoseFromCamera(Pose cameraPose) {
+    Point cameraPoint = cameraPose.getPoint();
+    
+    double bodyX = cameraPoint.getX() - 0.1177;
+    double bodyY = cameraPoint.getY() + 0.0422;
+    double bodyZ = cameraPoint.getZ() + 0.0826;
+
+    Pose bodyPose = new Pose(new Point(bodyX, bodyY, bodyZ), cameraPose.getQuaternion());
+
+    return bodyPose;
   }
 }
