@@ -28,6 +28,7 @@ run:
 		echo "Image kiborpc-2025:latest not found. Please build the image first."; \
 		exit 1; \
 	fi
+	mkdir -p tmp/.gradle
 	xhost +local:root
 	-docker run -it \
 		--privileged \
