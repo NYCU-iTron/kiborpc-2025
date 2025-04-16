@@ -1,3 +1,4 @@
 docker/tmp/*
 venv/
-assets/
+assets/dataset/
+assets/item_template_images/
