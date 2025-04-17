@@ -60,8 +60,26 @@ def rotate_image(image, angle):
                             borderMode=cv2.BORDER_CONSTANT,
                             borderValue=(0, 0, 0, 0))
     return rotated
+def bbox_iou(box1, box2):
+    # box = (x1, y1, x2, y2)
+    xi1 = max(box1[0], box2[0])
+    yi1 = max(box1[1], box2[1])
+    xi2 = min(box1[2], box2[2])
+    yi2 = min(box1[3], box2[3])
+    inter_width = max(xi2 - xi1, 0)
+    inter_height = max(yi2 - yi1, 0)
+    inter_area = inter_width * inter_height
+    
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - inter_area
 
-def generate_image():
+    if union_area == 0:
+        return 0.0
+    return inter_area / union_area
+
+
+def generate_image(max_overlap=0.7, max_attempts=50):
     # 創建白色背景（RGBA）
     background = np.full((output_size[0], output_size[1], 4), 255, dtype=np.uint8)
     
@@ -75,7 +93,8 @@ def generate_image():
     selected_items = random.sample(items, num_items)
     
     annotations = []
-    
+    bboxes = []  # store existing bbox in pixel coords
+
     for class_name, item_img in selected_items:
         # 隨機縮放
         scale = random.uniform(0.2, 0.4)
@@ -87,9 +106,27 @@ def generate_image():
         rotated = rotate_image(resized, angle)
         
         # 隨機位置
-        x = random.randint(0, output_size[0] - new_size[0])
-        y = random.randint(0, output_size[1] - new_size[1])
-        
+        attempt = 0
+        while attempt < max_attempts:
+            x = random.randint(0, output_size[0] - new_size[0])
+            y = random.randint(0, output_size[1] - new_size[1])
+            new_bbox = (x, y, x + new_size[0], y + new_size[1])
+
+            overlap_ok = True
+            for existing in bboxes:
+                iou = bbox_iou(existing, new_bbox)
+                if iou > max_overlap:
+                    overlap_ok = False
+                    break
+
+            if overlap_ok:
+                break  # accept this placement
+            attempt += 1
+
+        if attempt >= max_attempts:
+            print(f"跳過 {class_name}（嘗試超過 {max_attempts} 次）")
+            continue
+
         # 將物品放置到背景上
         alpha_mask = rotated[:, :, 3] > 0
         for c in range(3):  # 只處理RGB通道
