@@ -12,8 +12,37 @@ import org.opencv.core.Mat;
  */
 
 public class YourService extends KiboRpcService {
+    private MainControl mainControl;
+
     @Override
     protected void runPlan1(){
+        exampleMainControl();
+    }
+
+    @Override
+    protected void runPlan2(){
+       // write your plan 2 here.
+    }
+
+    @Override
+    protected void runPlan3(){
+        // write your plan 3 here.
+    }
+
+    // You can add your method.
+    private String yourMethod(){
+        return "your method";
+    }
+
+    /**
+     * @brief The official example of runPlan1() method.
+     * 
+     * This example is copied from the official example.
+     * If you want to use this method, please write this code in the runPlan1() method.
+     * 
+     * @note This example is copied from runPlan1() method to make the method available for testing.
+     */
+    private void exampleRunPlan1() {
         // The mission starts.
         api.startMission();
 
@@ -58,18 +87,17 @@ public class YourService extends KiboRpcService {
         api.takeTargetItemSnapshot();
     }
 
-    @Override
-    protected void runPlan2(){
-       // write your plan 2 here.
-    }
-
-    @Override
-    protected void runPlan3(){
-        // write your plan 3 here.
-    }
-
-    // You can add your method.
-    private String yourMethod(){
-        return "your method";
+    /**
+     * @brief An example of the way to use MainControl class in MainControl.java.
+     * 
+     * This is a sample code to show how to use the MainControl class.
+     * If you want to use this method, please write this code in the runPlan1() method.
+     */
+    private void exampleMainControl() {
+        // Create an instance of MainControl class.
+        mainControl = new MainControl(api);
+        
+        // Call the first method of MainControl class.
+        mainControl.method1();
     }
 }
