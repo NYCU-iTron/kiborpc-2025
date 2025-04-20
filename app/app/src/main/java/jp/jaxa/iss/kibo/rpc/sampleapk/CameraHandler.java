@@ -15,6 +15,11 @@ public class CameraHandler {
   private final Mat cameraMatrix;
   private final Mat distortionCoefficients;
 
+  /**
+   * Constructor
+   * 
+   * @param apiRef API reference.
+   */
   public CameraHandler(KiboRpcApi apiRef) {
     this.api = apiRef;
     cameraMatrix = getCameraMatrix();
@@ -25,7 +30,6 @@ public class CameraHandler {
 
   public Mat captureImage() {
     api.flashlightControlFront(0.05f);
-    // TODO : Might need some sleep
     Mat image = api.getMatNavCam();
     api.flashlightControlFront(0.00f);
     return image;
