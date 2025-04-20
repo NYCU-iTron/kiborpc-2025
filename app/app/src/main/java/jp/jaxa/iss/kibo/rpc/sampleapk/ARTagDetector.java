@@ -19,6 +19,10 @@ import org.opencv.calib3d.Calib3d;
 import org.opencv.aruco.Dictionary;
 import org.opencv.core.MatOfDouble;
 
+
+/**
+ * Class to extract AR tag information from a given image.
+ */
 public class ARTagDetector {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
@@ -27,6 +31,11 @@ public class ARTagDetector {
   private final Mat cameraMatrix;
   private final Mat distortionCoefficients;
 
+  /**
+   * Constructor
+   * 
+   * @param apiRef API reference.
+   */
   public ARTagDetector(KiboRpcApi apiRef) {
     this.api = apiRef;
     markerLength = 0.05f;
@@ -129,7 +138,122 @@ public class ARTagDetector {
         z = 0.25 * s;
       }
     }
+    
+    // Normalize
+    float norm = (float) Math.sqrt(w * w + x * x + y * y + z * z);
+    if (norm > 1e-6) { // Avoid division by zero
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
+    } else {
+      return new Quaternion(0, 0, 0, 1); // Fallback to identity
+    }
 
-    return new Quaternion((float)w, (float)x, (float)y, (float)z);
+    return new Quaternion((float) w, (float) x, (float) y, (float) z);
+  }
+
+  /**
+   * Convert the pose in NavCam frame to World frame
+   * Tag_Camera → Camera_Body → Body_World = Tag_World
+   * 
+   * @param tagInCamera The tag pose in NavCam frame.
+   * @return The pose in world frame. 
+   */
+  public Pose convertCameraToWorld(Pose tagInCVcam, Pose bodyInWorld) {
+    // OpenCV camera pose in NavCam frame
+    Pose CVcamInNavcam = new Pose(
+      new Point(0, 0, 0),
+      new Quaternion(0.5f, 0.5f, 0.5f, 0.5f)
+    );
+
+    // Step 1: Convert tag pose from OpenCV camera frame to NavCam frame
+    Pose tagInNavcam = composePoses(CVcamInNavcam, tagInCVcam);
+
+    // NavCam pose in body frame (fixed offset and orientation)
+    Pose navcamInBody = new Pose(
+      new Point(0.1177, -0.0422, -0.0826),
+      new Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
+    );
+
+    // Step 2: Convert tag pose from NavCam frame to body frame
+    Pose tagInBody = composePoses(navcamInBody, tagInNavcam);
+
+    // Step 3: Convert tag pose from body frame to world frame
+    Pose tagInWorld = composePoses(bodyInWorld, tagInBody);
+
+    return tagInWorld;
+  }
+
+  public Pose composePoses(Pose poseA, Pose poseB) {
+    // poseA followed by poseB
+    Quaternion qa = poseA.getQuaternion();
+    Point pa = poseA.getPoint();
+
+    Quaternion qb = poseB.getQuaternion();
+    Point pb = poseB.getPoint();
+
+    // 1. Rotate B's position by A's orientation
+    double[] rotated = rotatePointByQuaternion(pb.getX(), pb.getY(), pb.getZ(), qa);
+    double x = pa.getX() + rotated[0];
+    double y = pa.getY() + rotated[1];
+    double z = pa.getZ() + rotated[2];
+
+    // 2. Combine orientation: qa * qb
+    Quaternion q = multiplyQuaternions(qa, qb);
+
+    return new Pose(new Point(x, y, z), q);
+  }
+
+  private double[] rotatePointByQuaternion(double x, double y, double z, Quaternion q) {
+    // Quaternion -> rotation matrix
+    double x2 = q.getX() * q.getX();
+    double y2 = q.getY() * q.getY();
+    double z2 = q.getZ() * q.getZ();
+    double xy = q.getX() * q.getY();
+    double xz = q.getX() * q.getZ();
+    double yz = q.getY() * q.getZ();
+    double wx = q.getW() * q.getX();
+    double wy = q.getW() * q.getY();
+    double wz = q.getW() * q.getZ();
+
+    double r11 = 1 - 2 * (y2 + z2);
+    double r12 = 2 * (xy - wz);
+    double r13 = 2 * (xz + wy);
+    double r21 = 2 * (xy + wz);
+    double r22 = 1 - 2 * (x2 + z2);
+    double r23 = 2 * (yz - wx);
+    double r31 = 2 * (xz - wy);
+    double r32 = 2 * (yz + wx);
+    double r33 = 1 - 2 * (x2 + y2);
+
+    double rx = r11 * x + r12 * y + r13 * z;
+    double ry = r21 * x + r22 * y + r23 * z;
+    double rz = r31 * x + r32 * y + r33 * z;
+
+    return new double[]{rx, ry, rz};
+  }
+
+  public Quaternion multiplyQuaternions(Quaternion q1, Quaternion q2) {
+    float w1 = q1.getW(), x1 = q1.getX(), y1 = q1.getY(), z1 = q1.getZ();
+    float w2 = q2.getW(), x2 = q2.getX(), y2 = q2.getY(), z2 = q2.getZ();
+
+    float w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
+    float x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
+    float y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
+    float z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
+
+    // Normalize
+    float norm = (float) Math.sqrt(w * w + x * x + y * y + z * z);
+    if (norm > 1e-6) { // Avoid division by zero
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
+    } else {
+      return new Quaternion(0, 0, 0, 1); // Fallback to identity
+    }
+
+    return new Quaternion(x, y, z, w);
   }
 }
