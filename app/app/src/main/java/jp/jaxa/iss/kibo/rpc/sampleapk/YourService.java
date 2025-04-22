@@ -95,7 +95,7 @@ public class YourService extends KiboRpcService {
      */
     private void exampleMainControl() {
         // Create an instance of MainControl class.
-        mainControl = new MainControl(api);
+        mainControl = new MainControl(getApplicationContext(), api);
         
         // Call the first method of MainControl class.
         mainControl.method1();
