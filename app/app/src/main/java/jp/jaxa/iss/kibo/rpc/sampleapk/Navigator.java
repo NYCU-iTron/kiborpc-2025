@@ -157,6 +157,19 @@ public class Navigator {
    * Moves the robot to the pose of taking photo in area 1.
    * 
    * @return The result of the last move command.
+   * 
+   * Example:
+   * @code
+   * // Area 1
+   * navigator.navigateToArea1();
+   * visionHandler.getCurrentPose(navigator.getCurrentPose());
+   * visionHandler.inspectArea();
+
+   * // Area 2
+   * navigator.navigateToArea2();
+   * visionHandler.getCurrentPose(navigator.getCurrentPose());
+   * visionHandler.inspectArea();
+   * @endcode
    */
   public Result navigateToArea1() {
     // Pose subPose1 = new Pose (
@@ -189,6 +202,8 @@ public class Navigator {
    * Moves the robot to the pose of taking photo in area 2.
    * 
    * @return The result of the last move command.
+   * 
+   * See example in @ref navigateToArea1().
    */
   public Result navigateToArea2() {
     // Pose subPose1 = new Pose(
@@ -221,6 +236,8 @@ public class Navigator {
    * Moves the robot to the pose of taking photo in area 3.
    * 
    * @return The result of the last move command.
+   * 
+   * See example in @ref navigateToArea1().
    */
   public Result navigateToArea3() {
     // Pose subPose1 = new Pose(
@@ -248,6 +265,8 @@ public class Navigator {
    * Moves the robot to the pose of taking item's picture in area 4.
    * 
    * @return The result of the last move command.
+   * 
+   * See example in @ref navigateToArea1().
    */
   public Result navigateToArea4() {
     // Pose subPose1 = new Pose(
@@ -275,6 +294,8 @@ public class Navigator {
    * Moves the robot to in front of the astronaut.
    * 
    * @return The result of the last move command.
+   * 
+   * See example in @ref navigateToArea1().
    */
   public Result navigateToReport() {
     Pose finalPose = new Pose(
