@@ -35,6 +35,11 @@ public class VisionHandler {
    * 
    * @param context Context reference.
    * @param apiRef API reference.
+   * 
+   * Example of using the VisionHandler constructor:
+   * @code
+   * VisionHandler visionHandler = new VisionHandler(getApplicationContext(), api);
+   * @endcode
    */
   public VisionHandler(Context context, KiboRpcApi apiRef) {
     cameraHandler = new CameraHandler(apiRef);
