@@ -62,7 +62,17 @@ public class VisionHandler {
   /**
    * Capture and analyze the image from NavCam after arriving target pose of the area.
    * 
-   * NOTE : You should call getCurrentPose() to update the currentPose before using this function.
+   * @note NOTE : You should call getCurrentPose() to update the currentPose before using this function.
+   * 
+   * Example:
+   * @code
+   * Navigator navigator = new Navigator(api);
+   * VisionHandler visionHandler = new VisionHandler(getApplicationContext(), api);
+   * 
+   * // Remember to call getCurrentPose() before using inspectArea()
+   * visionHandler.getCurrentPose(navigator.getCurrentPose());
+   * visionHandler.inspectArea();
+   * @endcode
    */
   public void inspectArea() {
     Mat rawImage = cameraHandler.captureImage();
