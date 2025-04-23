@@ -372,15 +372,12 @@ public class Navigator {
       default:
         // Handle error
         Log.w(TAG, "Treasure item areaId not valid.");
-
-        // Guessing the treasure is in area 1
-        navigateToArea1();
         break;
     }
     
     // Set the final Quaternion to face the treasure
     Point finalPoint = new Point(finalX, finalY, finalZ);
-    Pose finalPose = new Pose(finalPoint, new Quaternion(0, 0, 0, 0));
+    Pose finalPose = new Pose(finalPoint, new Quaternion());
     finalPose = getPoseToFaceTarget(finalPose, treasurePose);
 
     Log.i(TAG, "Treasure at " + treasurePose.toString());
