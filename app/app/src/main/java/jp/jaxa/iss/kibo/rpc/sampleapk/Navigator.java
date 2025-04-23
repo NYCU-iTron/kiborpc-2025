@@ -309,6 +309,89 @@ public class Navigator {
     return result;
   }
 
+  /**
+   * Moves the robot to find the treasure item.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToTreasure(Item treasureItem) {
+    int areaId = treasureItem.getAreaId();
+
+    Pose currentPose = getCurrentPose();
+    Pose treasurePose = treasureItem.getItemPose();
+
+    Point currentPoint = currentPose.getPoint();
+    Point treasurePoint = treasurePose.getPoint();
+
+    // The final point should be within 0.9 m vertically from the plane of the area.
+    double safeDistance = 0.8;
+
+    double finalX = 0;
+    double finalY = 0;
+    double finalZ = 0;
+    double t = 0.5;
+
+    switch (areaId) {
+      case 1:
+        // Area1 lies on the XZ plane, so the vertical distance along the Y-axis should be within 0.9 m
+        finalY = -10.58 + safeDistance;
+
+        // Interpolate
+        double currentY = currentPoint.getY();
+        double treasureY = treasurePoint.getY();
+        t = (finalY - currentY) / (treasureY - currentY);
+        
+        finalX = currentPoint.getX() + t * (treasurePoint.getX() - currentPoint.getX());
+        finalZ = currentPoint.getZ() + t * (treasurePoint.getZ() - currentPoint.getZ());
+        break;
+      case 2:
+      case 3:
+        // Area2 and Area3 lie on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        finalZ = 3.76203 + safeDistance;
+
+        // Interpolate
+        double currentZ = currentPoint.getZ();
+        double treasureZ = treasurePoint.getZ();
+        t = (finalZ - currentZ) / (treasureZ - currentZ);
+
+        finalX = currentPoint.getX() + t * (treasurePoint.getX() - currentPoint.getX());
+        finalY = currentPoint.getY() + t * (treasurePoint.getY() - currentPoint.getY());   
+        break;
+      case 4:
+        // Area4 lies on the YZ plane, so the vertical distance along the X-axis should be within 0.9 m
+        finalX = 9.866984 + safeDistance;
+
+        // Interpolate
+        double currentX = currentPoint.getZ();
+        double treasureX = treasurePoint.getZ();
+        t = (finalX - currentX) / (treasureX - currentX);
+
+        finalY = currentPoint.getY() + t * (treasurePoint.getY() - currentPoint.getY());
+        finalZ = currentPoint.getZ() + t * (treasurePoint.getZ() - currentPoint.getZ());
+        break;
+      default:
+        // Handle error
+        Log.w(TAG, "Treasure item areaId not valid.");
+
+        // Guessing the treasure is in area 1
+        navigateToArea1();
+        break;
+    }
+    
+    // Set the final Quaternion to face the treasure
+    Point finalPoint = new Point(finalX, finalY, finalZ);
+    Pose finalPose = new Pose(finalPoint, new Quaternion(0, 0, 0, 0));
+    finalPose = getPoseToFaceTarget(finalPose, treasurePose);
+
+    Log.i(TAG, "Treasure at " + treasurePose.toString());
+    Log.i(TAG, "I'm goint to " + finalPose.toString());
+
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to Treasure. " + " Result: " + result.getMessage());
+    return result;
+  }
+
   /* -------------------------------------------------------------------------- */
   /*                               Tool Functions                               */
   /* -------------------------------------------------------------------------- */
