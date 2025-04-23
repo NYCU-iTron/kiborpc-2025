@@ -7,6 +7,7 @@ import gov.nasa.arc.astrobee.types.Quaternion;
 import gov.nasa.arc.astrobee.Result;
 
 import java.util.List;
+import java.util.Map;
 import java.util.ArrayList;
 
 import android.util.Log;
@@ -18,7 +19,7 @@ import org.opencv.core.Mat;
 
 
 /**
- * Class to handle the vision tasks of the robot and also communicate with navigator if needed.
+ * Class to handle the vision tasks of the robot and interact with navigator class.
  */
 public class VisionHandler {
   private final String TAG = this.getClass().getSimpleName();
@@ -27,33 +28,49 @@ public class VisionHandler {
   private final ARTagDetector arTagDetector;
   private final ItemManager itemManager;
 
+  private Pose currentPose = null;
+
   /**
    * Constructor
    * 
-   * @param context Context reference
-   * @param apiRef API reference
+   * @param context Context reference.
+   * @param apiRef API reference.
    */
   public VisionHandler(Context context, KiboRpcApi apiRef) {
-    this.cameraHandler = new CameraHandler(apiRef);
-    this.itemDetector = new ItemDetector(context, apiRef);
-    this.arTagDetector = new ARTagDetector(apiRef);
-    this.itemManager = new ItemManager(apiRef);
+    cameraHandler = new CameraHandler(apiRef);
+    itemDetector = new ItemDetector(context, apiRef);
+    arTagDetector = new ARTagDetector(apiRef);
+    itemManager = new ItemManager(apiRef);
 
     Log.i(TAG, "Initialized");
   }
 
-  public void inspectArea(int areaId) {
+  /**
+   * Get the current pose (should be measured by navigator class).
+   * 
+   * @param pose Current pose.
+   */
+  public void getCurrentPose(Pose pose) {
+    currentPose = pose;
+  }
 
-  // TODO :
-  // raw image (Mat) ← api.getMatNavCam()
-  //   ↓
-  // undistorted image ← CameraHandler.getUndistortedImage()
-  //   ↓
-  // clipped image ← ImageUtil.clipAR(undistorted)
-  //   ↓
-  // bitmap image ← matToBitmap(clipped)
-  //   ↓
-  // item detection → boundingBoxes → drawBoxes(bitmap)
+  /**
+   * Capture and analyze the image from NavCam after arriving target pose of the area.
+   * 
+   * NOTE : You should call getCurrentPose() to update the currentPose before using this function.
+   */
+  public void inspectArea() {
+    Mat rawImage = cameraHandler.captureImage();
+    Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
+    Map<Integer, Pose> arResult = arTagDetector.detectFromImage(undistortedImage);
 
+    Log.i(TAG, "Current Body Pose in World: " + currentPose.toString());
+    for (Map.Entry<Integer, Pose> entry : arResult.entrySet()) {
+      Integer id = entry.getKey();
+      Pose pose = entry.getValue();
+      Pose poseWorld = arTagDetector.convertCameraToWorld(pose, currentPose);
+      Log.i(TAG, "ID: " + id + ", Pose in Cam: " + pose.toString());
+      Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
+    }
   }
 }

@@ -12,19 +12,32 @@ import org.opencv.core.Mat;
 public class CameraHandler {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
+  private final Mat cameraMatrix;
+  private final Mat distortionCoefficients;
 
+  /**
+   * Constructor
+   * 
+   * @param apiRef API reference.
+   */
   public CameraHandler(KiboRpcApi apiRef) {
     this.api = apiRef;
+    cameraMatrix = getCameraMatrix();
+    distortionCoefficients = getDistortionCoefficients();
+    
     Log.i(TAG, "Initialized");
   }
 
   public Mat captureImage() {
-    return api.getMatNavCam();
+    api.flashlightControlFront(0.05f);
+    Mat image = api.getMatNavCam();
+    api.flashlightControlFront(0.00f);
+    return image;
   }
 
   public Mat getUndistortedImage(Mat rawImage) {
     Mat undistorted = new Mat();
-    Calib3d.undistort(rawImage, undistorted, getCameraMatrix(), getDistortionCoefficients());
+    Calib3d.undistort(rawImage, undistorted, cameraMatrix, distortionCoefficients);
     return undistorted;
   }
 
