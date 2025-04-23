@@ -63,28 +63,28 @@ public class MainControl {
         // Exploring area 1
         navigator.navigateToArea1();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area1Item = visionHandler.inspectArea();
+        Item area1Item = visionHandler.inspectArea(1);
         itemManager.setAreaInfo(area1Item);
         itemManager.storeTreasureInfo(area1Item);
 
         // Exploring area 2
         navigator.navigateToArea2();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area2Item = visionHandler.inspectArea();
+        Item area2Item = visionHandler.inspectArea(2);
         itemManager.setAreaInfo(area2Item);
         itemManager.storeTreasureInfo(area2Item);
 
         // Exploring area 3
         navigator.navigateToArea3();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area3Item = visionHandler.inspectArea();
+        Item area3Item = visionHandler.inspectArea(3);
         itemManager.setAreaInfo(area3Item);
         itemManager.storeTreasureInfo(area3Item);
 
         // Exploring area 4
         navigator.navigateToArea4();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area4Item = visionHandler.inspectArea();
+        Item area4Item = visionHandler.inspectArea(4);
         itemManager.setAreaInfo(area4Item);
         itemManager.storeTreasureInfo(area4Item);
     }
