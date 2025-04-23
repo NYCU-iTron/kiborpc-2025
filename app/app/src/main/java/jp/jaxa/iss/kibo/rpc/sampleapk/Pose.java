@@ -14,6 +14,11 @@ public class Pose {
   private final Point point;
   private final Quaternion quaternion;
 
+  public Pose() {
+    this.point = new Point();
+    this.quaternion = new Quaternion();
+  }
+
   public Pose(Point point, Quaternion quaternion) {
     this.point = point;
     this.quaternion = quaternion;
