@@ -49,7 +49,7 @@ public class VisionHandler {
     itemDetector = new ItemDetector(context, apiRef);
     arTagDetector = new ARTagDetector(apiRef);
     itemManager = new ItemManager(apiRef);
-    api = apiRef
+    api = apiRef;
 
     Log.i(TAG, "Initialized");
   }
@@ -107,5 +107,9 @@ public class VisionHandler {
      */
     Item detectedItem = new Item();
     return detectedItem;
+  }
+
+  public void captureTreasureImage() {
+    this.api.takeTargetItemSnapshot();
   }
 }

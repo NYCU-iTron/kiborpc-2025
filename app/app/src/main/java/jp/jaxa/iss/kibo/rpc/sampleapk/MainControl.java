@@ -130,6 +130,5 @@ public class MainControl {
         }
         // Capture the treasure image
         visionHandler.captureTreasureImage();
-        this.api.takeTargetItemSnapshot();
     }
 }
