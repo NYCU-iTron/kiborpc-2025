@@ -95,7 +95,7 @@ public class VisionHandler {
     /**
      * @todo implement yolo model to detect the item in the image.
      */
-    Item detectedItem = new Item(area, 11, "crystal", 1, new Pose(0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+    Item detectedItem = new Item(area, 11, "crystal", 1, new Pose());
     return detectedItem;
   }
 
