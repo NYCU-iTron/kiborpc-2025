@@ -20,6 +20,8 @@ import org.opencv.core.Mat;
 
 /**
  * Class to handle the vision tasks of the robot and interact with navigator class.
+ * 
+ * @todo implement yolo model in VisionHandler::inspectArea() to return proper item.
  */
 public class VisionHandler {
   private final String TAG = this.getClass().getSimpleName();
@@ -27,6 +29,7 @@ public class VisionHandler {
   private final ItemDetector itemDetector;
   private final ARTagDetector arTagDetector;
   private final ItemManager itemManager;
+  private KiboRpcApi api;
 
   private Pose currentPose = null;
 
@@ -46,6 +49,7 @@ public class VisionHandler {
     itemDetector = new ItemDetector(context, apiRef);
     arTagDetector = new ARTagDetector(apiRef);
     itemManager = new ItemManager(apiRef);
+    api = apiRef
 
     Log.i(TAG, "Initialized");
   }
@@ -74,7 +78,7 @@ public class VisionHandler {
    * visionHandler.inspectArea();
    * @endcode
    */
-  public void inspectArea() {
+  public Item inspectArea() {
     Mat rawImage = cameraHandler.captureImage();
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     Map<Integer, Pose> arResult = arTagDetector.detectFromImage(undistortedImage);
@@ -87,5 +91,21 @@ public class VisionHandler {
       Log.i(TAG, "ID: " + id + ", Pose in Cam: " + pose.toString());
       Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
     }
+
+    /**
+     * @todo implement yolo model to detect the item in the image.
+     */
+    Item detectedItem = new Item();
+    return detectedItem;
+  }
+
+  public Item recognizeTreasure() {
+    this.api.notifyRecognitionItem();
+    
+    /**
+     * @todo implement yolo model to detect the item in the treasure image.
+     */
+    Item detectedItem = new Item();
+    return detectedItem;
   }
 }
