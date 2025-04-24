@@ -98,12 +98,12 @@ public class VisionHandler {
   }
 
   public Item recognizeTreasure() {
-    this.api.notifyRecognitionItem();
     
     /**
      * @todo implement yolo model to detect the item in the treasure image.
      */
     Item detectedItem = new Item();
+    this.api.notifyRecognitionItem();
     return detectedItem;
   }
 

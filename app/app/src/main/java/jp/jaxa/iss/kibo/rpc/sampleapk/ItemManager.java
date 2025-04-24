@@ -75,6 +75,11 @@ public class ItemManager {
    * @return Item object containing treasure information. See Item class for details.
    */
   public Item getTreasureInfo(Item item) {
-    return treasureMap.get(item.getItemId());
+    if (treasureMap.containsKey(item.getItemId())) {
+      return treasureMap.get(item.getItemId());
+    }
+    else {
+      return new Item();
+    }
   }
 }
