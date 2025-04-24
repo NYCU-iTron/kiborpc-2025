@@ -28,7 +28,6 @@ public class VisionHandler {
   private final CameraHandler cameraHandler;
   private final ItemDetector itemDetector;
   private final ARTagDetector arTagDetector;
-  private final ItemManager itemManager;
   private KiboRpcApi api;
 
   private Pose currentPose = null;
@@ -48,7 +47,6 @@ public class VisionHandler {
     cameraHandler = new CameraHandler(apiRef);
     itemDetector = new ItemDetector(context, apiRef);
     arTagDetector = new ARTagDetector(apiRef);
-    itemManager = new ItemManager(apiRef);
     api = apiRef;
 
     Log.i(TAG, "Initialized");
