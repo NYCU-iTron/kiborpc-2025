@@ -14,6 +14,7 @@ import org.tensorflow.lite.support.image.TensorImage;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -74,8 +75,8 @@ public class ItemDetector {
 
     // Get input tensor shape from model (e.g., [1, height, width, 3])
     int[] inputShape = tflite.getInputTensor(0).shape();
-    int height = inputShape[1];
-    int width = inputShape[2];
+    int height = inputShape[1]; // 640
+    int width = inputShape[2]; // 640
 
     // Resize bitmap
     Bitmap resized = Bitmap.createScaledBitmap(bitmap, width, height, true);
@@ -84,25 +85,27 @@ public class ItemDetector {
     // Create input buffer
     ByteBuffer inputBuffer = ByteBuffer.allocateDirect(1 * width * height * 3 * 4); // FLOAT32
     inputBuffer.order(ByteOrder.nativeOrder());
+    int[] intValues = new int[width * height];
+    resized.getPixels(intValues, 0, width, 0, 0, width, height);
 
-    // Fill buffer with normalized RGB values
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        int pixel = resized.getPixel(x, y);
-        inputBuffer.putFloat(((pixel >> 16) & 0xFF) / 255.0f); // R
-        inputBuffer.putFloat(((pixel >> 8) & 0xFF) / 255.0f);  // G
-        inputBuffer.putFloat((pixel & 0xFF) / 255.0f);         // B
-      }
+    // Normalize pixel values to [0, 1] and add to input buffer
+    for (int pixel : intValues) {
+      inputBuffer.putFloat(((pixel >> 16) & 0xFF) / 255.0f); // R
+      inputBuffer.putFloat(((pixel >> 8) & 0xFF) / 255.0f);  // G
+      inputBuffer.putFloat((pixel & 0xFF) / 255.0f);         // B
     }
 
     // Dynamic Output
-    int[] outputShape = tflite.getOutputTensor(0).shape(); // e.g. [1, 8400, 85]
+    int[] outputShape = tflite.getOutputTensor(0).shape(); // [1 15 8400]
     float[][][] output = new float[outputShape[0]][outputShape[1]][outputShape[2]];
-    
+        
     // Feed to model
-    tflite.run(tensorImage.getBuffer(), output);
+    tflite.run(inputBuffer, output);
 
-    return postprocess(output[0], bitmap.getWidth(), bitmap.getHeight());
+    for (int i = 0; i < output[0].length; i++) {
+      Log.i(TAG, "Output[" + i + "]: " + Arrays.toString(output[0][i]));
+    }
+    return postprocess(output[0], bitmap.getWidth(), bitmap.getHeight(), width, height);
   }
 
   /**
@@ -114,29 +117,37 @@ public class ItemDetector {
    * @param origH The height of the original image.
    * @return A list of detected items
    */
-  private List<Item> postprocess(float[][] preds, int origW, int origH) {
+  private List<Item> postprocess(float[][] preds, int origW, int origH, int inputW, int inputH) {
     List<Item> results = new ArrayList<>();
     Map<String, Integer> itemCountMap = new HashMap<>();
     int itemId = 0;
 
-    for (float[] pred : preds) {
-      float conf = pred[4];
+    int numFeatures = preds.length;        // 15
+    int numPredictions = preds[0].length;  // 8400
+
+    for (int i = 0; i < numPredictions; i++) {
+      float cx = preds[0][i];
+      float cy = preds[1][i];
+      float w  = preds[2][i];
+      float h  = preds[3][i];
+      float conf = preds[4][i];
+
       if (conf > CONFIDENCE_THRESHOLD) {
         float maxProb = -1f;
         int classId = -1;
-        for (int i = 5; i < pred.length; i++) {
-          if (pred[i] > maxProb) {
-            maxProb = pred[i];
-            classId = i - 5;
+
+        for (int j = 5; j < numFeatures; j++) {
+          if (preds[j][i] > maxProb) {
+            maxProb = preds[j][i];
+            classId = j - 5;
           }
         }
 
         if (maxProb > CONFIDENCE_THRESHOLD) {
-          float cx = pred[0], cy = pred[1], w = pred[2], h = pred[3];
-          float left = (cx - w / 2) * origW / 640;
-          float top = (cy - h / 2) * origH / 640;
-          float right = (cx + w / 2) * origW / 640;
-          float bottom = (cy + h / 2) * origH / 640;
+          float left = (cx - w / 2) * origW / inputW;
+          float top = (cy - h / 2) * origH / inputH;
+          float right = (cx + w / 2) * origW / inputW;
+          float bottom = (cy + h / 2) * origH / inputH;
 
           String label = labels.get(classId);
           itemCountMap.put(label, itemCountMap.getOrDefault(label, 0) + 1);
@@ -149,6 +160,7 @@ public class ItemDetector {
         }
       }
     }
+
     return results;
   }
 }
