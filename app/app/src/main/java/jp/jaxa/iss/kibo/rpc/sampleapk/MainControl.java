@@ -63,30 +63,58 @@ public class MainControl {
         // Exploring area 1
         navigator.navigateToArea1();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area1Item = visionHandler.inspectArea(1);
-        itemManager.setAreaInfo(area1Item);
-        itemManager.storeTreasureInfo(area1Item);
+        Item[] area1Items = visionHandler.inspectArea(1);
+        for (Item item : area1Items) {
+            if (item.getItemId() / 10 == 1) { // Treasure Item
+                itemManager.storeTreasureInfo(item);
+            } else if (item.getItemId() / 10 == 2) { // Landmark Item
+                itemManager.setAreaInfo(item);
+            } else {
+                Log.w(TAG, "Unknown item ID: " + item.getItemId());
+            }
+        }
 
         // Exploring area 2
         navigator.navigateToArea2();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area2Item = visionHandler.inspectArea(2);
-        itemManager.setAreaInfo(area2Item);
-        itemManager.storeTreasureInfo(area2Item);
+        Item[] area2Items = visionHandler.inspectArea(2);
+        for (Item item : area2Items) {
+            if (item.getItemId() / 10 == 1) { // Treasure Item
+                itemManager.storeTreasureInfo(item);
+            } else if (item.getItemId() / 10 == 2) { // Landmark Item
+                itemManager.setAreaInfo(item);
+            } else {
+                Log.w(TAG, "Unknown item ID: " + item.getItemId());
+            }
+        }
 
         // Exploring area 3
         navigator.navigateToArea3();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area3Item = visionHandler.inspectArea(3);
-        itemManager.setAreaInfo(area3Item);
-        itemManager.storeTreasureInfo(area3Item);
+        Item[] area3Items = visionHandler.inspectArea(3);
+        for (Item item : area3Items) {
+            if (item.getItemId() / 10 == 1) { // Treasure Item
+                itemManager.storeTreasureInfo(item);
+            } else if (item.getItemId() / 10 == 2) { // Landmark Item
+                itemManager.setAreaInfo(item);
+            } else {
+                Log.w(TAG, "Unknown item ID: " + item.getItemId());
+            }
+        }
 
         // Exploring area 4
         navigator.navigateToArea4();
         visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item area4Item = visionHandler.inspectArea(4);
-        itemManager.setAreaInfo(area4Item);
-        itemManager.storeTreasureInfo(area4Item);
+        Item[] area4Items = visionHandler.inspectArea(4);
+        for (Item item : area4Items) {
+            if (item.getItemId() / 10 == 1) { // Treasure Item
+                itemManager.storeTreasureInfo(item);
+            } else if (item.getItemId() / 10 == 2) { // Landmark Item
+                itemManager.setAreaInfo(item);
+            } else {
+                Log.w(TAG, "Unknown item ID: " + item.getItemId());
+            }
+        }
     }
 
     /**

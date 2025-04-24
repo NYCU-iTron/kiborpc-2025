@@ -76,7 +76,7 @@ public class VisionHandler {
    * visionHandler.inspectArea();
    * @endcode
    */
-  public Item inspectArea(int area) {
+  public Item[] inspectArea(int area) {
     Mat rawImage = cameraHandler.captureImage();
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     Map<Integer, Pose> arResult = arTagDetector.detectFromImage(undistortedImage);
@@ -93,7 +93,9 @@ public class VisionHandler {
     /**
      * @todo implement yolo model to detect the item in the image.
      */
-    Item detectedItem = new Item(area, 11, "crystal", 1, new Pose());
+    Item[] detectedItemArray = new Item[2];
+    detectedItemArray[0] = new Item(area, 11, "crystal", 1, new Pose());
+    detectedItemArray[1] = new Item(area, 21, "coin", 1, new Pose());
     return detectedItem;
   }
 
