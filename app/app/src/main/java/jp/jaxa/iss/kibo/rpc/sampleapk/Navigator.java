@@ -309,6 +309,108 @@ public class Navigator {
     return result;
   }
 
+  /**
+   * Moves the robot to find the treasure item.
+   * 
+   * @return The result of the last move command.
+   */
+  public Result navigateToTreasure(Item treasureItem) {
+    int areaId = treasureItem.getAreaId();
+
+    Pose currentPose = getCurrentPose();
+    Pose treasurePose = treasureItem.getItemPose();
+
+    Point currentPoint = currentPose.getPoint();
+    Point treasurePoint = treasurePose.getPoint();
+
+    // The final point should be within 0.9 m vertically from the plane of the area.
+    double safeDistance = 0.8;
+
+    double t;
+    double currentX = currentPoint.getX();
+    double currentY = currentPoint.getY();
+    double currentZ = currentPoint.getZ();
+    double finalX = 0, finalY = 0, finalZ = 0;
+    double treasureX = 0, treasureY = 0, treasureZ = 0;
+
+    switch (areaId) {
+      case 1:
+        // Area1 lies on the XZ plane, so the vertical distance along the Y-axis should be within 0.9 m
+        finalY = -10.58 + safeDistance;
+
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = -10.58; // or treasurePoint.getY(), not sure whether to trust the rule book or the ARTagDetector
+        treasureZ = treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalY - currentY) / (treasureY - currentY);
+        finalX = currentX + t * (treasureX - currentX);
+        finalZ = currentZ + t * (treasureZ - currentZ);
+        break;
+
+      case 2:
+      case 3:
+        // Area2 and Area3 lie on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        finalZ = 3.76203 + safeDistance;
+
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = 3.76203; // or treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalZ - currentZ) / (treasureZ - currentZ);
+        finalX = currentX + t * (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);   
+        break;
+
+      case 4:
+        // Area4 lies on the YZ plane, so the vertical distance along the X-axis should be within 0.9 m
+        finalX = 9.866984 + safeDistance;
+
+        // Treasure point
+        treasureX = 9.866984; // or treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalX - currentX) / (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+        finalZ = currentZ + t * (treasureZ - currentZ);
+        break;
+
+      default:
+        // Handle error
+        Log.w(TAG, String.format("Invalid areaId: %d. Using default final pose.", areaId));
+        
+        // Guess the item is in the middle of area 4
+        // Area 4: (9.866984, -7.34, 4.32, 9.866984, -6.365, 5.57)
+        finalX = 9.866984 + safeDistance;
+
+        // Treasure point
+        treasureX = 9.866984;
+        treasureY = (-7.34 - 6.365) / 2;
+        treasureZ = (4.32 + 5.57) / 2;
+        
+        // Interpolate
+        t = (finalX - currentX) / (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+        finalZ = currentZ + t * (treasureZ - currentZ);
+        break;
+    }
+    
+    // Set the final Quaternion to face the treasure
+    Pose finalPose = new Pose(new Point(finalX, finalY, finalZ), new Quaternion());
+    finalPose = getPoseToFaceTarget(finalPose, treasurePose);
+    Log.i(TAG, "I'm goint to " + finalPose.toString());
+
+    Result result = moveTo(finalPose);
+
+    Log.i(TAG, "Move to Treasure. " + " Result: " + result.getMessage());
+    return result;
+  }
+
   /* -------------------------------------------------------------------------- */
   /*                               Tool Functions                               */
   /* -------------------------------------------------------------------------- */
