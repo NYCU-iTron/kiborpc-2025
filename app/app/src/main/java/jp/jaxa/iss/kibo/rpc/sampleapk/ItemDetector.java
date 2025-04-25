@@ -88,10 +88,10 @@ public class ItemDetector {
    * @param undistortImage The input image as a Mat object, which has been undistorted.
    * @return A list of detected items, or an empty list if the TensorFlow Lite model is not initialized.
    */
-  public Item[] detect(Mat undistortImage) {
+  public List<float[]> detect(Mat undistortImage) {
     if (tflite == null) {
       Log.w(TAG, "TFLite model not loaded.");
-      return new Item[0];
+      return new ArrayList<>();
     }
 
     // Get input tensor shape
@@ -110,7 +110,6 @@ public class ItemDetector {
     Log.i(TAG, "padPixelY: " + padPixelY);
     Log.i(TAG, "rate: " + rate);
 
-
     // Run inference
     int[] outputShape = tflite.getOutputTensor(0).shape(); // [1, 15, 8400]
     float[][][] output = new float[outputShape[0]][outputShape[1]][outputShape[2]];
@@ -120,13 +119,7 @@ public class ItemDetector {
     List<float[]> detections = parsePredictions(output[0], padPixelX, padPixelY, rate);
 
     // Apply Non-Maximum Suppression (NMS)
-    List<float[]> filteredDetections = applyNonMaximumSuppression(detections);
-
-    // Draw bounding boxes
-    drawBoundingBoxes(undistortImage, filteredDetections);
-
-    // Process the detected items
-    Item[] results = processDetectedItems(filteredDetections);
+    List<float[]> results = applyNonMaximumSuppression(detections);
 
     return results;
   }
@@ -254,8 +247,8 @@ public class ItemDetector {
     return interArea / (box1Area + box2Area - interArea);
   }
 
-  private void drawBoundingBoxes(Mat undistortImage, List<float[]> filteredDetections) {
-    for (float[] det : filteredDetections) {
+  public void drawBoundingBoxes(Mat undistortImage, List<float[]> detectResult, int area) {
+    for (float[] det : detectResult) {
       float x1 = det[0];
       float y1 = det[1];
       float x2 = det[2];
@@ -269,9 +262,11 @@ public class ItemDetector {
       int thickness = 2;
       Imgproc.rectangle(undistortImage, rect, color, thickness);
     }
+
+    api.saveMatImage(undistortImage, String.format("area%d_bbox.png", area));
   }
 
-  private Item[] processDetectedItems(List<float[]> filteredDetections) {
+  public Item[] filterResult(List<float[]> filteredDetections, int area, Pose tagPose) {
     int treasureId = -1;
     int landmarkId = -1;
     float treasureMaxConfidence = -1.0f;
@@ -316,8 +311,8 @@ public class ItemDetector {
       landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
     }
 
-    results[0] = new Item(-1, treasureId, idToNameMap.get(treasureId), 1, new Pose());
-    results[1] = new Item(-1, landmarkId, idToNameMap.get(landmarkId), landmarkCount, new Pose());
+    results[0] = new Item(area, treasureId, idToNameMap.get(treasureId), 1, tagPose);
+    results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
 
     return results;
   }
