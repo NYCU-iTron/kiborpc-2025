@@ -12,10 +12,22 @@ os.makedirs('../assets/dataset/labels', exist_ok=True)
 # 讀取所有物品圖片
 items = []
 class_names = []
+class_to_id = {}  # 用於儲存class_name到class_id的映射
 input_dir = '../assets/item_template_images/processed'
 print(f"正在從 {input_dir} 讀取圖片...")
 print(f"目錄內容: {os.listdir(input_dir)}")
 
+# 首先收集所有class_names並建立映射
+for item in os.listdir(input_dir):
+    if item.endswith('.png'):
+        class_name = os.path.splitext(item)[0]
+        if class_name not in class_to_id:
+            class_to_id[class_name] = len(class_to_id)  # 自動分配ID
+            class_names.append(class_name)
+
+print(f"找到的類別: {class_to_id}")
+
+# 然後讀取圖片
 for item in os.listdir(input_dir):
     if item.endswith('.png'):
         # 使用PIL讀取圖片以保持透明度
@@ -30,7 +42,6 @@ for item in os.listdir(input_dir):
         # 使用原始檔名（不含副檔名）作為class name
         class_name = os.path.splitext(item)[0]
         items.append((class_name, img))
-        class_names.append(class_name)
 
 # 設置輸出圖片大小
 output_size = (720, 720)
@@ -49,8 +60,26 @@ def rotate_image(image, angle):
                             borderMode=cv2.BORDER_CONSTANT,
                             borderValue=(0, 0, 0, 0))
     return rotated
+def bbox_iou(box1, box2):
+    # box = (x1, y1, x2, y2)
+    xi1 = max(box1[0], box2[0])
+    yi1 = max(box1[1], box2[1])
+    xi2 = min(box1[2], box2[2])
+    yi2 = min(box1[3], box2[3])
+    inter_width = max(xi2 - xi1, 0)
+    inter_height = max(yi2 - yi1, 0)
+    inter_area = inter_width * inter_height
+    
+    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union_area = box1_area + box2_area - inter_area
 
-def generate_image():
+    if union_area == 0:
+        return 0.0
+    return inter_area / union_area
+
+
+def generate_image(max_overlap=0.7, max_attempts=50):
     # 創建白色背景（RGBA）
     background = np.full((output_size[0], output_size[1], 4), 255, dtype=np.uint8)
     
@@ -64,7 +93,8 @@ def generate_image():
     selected_items = random.sample(items, num_items)
     
     annotations = []
-    
+    bboxes = []  # store existing bbox in pixel coords
+
     for class_name, item_img in selected_items:
         # 隨機縮放
         scale = random.uniform(0.2, 0.4)
@@ -76,9 +106,27 @@ def generate_image():
         rotated = rotate_image(resized, angle)
         
         # 隨機位置
-        x = random.randint(0, output_size[0] - new_size[0])
-        y = random.randint(0, output_size[1] - new_size[1])
-        
+        attempt = 0
+        while attempt < max_attempts:
+            x = random.randint(0, output_size[0] - new_size[0])
+            y = random.randint(0, output_size[1] - new_size[1])
+            new_bbox = (x, y, x + new_size[0], y + new_size[1])
+
+            overlap_ok = True
+            for existing in bboxes:
+                iou = bbox_iou(existing, new_bbox)
+                if iou > max_overlap:
+                    overlap_ok = False
+                    break
+
+            if overlap_ok:
+                break  # accept this placement
+            attempt += 1
+
+        if attempt >= max_attempts:
+            print(f"跳過 {class_name}（嘗試超過 {max_attempts} 次）")
+            continue
+
         # 將物品放置到背景上
         alpha_mask = rotated[:, :, 3] > 0
         for c in range(3):  # 只處理RGB通道
@@ -87,14 +135,14 @@ def generate_image():
         background[y:y+new_size[1], x:x+new_size[0], 3][alpha_mask] = rotated[:, :, 3][alpha_mask]
         
         # 生成YOLO格式的標註
-        # YOLO格式：<class> <x_center> <y_center> <width> <height>
+        # YOLO格式：<class_id> <x_center> <y_center> <width> <height>
+        class_id = class_to_id[class_name]  # 使用數字ID
         x_center = (x + new_size[0]/2) / output_size[0]
         y_center = (y + new_size[1]/2) / output_size[1]
         width = new_size[0] / output_size[0]
         height = new_size[1] / output_size[1]
         
-        # 使用class name而不是數字索引
-        annotations.append(f"{class_name} {x_center} {y_center} {width} {height}")
+        annotations.append(f"{class_id} {x_center} {y_center} {width} {height}")
     
     return background, annotations
 
@@ -109,10 +157,11 @@ for i in range(100):
     with open(f'../assets/dataset/labels/image_{i:04d}.txt', 'w') as f:
         f.write('\n'.join(annotations))
 
-# 生成classes.txt，使用原始檔名
+# 生成classes.txt，使用數字ID和對應的class_name
 with open('../assets/dataset/classes.txt', 'w') as f:
     for class_name in class_names:
-        f.write(f'{class_name}\n')
+        class_id = class_to_id[class_name]
+        f.write(f'{class_id} {class_name}\n')
 
 print(f"找到 {len(items)} 個物品: {class_names}")
 if len(items) < 2:
