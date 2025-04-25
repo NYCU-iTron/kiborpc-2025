@@ -96,7 +96,7 @@ public class VisionHandler {
     Item[] detectedItemArray = new Item[2];
     detectedItemArray[0] = new Item(area, 11, "crystal", 1, new Pose());
     detectedItemArray[1] = new Item(area, 21, "coin", 1, new Pose());
-    return detectedItem;
+    return detectedItemArray;
   }
 
   public Item recognizeTreasure() {
