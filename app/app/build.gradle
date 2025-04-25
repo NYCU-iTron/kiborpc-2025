@@ -35,6 +35,10 @@ android {
         exclude 'META-INF/dependencies.txt'
         exclude 'META-INF/LGPL2.1'
     }
+    
+    aaptOptions {
+        noCompress "tflite"
+    }
 }
 
 dependencies {
@@ -52,4 +56,5 @@ dependencies {
         exclude group: 'junit'
     }
     implementation 'com.quickbirdstudios:opencv-contrib:4.5.3.0'
+    implementation ("org.tensorflow:tensorflow-lite-support:0.1.0")
 }
