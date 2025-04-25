@@ -20,13 +20,15 @@ import org.opencv.core.Mat;
 
 /**
  * Class to handle the vision tasks of the robot and interact with navigator class.
+ * 
+ * @todo implement yolo model in VisionHandler::inspectArea() to return proper item.
  */
 public class VisionHandler {
   private final String TAG = this.getClass().getSimpleName();
   private final CameraHandler cameraHandler;
   private final ItemDetector itemDetector;
   private final ARTagDetector arTagDetector;
-  private final ItemManager itemManager;
+  private KiboRpcApi api;
 
   private Pose currentPose = null;
 
@@ -45,7 +47,7 @@ public class VisionHandler {
     cameraHandler = new CameraHandler(apiRef);
     itemDetector = new ItemDetector(context, apiRef);
     arTagDetector = new ARTagDetector(apiRef);
-    itemManager = new ItemManager(apiRef);
+    api = apiRef;
 
     Log.i(TAG, "Initialized");
   }
@@ -74,7 +76,7 @@ public class VisionHandler {
    * visionHandler.inspectArea();
    * @endcode
    */
-  public void inspectArea() {
+  public Item[] inspectArea(int area) {
     Mat rawImage = cameraHandler.captureImage();
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     Map<Integer, Pose> arResult = arTagDetector.detectFromImage(undistortedImage);
@@ -87,5 +89,27 @@ public class VisionHandler {
       Log.i(TAG, "ID: " + id + ", Pose in Cam: " + pose.toString());
       Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
     }
+
+    /**
+     * @todo implement yolo model to detect the item in the image.
+     */
+    Item[] detectedItemArray = new Item[2];
+    detectedItemArray[0] = new Item(area, 11, "crystal", 1, new Pose());
+    detectedItemArray[1] = new Item(area, 21, "coin", 1, new Pose());
+    return detectedItemArray;
+  }
+
+  public Item recognizeTreasure() {
+    
+    /**
+     * @todo implement yolo model to detect the item in the treasure image.
+     */
+    Item detectedItem = new Item();
+    this.api.notifyRecognitionItem();
+    return detectedItem;
+  }
+
+  public void captureTreasureImage() {
+    this.api.takeTargetItemSnapshot();
   }
 }
