@@ -5,11 +5,11 @@ package jp.jaxa.iss.kibo.rpc.sampleapk;
  * Class to represent a single detected item
  */
 public class Item {
-  private int areaId;
+  private final int areaId;
   private final int itemId;
   private final String itemName;
   private final int itemCount;
-  private Pose itemPose;
+  private final Pose itemPose;
 
   /**
    * Default constructor
@@ -47,11 +47,7 @@ public class Item {
   public String getItemName() { return itemName; }
   public int getItemCount() { return itemCount; }
   public Pose getItemPose() { return itemPose; }
-
-  // Setters
-  public void setAreaId(int areaId) { this.areaId = areaId; }
-  public void setItemPose(Pose itemPose) { this.itemPose = itemPose; }
-
+  
   public String toString() {
     return "Item {" +
             "itemId=" + itemId +
