@@ -21,9 +21,17 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Random;
 
 import org.opencv.core.Mat;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
+import org.opencv.core.Scalar;
+import org.opencv.core.Point;
+import org.opencv.core.Rect;
+import org.opencv.imgproc.Imgproc;
+import org.opencv.utils.Converters;
+
 
 /**
  * Class to detect items from provided image using YOLO TFLite model
@@ -32,15 +40,21 @@ public class ItemDetector {
   private final KiboRpcApi api;
   private final Context context;
   private final String TAG = this.getClass().getSimpleName();
+  private boolean DEBUG = true;  
 
   private Interpreter tflite;
   private List<String> labels;
-  private static final float CONFIDENCE_THRESHOLD = 0.2f;
+  private static final float CONFIDENCE_THRESHOLD = 0.85f;
   private static final float NMS_IOU_THRESHOLD = 0.95f;
+  private Map<Integer, String> idToNameMap = new HashMap<>();
+  private Random rand;
 
   public ItemDetector(Context context, KiboRpcApi apiRef) {
     this.api = apiRef;
     this.context = context;
+
+    initializeItemMappings();
+    rand = new Random();
 
     try {
       setupModel();
@@ -51,33 +65,70 @@ public class ItemDetector {
     Log.i(TAG, "Initialized");
   }
 
+  private void initializeItemMappings() {
+    // Treasure
+    idToNameMap.put(11, "crystal");
+    idToNameMap.put(12, "diamond");
+    idToNameMap.put(13, "emerald");
+
+    // Landmark
+    idToNameMap.put(21, "coin");
+    idToNameMap.put(22, "compass");
+    idToNameMap.put(23, "coral");
+    idToNameMap.put(24, "fossil");
+    idToNameMap.put(25, "key");
+    idToNameMap.put(26, "letter");
+    idToNameMap.put(27, "shell");
+    idToNameMap.put(28, "Treasure_box");
+  }
+
   /**
    * Detects items in the given undistorted image using a TensorFlow Lite model.
    *
    * @param undistortImage The input image as a Mat object, which has been undistorted.
    * @return A list of detected items, or an empty list if the TensorFlow Lite model is not initialized.
    */
-  public List<Item> detect(Mat undistortImage) {
-    if (tflite == null) return Collections.emptyList();
+  public Item[] detect(Mat undistortImage) {
+    if (tflite == null) {
+      Log.w(TAG, "TFLite model not loaded.");
+      return new Item[0];
+    }
 
     // Get input tensor shape
     int[] inputShape = tflite.getInputTensor(0).shape();
-    int height = inputShape[1]; // 640
-    int width = inputShape[2]; // 640
+    int inputWidth = inputShape[2]; // 640
+    int inputHeight = inputShape[1]; // 640
 
     // Preprocess image
-    Object[] preprocessResult = preprocess(undistortImage, width, height);
+    Object[] preprocessResult = preprocess(undistortImage, inputWidth, inputHeight);
     ByteBuffer inputBuffer = (ByteBuffer) preprocessResult[0];
-    float padX = (float) preprocessResult[1];
-    float padY = (float) preprocessResult[2];
+    int padPixelX = (int) preprocessResult[1];
+    int padPixelY = (int) preprocessResult[2];
+    float rate = (float) preprocessResult[3];
+
+    Log.i(TAG, "padPixelX: " + padPixelX);
+    Log.i(TAG, "padPixelY: " + padPixelY);
+    Log.i(TAG, "rate: " + rate);
+
 
     // Run inference
     int[] outputShape = tflite.getOutputTensor(0).shape(); // [1, 15, 8400]
     float[][][] output = new float[outputShape[0]][outputShape[1]][outputShape[2]];
     tflite.run(inputBuffer, output);
 
-    // Postprocess and return results
-    return postprocess(output[0], undistortImage.cols(), undistortImage.rows(), width, height, padX, padY);
+    // Parse the predictions
+    List<float[]> detections = parsePredictions(output[0], padPixelX, padPixelY, rate);
+
+    // Apply Non-Maximum Suppression (NMS)
+    List<float[]> filteredDetections = applyNonMaximumSuppression(detections);
+
+    // Draw bounding boxes
+    drawBoundingBoxes(undistortImage, filteredDetections);
+
+    // Process the detected items
+    Item[] results = processDetectedItems(filteredDetections);
+
+    return results;
   }
 
   /* ----------------------------- Tool Functions ----------------------------- */
@@ -103,9 +154,9 @@ public class ItemDetector {
     // Letterbox resize
     int origW = bitmap.getWidth();
     int origH = bitmap.getHeight();
-    float r = Math.min((float) inputW / origW, (float) inputH / origH);
-    int newW = Math.round(origW * r);
-    int newH = Math.round(origH * r);
+    float rate = Math.min((float) inputW / origW, (float) inputH / origH);
+    int newW = Math.round(origW * rate);
+    int newH = Math.round(origH * rate);
     Bitmap resized = Bitmap.createScaledBitmap(bitmap, newW, newH, true);
 
     // Add padding
@@ -128,34 +179,22 @@ public class ItemDetector {
       inputBuffer.putFloat((pixel & 0xFF) / 255.0f);         // B
     }
 
-    return new Object[]{inputBuffer, (float) dw / inputW, (float) dh / inputH};
+    return new Object[]{inputBuffer, (int) dw, (int) dh, (float) rate};
   }
 
-  /**
-   * Processes the predictions from the TensorFlow Lite model to extract detected items.
-   *
-   * @param preds A 2D array of predictions [features, predictions].
-   * @param origW The width of the original image.
-   * @param origH The height of the original image.
-   * @param inputW The width of the model input.
-   * @param inputH The height of the model input.
-   * @param padX The left padding ratio.
-   * @param padY The top padding ratio.
-   * @return A list of detected items.
-   */
-  private List<Item> postprocess(float[][] preds, int origW, int origH, int inputW, int inputH, float padX, float padY) {
-    List<Item> results = new ArrayList<>();
-    Map<String, Integer> itemCountMap = new HashMap<>();
-    int itemId = 0;
-
-    // Collect detections and track top 3 for debugging
+  private List<float[]> parsePredictions(float[][] preds, int padPixelX, int padPixelY, float rate) {
     List<float[]> detections = new ArrayList<>();
-    List<float[]> topCandidates = new ArrayList<>(); // For top 3 candidates
     for (int i = 0; i < preds[0].length; i++) {
-      float cx = preds[0][i] - padX;
-      float cy = preds[1][i] - padY;
-      float w = preds[2][i];
-      float h = preds[3][i];
+      float cx = (preds[0][i] - padPixelX) / rate;
+      float cy = (preds[1][i] - padPixelY) / rate;
+      float w = preds[2][i] / rate;
+      float h = preds[3][i] / rate;
+
+      float x1 = cx - w / 2;
+      float y1 = cy - h / 2;
+      float x2 = cx + w / 2;
+      float y2 = cy + h / 2;
+
       float conf = preds[4][i];
 
       // Calculate max probability and class
@@ -168,22 +207,17 @@ public class ItemDetector {
           classId = j - 5;
         }
       }
-
-      // Store top 3 candidates regardless of threshold
-      float scale = Math.max(origW, origH);
-      float x1 = (cx - w / 2) * scale;
-      float y1 = (cy - h / 2) * scale;
-      float x2 = (cx + w / 2) * scale;
-      float y2 = (cy + h / 2) * scale;
-      topCandidates.add(new float[]{x1, y1, x2, y2, maxProb, classId});
+      Log.i(TAG,"Class " + i + " Prob: " + maxProb);
 
       // Add to detections if above threshold
       if (conf > CONFIDENCE_THRESHOLD && maxProb > CONFIDENCE_THRESHOLD) {
         detections.add(new float[]{x1, y1, x2, y2, maxProb, classId});
       }
     }
+    return detections;
+  }
 
-    // Simple NMS
+  private List<float[]> applyNonMaximumSuppression(List<float[]> detections) {
     List<float[]> filteredDetections = new ArrayList<>();
     while (!detections.isEmpty()) {
       float[] best = detections.get(0);
@@ -201,40 +235,7 @@ public class ItemDetector {
       }
       detections.removeAll(toRemove);
     }
-
-    // Log detections or top 3 candidates if no detections
-    if (filteredDetections.isEmpty()) {
-      Log.w(TAG, "No detections found. Logging top 3 candidates by confidence:");
-      
-      // Sort candidates by score (descending) using Comparator for Java 7
-      Collections.sort(topCandidates, new Comparator<float[]>() {
-        @Override
-        public int compare(float[] a, float[] b) {
-          return Float.compare(b[4], a[4]); // Descending order
-        }
-      });
-
-      // Log top 3 (or fewer if less than 3)
-      for (int i = 0; i < Math.min(3, topCandidates.size()); i++) {
-        float[] cand = topCandidates.get(i);
-        String label = labels.get((int) cand[5]);
-        Log.i(TAG, String.format("Candidate %d: %s, Confidence: %.2f, BBox: [%.1f, %.1f, %.1f, %.1f]",
-                i + 1, label, cand[4], cand[0], cand[1], cand[2], cand[3]));
-      }
-    } else {
-      for (float[] det : filteredDetections) {
-        String label = labels.get((int) det[5]);
-        itemCountMap.put(label, itemCountMap.getOrDefault(label, 0) + 1);
-        Log.i(TAG, String.format("Detected item: %s, Confidence: %.2f, BBox: [%.1f, %.1f, %.1f, %.1f]",
-                label, det[4], det[0], det[1], det[2], det[3]));
-
-        // TODO:  Create item
-        // Item item = new Item(...);
-        // results.add(item);
-      }
-    }
-
-    return results;
+    return filteredDetections;
   }
 
   /**
@@ -251,5 +252,73 @@ public class ItemDetector {
     float box2Area = (box2[2] - box2[0]) * (box2[3] - box2[1]);
 
     return interArea / (box1Area + box2Area - interArea);
+  }
+
+  private void drawBoundingBoxes(Mat undistortImage, List<float[]> filteredDetections) {
+    for (float[] det : filteredDetections) {
+      float x1 = det[0];
+      float y1 = det[1];
+      float x2 = det[2];
+      float y2 = det[3];
+
+      // Create a rectangle to represent the bounding box
+      Rect rect = new Rect(new Point((int) x1, (int) y1), new Point((int) x2, (int) y2));
+
+      // Draw the rectangle on the image (color and thickness can be customized)
+      Scalar color = new Scalar(255, 0, 0);  // Red color for the rectangle
+      int thickness = 2;
+      Imgproc.rectangle(undistortImage, rect, color, thickness);
+    }
+  }
+
+  private Item[] processDetectedItems(List<float[]> filteredDetections) {
+    int treasureId = -1;
+    int landmarkId = -1;
+    float treasureMaxConfidence = -1.0f;
+    float landmarkMaxConfidence = -1.0f;
+    int landmarkCount = 0;
+
+    Map<Integer, Integer> itemCountMap = new HashMap<>();
+    Item[] results = new Item[2];
+
+    if (filteredDetections.isEmpty()) {
+      Log.w(TAG, "No detection found. Leave it to fate.");
+      treasureId = rand.nextInt(3) + 11;
+      landmarkId = rand.nextInt(8) + 21;
+      landmarkCount = rand.nextInt(3) + 1;
+    } else {
+      for (float[] det : filteredDetections) {
+        String label = labels.get((int) det[5]);
+        int itemId = Integer.parseInt(label);
+
+        // Count the duplicate
+        itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
+
+        // Record the Treasure item and Landmark item with the max confidence respectively
+        if (itemId / 10 == 1) { // Treasure Item
+          if (det[4] > treasureMaxConfidence) {
+            treasureMaxConfidence = det[4];
+            treasureId = itemId;
+          }
+        } else if (itemId / 10 == 2) { // Landmark Item
+          if (det[4] > landmarkMaxConfidence) {
+            landmarkMaxConfidence = det[4];
+            landmarkId = itemId;
+          }
+        } else {
+          Log.w(TAG, "Unknown item ID: " + itemId);
+        }
+      }
+
+      // Handle no treasure or landmark case
+      if (treasureId == -1) treasureId = rand.nextInt(3) + 11;
+      if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21;
+      landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
+    }
+
+    results[0] = new Item(-1, treasureId, idToNameMap.get(treasureId), 1, new Pose());
+    results[1] = new Item(-1, landmarkId, idToNameMap.get(landmarkId), landmarkCount, new Pose());
+
+    return results;
   }
 }
