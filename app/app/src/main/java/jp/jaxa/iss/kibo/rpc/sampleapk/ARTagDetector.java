@@ -46,7 +46,7 @@ public class ARTagDetector {
     Log.i(TAG, "Initialized");
   }
 
-  public Map detectFromImage(Mat undistortedImage) {
+  public Map detect(Mat undistortedImage) {
     List<Mat> corners = new ArrayList<>();
     Mat markerIds = new Mat();
     Aruco.detectMarkers(undistortedImage, arucoDictionary, corners, markerIds);
@@ -88,13 +88,48 @@ public class ARTagDetector {
     return result;
   }
 
-  public Mat getCameraMatrix() {
+  public Pose filterResult(Map<Integer, Pose> arResult, int area, Pose currentPose) {
+    Pose tagPose = null;
+    Log.i(TAG, "Current Body Pose in World: " + currentPose.toString());
+    for (Map.Entry<Integer, Pose> entry : arResult.entrySet()) {
+      Integer id = entry.getKey();
+      Pose pose = entry.getValue();
+      Pose poseWorld = convertCameraToWorld(pose, currentPose);
+      Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
+
+      if(id % 100 == area) {
+        tagPose = poseWorld;
+      }
+    }
+
+    if (tagPose == null) {
+      Log.w(TAG, "No correct tag found, set tagPose to the center of this area.");
+
+      if (area == 1) {
+        tagPose = new Pose(new Point((10.42 + 11.48) / 2, -10.58, (4.82 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+      } else if (area == 2) {
+        tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-9.25 + -8.5) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+      } else if (area == 3) {
+        tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-8.4 + -7.45) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+      } else if (area == 4) {
+        tagPose = new Pose(new Point(9.866984, (-7.34 + -6.365) / 2, (4.32 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+      } else {
+        Log.i(TAG, "Area id not valid.");
+      }
+    }
+
+    return tagPose;
+  }
+
+  /* ----------------------------- Tool Functions ----------------------------- */
+
+  private Mat getCameraMatrix() {
     Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
     cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
     return cameraMatrix;
   }
 
-  public Mat getDistortionCoefficients() {
+  private Mat getDistortionCoefficients() {
     Mat distCoeffs = new Mat(1, 5, CvType.CV_64F);
     distCoeffs.put(0, 0, api.getNavCamIntrinsics()[1]);
     return distCoeffs;
@@ -160,7 +195,7 @@ public class ARTagDetector {
    * @param tagInCamera The tag pose in NavCam frame.
    * @return The pose in world frame. 
    */
-  public Pose convertCameraToWorld(Pose tagInCVcam, Pose bodyInWorld) {
+  private Pose convertCameraToWorld(Pose tagInCVcam, Pose bodyInWorld) {
     // OpenCV camera pose in NavCam frame
     Pose CVcamInNavcam = new Pose(
       new Point(0, 0, 0),
@@ -185,7 +220,7 @@ public class ARTagDetector {
     return tagInWorld;
   }
 
-  public Pose composePoses(Pose poseA, Pose poseB) {
+  private Pose composePoses(Pose poseA, Pose poseB) {
     // poseA followed by poseB
     Quaternion qa = poseA.getQuaternion();
     Point pa = poseA.getPoint();
@@ -234,7 +269,7 @@ public class ARTagDetector {
     return new double[]{rx, ry, rz};
   }
 
-  public Quaternion multiplyQuaternions(Quaternion q1, Quaternion q2) {
+  private Quaternion multiplyQuaternions(Quaternion q1, Quaternion q2) {
     float w1 = q1.getW(), x1 = q1.getX(), y1 = q1.getY(), z1 = q1.getZ();
     float w2 = q2.getW(), x2 = q2.getX(), y2 = q2.getY(), z2 = q2.getZ();
 
@@ -255,38 +290,5 @@ public class ARTagDetector {
     }
 
     return new Quaternion(x, y, z, w);
-  }
-
-  public Pose filterResult(Map<Integer, Pose> arResult, int area, Pose currentPose) {
-    Pose tagPose = null;
-    Log.i(TAG, "Current Body Pose in World: " + currentPose.toString());
-    for (Map.Entry<Integer, Pose> entry : arResult.entrySet()) {
-      Integer id = entry.getKey();
-      Pose pose = entry.getValue();
-      Pose poseWorld = convertCameraToWorld(pose, currentPose);
-      Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
-
-      if(id % 100 == area) {
-        tagPose = poseWorld;
-      }
-    }
-
-    if (tagPose == null) {
-      Log.w(TAG, "No correct tag found, set tagPose to the center of this area.");
-
-      if (area == 1) {
-        tagPose = new Pose(new Point((10.42 + 11.48) / 2, -10.58, (4.82 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else if (area == 2) {
-        tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-9.25 + -8.5) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else if (area == 3) {
-        tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-8.4 + -7.45) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else if (area == 4) {
-        tagPose = new Pose(new Point(9.866984, (-7.34 + -6.365) / 2, (4.32 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else {
-        Log.i(TAG, "Area id not valid.");
-      }
-    }
-
-    return tagPose;
   }
 }
