@@ -64,11 +64,9 @@ public class ItemDetector {
   private int numElements;
 
   private static final float CONFIDENCE_THRESHOLD = 0.7f;
-  private static final float NMS_IOU_THRESHOLD = 0.95f;
   private static final float IOU_THRESHOLD = 0.4F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
-  private static final DataType INPUT_IMAGE_TYPE = DataType.FLOAT32;
 
   /**
    * Constructor for ItemDetector.
@@ -93,7 +91,7 @@ public class ItemDetector {
     // Build an image processor: normalize and cast input images
     this.imageProcessor = new ImageProcessor.Builder()
         .add(new NormalizeOp(INPUT_MEAN, INPUT_STANDARD_DEVIATION))
-        .add(new CastOp(INPUT_IMAGE_TYPE))
+        .add(new CastOp(DataType.FLOAT32))
         .build();
 
     Log.i(TAG, "Initialized");
@@ -132,7 +130,9 @@ public class ItemDetector {
     int landmarkId = -1;
     float treasureMaxConfidence = -1.0f;
     float landmarkMaxConfidence = -1.0f;
+    int treasureCount = 0;
     int landmarkCount = 0;
+    int defaultCount = 0;
 
     Map<Integer, Integer> itemCountMap = new HashMap<>();
     Item[] results = new Item[2];
@@ -143,6 +143,7 @@ public class ItemDetector {
       treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
       landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
       landmarkCount = rand.nextInt(3) + 1; // Random count (1-3)
+      treasureCount = 1;
     } else {
       for (float[] det : detectResult) {
         String label = labels.get((int) det[9]); // Get item label from detection
@@ -169,17 +170,22 @@ public class ItemDetector {
         }
       }
 
-      // Assign random IDs if no treasure or landmark was found
-      if (treasureId == -1) treasureId = rand.nextInt(3) + 11; // Random treasure ID
+      // Assign random IDs if no landmark was found
       if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21; // Random landmark ID
 
-      // Set the landmark count
-      landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
+      // Set item count
+      defaultCount = rand.nextInt(3) + 1; // Random count (1-3)
+      landmarkCount = itemCountMap.getOrDefault(landmarkId, defaultCount);
+      treasureCount = itemCountMap.getOrDefault(landmarkId, 0);
     }
 
     // Create the resulting items
-    results[0] = new Item(area, treasureId, idToNameMap.get(treasureId), 1, tagPose);
-    results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
+    if (treasureId == -1) {
+      results[0] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
+    } else {
+      results[0] = new Item(area, treasureId, idToNameMap.get(treasureId), treasureCount, tagPose);
+      results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
+    }
 
     return results; // Return the filtered treasure and landmark items
   }
@@ -192,15 +198,25 @@ public class ItemDetector {
    * @param area           The area identifier used for saving the image.
    */
   public void drawBoundingBoxes(Mat undistortImage, List<float[]> detectResult, int area) {
+    if (detectResult == null || detectResult.isEmpty()) {
+      Log.i(TAG, "No detections to draw.");
+      return;
+    }
+
+    int imageWidth = undistortImage.cols();
+    int imageHeight = undistortImage.rows();
+
     for (float[] det : detectResult) {
       // Extract bounding box coordinates
-      float x1 = det[0];
-      float y1 = det[1];
-      float x2 = det[2];
-      float y2 = det[3];
+      int x1 = (int) (det[0] * imageWidth);
+      int y1 = (int) (det[1] * imageHeight);
+      int x2 = (int) (det[2] * imageWidth);
+      int y2 = (int) (det[3] * imageHeight);
+
+      Log.i(TAG, "Draw Bounding Boxe at (" + x1 + "," + y1 + "," + x2 + "," + y2 + ")");
 
       // Create a rectangle from the top-left and bottom-right points
-      Rect rect = new Rect(new Point((int) x1, (int) y1), new Point((int) x2, (int) y2));
+      Rect rect = new Rect(new Point(x1, y1), new Point(x2, y2));
 
       // Define rectangle color (red) and thickness
       Scalar color = new Scalar(255, 0, 0); // Red color
@@ -232,7 +248,7 @@ public class ItemDetector {
     idToNameMap.put(25, "key");
     idToNameMap.put(26, "letter");
     idToNameMap.put(27, "shell");
-    idToNameMap.put(28, "Treasure_box");
+    idToNameMap.put(28, "treasure_box");
   }
 
   /**
