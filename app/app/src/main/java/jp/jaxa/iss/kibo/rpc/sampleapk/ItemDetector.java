@@ -135,7 +135,7 @@ public class ItemDetector {
     int defaultCount = 0;
 
     Map<Integer, Integer> itemCountMap = new HashMap<>();
-    Item[] results = new Item[2];
+    Item[] results;
 
     // Handle empty detection results
     if (detectResult.isEmpty()) {
@@ -181,8 +181,10 @@ public class ItemDetector {
 
     // Create the resulting items
     if (treasureId == -1) {
+      results = new Item[1];
       results[0] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
     } else {
+      results = new Item[2];
       results[0] = new Item(area, treasureId, idToNameMap.get(treasureId), treasureCount, tagPose);
       results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
     }
