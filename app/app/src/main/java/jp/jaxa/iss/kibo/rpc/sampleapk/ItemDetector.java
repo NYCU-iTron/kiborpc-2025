@@ -50,7 +50,7 @@ public class ItemDetector {
   private final KiboRpcApi api;
   private final Context context;
   private final String TAG = this.getClass().getSimpleName();
-  private boolean DEBUG = true;  
+  private boolean DEBUG = true;
 
   private Interpreter interpreter;
   private List<String> labels;
@@ -71,14 +71,18 @@ public class ItemDetector {
   private static final DataType INPUT_IMAGE_TYPE = DataType.FLOAT32;
 
   /**
-   * Constructor
+   * Constructor for ItemDetector.
+   * Sets up the model, label mappings, and image processor.
+   *
+   * @param context the application context
+   * @param apiRef  reference to the KiboRpcApi
    */
   public ItemDetector(Context context, KiboRpcApi apiRef) {
     this.api = apiRef;
     this.context = context;
 
-    initializeItemMappings();
-    rand = new Random();
+    initializeItemMappings();  // Initialize item ID mappings
+    rand = new Random();       // Create a random generator
 
     try {
       setupModel();
@@ -86,6 +90,7 @@ public class ItemDetector {
       Log.e(TAG, "Failed to load model or labels", e);
     }
 
+    // Build an image processor: normalize and cast input images
     this.imageProcessor = new ImageProcessor.Builder()
         .add(new NormalizeOp(INPUT_MEAN, INPUT_STANDARD_DEVIATION))
         .add(new CastOp(INPUT_IMAGE_TYPE))
@@ -115,7 +120,12 @@ public class ItemDetector {
   }
 
   /**
-   * Filter the Result
+   * Filters the detection results to identify the treasure and landmark items with the highest confidence.
+   *
+   * @param detectResult A list of detection results, each containing item details and confidence scores.
+   * @param area         The area identifier where the detection occurred.
+   * @param tagPose      The pose associated with the detection area.
+   * @return An array containing the selected treasure and landmark items.
    */
   public Item[] filterResult(List<float[]> detectResult, int area, Pose tagPose) {
     int treasureId = -1;
@@ -127,63 +137,76 @@ public class ItemDetector {
     Map<Integer, Integer> itemCountMap = new HashMap<>();
     Item[] results = new Item[2];
 
+    // Handle empty detection results
     if (detectResult.isEmpty()) {
       Log.w(TAG, "No detection found. Leave it to fate.");
-      treasureId = rand.nextInt(3) + 11;
-      landmarkId = rand.nextInt(8) + 21;
-      landmarkCount = rand.nextInt(3) + 1;
+      treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
+      landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
+      landmarkCount = rand.nextInt(3) + 1; // Random count (1-3)
     } else {
       for (float[] det : detectResult) {
-        String label = labels.get((int) det[9]);
-        int itemId = Integer.parseInt(label);
+        String label = labels.get((int) det[9]); // Get item label from detection
+        int itemId = Integer.parseInt(label);   // Convert label to item ID
 
-        // Count the duplicate
+        // Update item count
         itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
 
-        // Record the Treasure item and Landmark item with the max confidence respectively
-        if (itemId / 10 == 1) { // Treasure Item
-          if (det[8] > treasureMaxConfidence) {
+        // Check if the item is a treasure
+        if (itemId / 10 == 1) { // Treasure IDs are in the range 10-19
+          if (det[8] > treasureMaxConfidence) { // Update if higher confidence
             treasureMaxConfidence = det[8];
             treasureId = itemId;
           }
-        } else if (itemId / 10 == 2) { // Landmark Item
-          if (det[8] > landmarkMaxConfidence) {
+        }
+        // Check if the item is a landmark
+        else if (itemId / 10 == 2) { // Landmark IDs are in the range 20-29
+          if (det[8] > landmarkMaxConfidence) { // Update if higher confidence
             landmarkMaxConfidence = det[8];
             landmarkId = itemId;
           }
         } else {
-          Log.w(TAG, "Unknown item ID: " + itemId);
+          Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
         }
       }
 
-      // Handle no treasure or landmark case
-      if (treasureId == -1) treasureId = rand.nextInt(3) + 11;
-      if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21;
+      // Assign random IDs if no treasure or landmark was found
+      if (treasureId == -1) treasureId = rand.nextInt(3) + 11; // Random treasure ID
+      if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21; // Random landmark ID
+
+      // Set the landmark count
       landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
     }
 
+    // Create the resulting items
     results[0] = new Item(area, treasureId, idToNameMap.get(treasureId), 1, tagPose);
     results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
 
-    return results;
+    return results; // Return the filtered treasure and landmark items
   }
 
   /**
-   * Draw Bounding Boxes
+   * Draws bounding boxes on the given image based on the detection results.
+   *
+   * @param undistortImage The input image to draw on.
+   * @param detectResult   List of detection results containing bounding box coordinates.
+   * @param area           The area identifier used for saving the image.
    */
   public void drawBoundingBoxes(Mat undistortImage, List<float[]> detectResult, int area) {
     for (float[] det : detectResult) {
+      // Extract bounding box coordinates
       float x1 = det[0];
       float y1 = det[1];
       float x2 = det[2];
       float y2 = det[3];
 
-      // Create a rectangle to represent the bounding box
+      // Create a rectangle from the top-left and bottom-right points
       Rect rect = new Rect(new Point((int) x1, (int) y1), new Point((int) x2, (int) y2));
 
-      // Draw the rectangle on the image (color and thickness can be customized)
-      Scalar color = new Scalar(255, 0, 0);  // Red color for the rectangle
+      // Define rectangle color (red) and thickness
+      Scalar color = new Scalar(255, 0, 0); // Red color
       int thickness = 2;
+
+      // Draw the rectangle on the image
       Imgproc.rectangle(undistortImage, rect, color, thickness);
     }
 
@@ -192,6 +215,9 @@ public class ItemDetector {
 
   /* ----------------------------- Tool Functions ----------------------------- */
 
+  /**
+   * Initializes the mapping between item IDs and item names.
+   */
   private void initializeItemMappings() {
     // Treasure
     idToNameMap.put(11, "crystal");
@@ -210,20 +236,30 @@ public class ItemDetector {
   }
 
   /**
-   * Setup model
+   * Loads the TensorFlow Lite model and label file, and initializes interpreter settings.
+   *
+   * @throws IOException if the model or label files cannot be loaded.
    */
   private void setupModel() throws IOException {
+    // Load the TFLite model from assets
     InputStream inputStream = context.getAssets().open("best.tflite");
     ByteBuffer model = ByteBuffer.allocateDirect(inputStream.available());
     byte[] buffer = new byte[inputStream.available()];
     inputStream.read(buffer);
     model.put(buffer);
     model.rewind();
+
+    // Create interpreter options and set number of threads
     Interpreter.Options options = new Interpreter.Options();
-    options.setNumThreads(4); // Set the thread
+    options.setNumThreads(4);
+
+    // Initialize the TFLite interpreter with the model
     interpreter = new Interpreter(model, options);
+
+    // Load labels from labels.txt
     labels = FileUtil.loadLabels(context, "labels.txt");
 
+    // Get input and output tensor shapes
     int[] inputShape = interpreter.getInputTensor(0).shape();
     int[] outputShape = interpreter.getOutputTensor(0).shape();
 
@@ -238,101 +274,137 @@ public class ItemDetector {
   }
 
   /**
-   * Preprocesses the input image with letterbox resizing and padding.
-   * Returns [inputBuffer, padX, padY].
+   * Preprocesses the input image by resizing and normalizing it.
+   *
+   * @param undistortImage The input image as a Mat object.
+   * @return A ByteBuffer ready for model input.
    */
   private ByteBuffer preprocess(Mat undistortImage) {
-    // Convert Mat to Bitmap
+    // Convert Mat to Bitmap format
     Bitmap bitmap = Bitmap.createBitmap(undistortImage.cols(), undistortImage.rows(), Bitmap.Config.ARGB_8888);
     Utils.matToBitmap(undistortImage, bitmap);
+
+    // Resize Bitmap to match the model input size
     Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false);
+
     Log.i(TAG, "Original image size: " + undistortImage.cols() + "x" + undistortImage.rows());
     Log.i(TAG, "Resized to: " + tensorWidth + "x" + tensorHeight);
-    
+
+    // Load the resized Bitmap into a TensorImage
     TensorImage tensorImage = new TensorImage(DataType.FLOAT32);
     tensorImage.load(resizedBitmap);
+
+    // Apply image preprocessing (normalization, type casting, etc.)
     TensorImage processedImage = imageProcessor.process(tensorImage);
+
+    // Get the ByteBuffer from the processed image
     ByteBuffer imageBuffer = processedImage.getBuffer();
 
     return imageBuffer;
   }
 
   /**
-   * Run reference
+   * Runs the TensorFlow Lite model inference on the input image buffer.
+   *
+   * @param imageBuffer The preprocessed input image as a ByteBuffer.
+   * @return The model output as a float array.
    */
   private float[] runReference(ByteBuffer imageBuffer) {
+    // Create an output buffer with the expected shape and type
     TensorBuffer output = TensorBuffer.createFixedSize(new int[]{1, numChannel, numElements}, DataType.FLOAT32);
+
+    // Run inference with the interpreter
     interpreter.run(imageBuffer, output.getBuffer());
+
+    // Convert the output to a float array
     float[] outputArray = output.getFloatArray();
 
     return outputArray;
   }
 
   /**
-   * Parse prediction
+   * Parses the raw model output into a list of valid detections.
+   *
+   * @param outputArray The raw output array from the model.
+   * @return A list of detected bounding boxes and related information.
    */
   private List<float[]> parsePredictions(float[] outputArray) {
-   List<float[]> detections = new ArrayList<>();
+    List<float[]> detections = new ArrayList<>();
+
+    // Loop through each element (candidate detection)
     for (int c = 0; c < numElements; c++) {
       float maxConf = -1.0F;
       int maxIdx = -1;
+
+      // Find the class with the highest confidence for this candidate
       for (int j = 4; j < numChannel; j++) {
         int arrayIdx = c + numElements * j;
         if (outputArray[arrayIdx] > maxConf) {
           maxConf = outputArray[arrayIdx];
-          maxIdx = j - 4;
+          maxIdx = j - 4; // Class index adjustment
         }
       }
 
+      // If confidence is high enough, process the detection
       if (maxConf > CONFIDENCE_THRESHOLD) {
+        // Get center coordinates and size
         float cx = outputArray[c];
         float cy = outputArray[c + numElements];
         float w = outputArray[c + numElements * 2];
         float h = outputArray[c + numElements * 3];
 
-        Log.i(TAG, "High confidence detection: cx=" + cx + ", cy=" + cy + ", w=" + w + ", h=" + h);
-
+        // Calculate bounding box corners
         float x1 = cx - w / 2.0F;
         float y1 = cy - h / 2.0F;
         float x2 = cx + w / 2.0F;
         float y2 = cy + h / 2.0F;
 
-        Log.i(TAG, "  Bounding box: (" + x1 + "," + y1 + ") to (" + x2 + "," + y2 + ")");
-
-        if (x1 >= 0.0F && x1 <= 1.0F && y1 >= 0.0F && y1 <= 1.0F && x2 >= 0.0F && x2 <= 1.0F && y2 >= 0.0F && y2 <= 1.0F) {
+        // Check if the bounding box is valid (inside [0, 1] range)
+        if (x1 >= 0.0F && x1 <= 1.0F && y1 >= 0.0F && y1 <= 1.0F && x2 >= 0.0F && x2 <= 1.0F) {
+          // Add valid detection [box coords, center, size, confidence, class]
           detections.add(new float[]{x1, y1, x2, y2, cx, cy, w, h, maxConf, maxIdx});
-          Log.i(TAG, "  Added valid detection with confidence " + maxConf + " for class " + maxIdx);
         } else {
+          // Skip detections that are out of bounds
           Log.i(TAG, "  Detection out of bounds, skipping");
         }
       }
     }
+
     Log.i(TAG, "Total valid detections before NMS: " + detections.size());
     return detections;
   }
 
+
   /**
-   * Apply Non Maximum Suppression
+   * Applies Non-Maximum Suppression (NMS) to remove overlapping detections.
+   *
+   * @param detections List of raw detections [x1, y1, x2, y2, ..., confidence, class]
+   * @return List of filtered detections after NMS
    */
   private List<float[]> applyNonMaximumSuppression(List<float[]> detections) {
     List<float[]> results = new ArrayList<>();
 
     Log.i(TAG, "Detection count before NMS: " + detections.size());
-    if (!detections.isEmpty()) {
 
+    if (!detections.isEmpty()) {
+      // Sort detections by confidence score (descending)
       detections.sort(new Comparator<float[]>() {
         @Override
         public int compare(float[] o1, float[] o2) {
-          return Float.compare(o2[8], o1[8]);
+          return Float.compare(o2[8], o1[8]); // Confidence is at index 8
         }
       });
 
+      // Perform NMS
       while (!detections.isEmpty()) {
+        // Pick the detection with highest confidence
         float[] first = detections.remove(0);
         results.add(first);
+
         Iterator<float[]> iterator = detections.iterator();
         while (iterator.hasNext()) {
           float[] nextBox = iterator.next();
+          // Remove detections with IoU greater than threshold
           if (calculateIoU(first, nextBox) >= IOU_THRESHOLD) {
             iterator.remove();
           }
@@ -352,18 +424,28 @@ public class ItemDetector {
   }
 
   /**
-   * Calculates IoU between two bounding boxes [x1, y1, x2, y2].
+   * Calculates the Intersection over Union (IoU) between two bounding boxes.
+   * IoU is the ratio of the intersection area to the union area of two bounding boxes.
+   *
+   * @param box1 The first bounding box in the form [x1, y1, x2, y2].
+   * @param box2 The second bounding box in the form [x1, y1, x2, y2].
+   * @return The IoU value as a float between 0 and 1.
    */
   private float calculateIoU(float[] box1, float[] box2) {
+    // Calculate the coordinates of the intersection rectangle
     float x1 = Math.max(box1[0], box2[0]);
     float y1 = Math.max(box1[1], box2[1]);
     float x2 = Math.min(box1[2], box2[2]);
     float y2 = Math.min(box1[3], box2[3]);
 
+    // Calculate the area of the intersection
     float interArea = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
-    float box1Area = (box1[2] - box1[0]) * (box1[3] - box1[1]);
-    float box2Area = (box2[2] - box2[0]) * (box2[3] - box2[1]);
 
+    // Calculate the area of both bounding boxes
+    float box1Area = (box1[2] - box1[0]) * (box1[3] - box1[1]); // width * height of box1
+    float box2Area = (box2[2] - box2[0]) * (box2[3] - box2[1]); // width * height of box2
+
+    // Return the IoU value: intersection area / union area
     return interArea / (box1Area + box2Area - interArea);
   }
 }
