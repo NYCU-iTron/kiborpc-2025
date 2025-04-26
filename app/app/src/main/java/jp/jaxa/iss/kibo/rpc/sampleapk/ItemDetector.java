@@ -173,6 +173,9 @@ public class ItemDetector {
       // No landmark was found in area
       if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21; // Random landmark ID
 
+      // No treasure was found from astronaut
+      if (area == 5 && treasureId == -1) treasureId = rand.nextInt(3) + 11; // Random treasure ID
+
       // Set item count
       defaultCount = rand.nextInt(3) + 1; // Random count (1-3)
       landmarkCount = itemCountMap.getOrDefault(landmarkId, defaultCount);
@@ -189,7 +192,7 @@ public class ItemDetector {
       results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
     }
 
-    return results; // Return the filtered treasure and landmark items
+    return results;
   }
 
   /**
