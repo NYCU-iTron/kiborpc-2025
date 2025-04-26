@@ -153,15 +153,15 @@ public class ItemDetector {
         itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
 
         // Check if the item is a treasure
-        if (itemId / 10 == 1) { // Treasure IDs are in the range 10-19
-          if (det[8] > treasureMaxConfidence) { // Update if higher confidence
+        if (itemId / 10 == 1) {
+          if (det[8] > treasureMaxConfidence) {
             treasureMaxConfidence = det[8];
             treasureId = itemId;
           }
         }
         // Check if the item is a landmark
-        else if (itemId / 10 == 2) { // Landmark IDs are in the range 20-29
-          if (det[8] > landmarkMaxConfidence) { // Update if higher confidence
+        else if (itemId / 10 == 2) {
+          if (det[8] > landmarkMaxConfidence) {
             landmarkMaxConfidence = det[8];
             landmarkId = itemId;
           }
@@ -170,7 +170,7 @@ public class ItemDetector {
         }
       }
 
-      // Assign random IDs if no landmark was found
+      // No landmark was found in area
       if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21; // Random landmark ID
 
       // Set item count

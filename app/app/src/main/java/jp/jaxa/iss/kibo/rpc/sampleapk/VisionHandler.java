@@ -93,7 +93,7 @@ public class VisionHandler {
     Item[] detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
     if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, area);
 
-    return detectedItemArray; // This array is expected to be [treasureItem, landmarkItem]
+    return detectedItemArray;
   }
 
   public Item recognizeTreasure() {
