@@ -85,15 +85,15 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", area));
 
     // Detect AR tag pose
-    Map<Integer, Pose> arResult = arTagDetector.detectFromImage(undistortedImage);
+    Map<Integer, Pose> arResult = arTagDetector.detect(undistortedImage);
     Pose tagPose = arTagDetector.filterResult(arResult, area, currentPose);
 
-    // Detect items using yolo model
+    // Detect item
     List<float[]> detectResult = itemDetector.detect(undistortedImage);
     Item[] detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
     if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, area);
 
-    return detectedItemArray;
+    return detectedItemArray; // This array is expected to be [treasureItem, landmarkItem]
   }
 
   public Item recognizeTreasure() {
@@ -107,8 +107,9 @@ public class VisionHandler {
     Item[] detectedItemArray = itemDetector.filterResult(detectResult, 5, new Pose());
     if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, 5);
 
-    Item detectedItem = detectedItemArray[0];
+    Item detectedItem = detectedItemArray[0]; // This array is expected to be [treasureItem, landmarkItem]
     this.api.notifyRecognitionItem();
+
     return detectedItem;
   }
 
