@@ -28,80 +28,84 @@ class Navigator:
 
   poses = {
     "dock": (9.815, -9.806, 4.293, 1, 0, 0, 0),
-    "patrol1":(10.95, -10, 4.8, 0.0, -0.398, -0.584, 0.707),
-    "patrol2":(10.925, -8.875, 4.462, 0, 0.707, 0, 0.707),
-    "patrol3":(10.925, -7.925, 4.462, 0, 0.707, 0, 0.707),
-    "patrol4":(10.567, -6.853, 4.945, 0, 0, 1, 0),
+    "patrol1":(10.8, -9.78, 4.7, -0.172, -0.208, -0.615, 0.741),
+    "patrol2":(10.8, -8.875, 4.56, -0.537, 0.46, 0.46, 0.537),
+    "patrol3":(10.8, -7.925, 4.56, -0.537, 0.46, 0.46, 0.537),
+    "patrol4":(10.667, -6.853, 4.9654, -0.013, 0.0, 1.0, 0.0),
     "report": (11.143, -6.7607, 4.9654, 0, 0, 0.707, 0.707),
   }
 
   def __init__(self, ax):
     self.ax = ax
 
-  def generateTrajectory(self, currentPose: List[float], targetPose: List[float]) -> List[List[float]]:
-    """
-    a star
-
-    :param current_pose: current pose of the robot
-    :param target_pose: target pose of the robot
-    :return: trajectory
-    """
-    pass
-
-  def getQuaternionToFacePoint(self, x1: float, y1: float, z1: float, x2: float, y2: float, z2: float):
-    """
-    Calculate quaternion to orient from current point (x1, y1, z1) to target point (x2, y2, z2).
-    Returns quaternion as [qx, qy, qz, qw].
-    """
-    # Calculate direction vector
-    vx = x2 - x1
-    vy = y2 - y1
-    vz = z2 - z1
-
-    # Normalize direction vector
-    magnitude = math.sqrt(vx**2 + vy**2 + vz**2)
+  def getQuaternionToFacePointWithUp(self, x1, y1, z1, x2, y2, z2, up=(0, 0, 1)):
+    # Direction to target
+    forward = [x2 - x1, y2 - y1, z2 - z1]
+    magnitude = math.sqrt(forward[0]**2 + forward[1]**2 + forward[2]**2)
     if magnitude == 0:
-      return [0, 0, 0, 1]  # Same point, return identity quaternion
+        return [0, 0, 0, 1]
+    forward = [f / magnitude for f in forward]
 
-    vx /= magnitude
-    vy /= magnitude
-    vz /= magnitude
-
-    # Default direction (e.g., positive z-axis)
-    ux, uy, uz = [1, 0, 0]  # Default direction vector
-
-    # Dot product to find angle
-    dot = ux * vx + uy * vy + uz * vz  # u · v
-    theta = math.acos(dot)  # Angle in radians
-
-    # Special cases
-    if abs(dot - 1) < 1e-6:  # Already aligned with default direction
-      return [0, 0, 0, 1]
-    elif abs(dot + 1) < 1e-6:  # 180° opposite to default direction
-      # Choose an arbitrary perpendicular axis (e.g., x-axis)
-      return [1, 0, 0, 0] if abs(ux) < 0.9 else [0, 1, 0, 0]
-
-    # Cross product to find rotation axis
-    axisX = uy * vz - uz * vy
-    axisY = uz * vx - ux * vz
-    axisZ = ux * vy - uy * vx
-    axisMagnitude = math.sqrt(axisX**2 + axisY**2 + axisZ**2)
+    # Right vector
+    right = [
+        up[1] * forward[2] - up[2] * forward[1],
+        up[2] * forward[0] - up[0] * forward[2],
+        up[0] * forward[1] - up[1] * forward[0]
+    ]
+    right_mag = math.sqrt(right[0]**2 + right[1]**2 + right[2]**2)
+    if right_mag < 1e-6:
+        # forward 和 up 太接近，無法產生穩定的 right
+        # 可以隨便選一個新的 up 試試
+        up = (0, 1, 0)
+        right = [
+          up[1] * forward[2] - up[2] * forward[1],
+          up[2] * forward[0] - up[0] * forward[2],
+          up[0] * forward[1] - up[1] * forward[0]
+        ]
+        right_mag = math.sqrt(right[0]**2 + right[1]**2 + right[2]**2)
     
-    # Avoid division by zero
-    if axisMagnitude < 1e-6:
-      return [0, 0, 0, 1]  # Shouldn't happen due to prior checks, but safeguard
-    
-    axisX /= axisMagnitude
-    axisY /= axisMagnitude
-    axisZ /= axisMagnitude
+    right = [r / right_mag for r in right]
 
-    # Calculate quaternion
-    halfTheta = theta / 2
-    sinHalfTheta = math.sin(halfTheta)
-    qx = axisX * sinHalfTheta
-    qy = axisY * sinHalfTheta
-    qz = axisZ * sinHalfTheta
-    qw = math.cos(halfTheta)
+    # Recompute true up
+    true_up = [
+      forward[1] * right[2] - forward[2] * right[1],
+      forward[2] * right[0] - forward[0] * right[2],
+      forward[0] * right[1] - forward[1] * right[0]
+    ]
+
+    # 旋轉矩陣
+    rot = [
+      [forward[0], right[0], true_up[0]],
+      [forward[1], right[1], true_up[1]],
+      [forward[2], right[2], true_up[2]],
+    ]
+
+    # 把旋轉矩陣轉成四元數
+    trace = rot[0][0] + rot[1][1] + rot[2][2]
+    if trace > 0:
+      s = 0.5 / math.sqrt(trace + 1.0)
+      qw = 0.25 / s
+      qx = (rot[2][1] - rot[1][2]) * s
+      qy = (rot[0][2] - rot[2][0]) * s
+      qz = (rot[1][0] - rot[0][1]) * s
+    elif (rot[0][0] > rot[1][1]) and (rot[0][0] > rot[2][2]):
+      s = 2.0 * math.sqrt(1.0 + rot[0][0] - rot[1][1] - rot[2][2])
+      qw = (rot[2][1] - rot[1][2]) / s
+      qx = 0.25 * s
+      qy = (rot[0][1] + rot[1][0]) / s
+      qz = (rot[0][2] + rot[2][0]) / s
+    elif rot[1][1] > rot[2][2]:
+      s = 2.0 * math.sqrt(1.0 + rot[1][1] - rot[0][0] - rot[2][2])
+      qw = (rot[0][2] - rot[2][0]) / s
+      qx = (rot[0][1] + rot[1][0]) / s
+      qy = 0.25 * s
+      qz = (rot[1][2] + rot[2][1]) / s
+    else:
+      s = 2.0 * math.sqrt(1.0 + rot[2][2] - rot[0][0] - rot[1][1])
+      qw = (rot[1][0] - rot[0][1]) / s
+      qx = (rot[0][2] + rot[2][0]) / s
+      qy = (rot[1][2] + rot[2][1]) / s
+      qz = 0.25 * s
 
     return [qx, qy, qz, qw]
   
@@ -136,27 +140,6 @@ class Navigator:
     # z = [pose[2] for pose in self.poses.values()]
     # self.ax.plot(x, y, z, color='black', linewidth=2)
 
-    # Draw the trajectory
-    trajectory = self.interplate(self.poses["dock"], self.poses["patrol1"])
-    for i in range(len(trajectory) - 1):
-      self.ax.scatter(trajectory[i][0], trajectory[i][1], trajectory[i][2], color='black', s=10)
-
-    trajectory = self.interplate(self.poses["patrol1"], self.poses["patrol2"])
-    for i in range(len(trajectory) - 1):
-      self.ax.scatter(trajectory[i][0], trajectory[i][1], trajectory[i][2], color='black', s=10)
-
-    trajectory = self.interplate(self.poses["patrol2"], self.poses["patrol3"])
-    for i in range(len(trajectory) - 1):
-      self.ax.scatter(trajectory[i][0], trajectory[i][1], trajectory[i][2], color='black', s=10)
-
-    trajectory = self.interplate(self.poses["patrol3"], self.poses["patrol4"])
-    for i in range(len(trajectory) - 1):
-      self.ax.scatter(trajectory[i][0], trajectory[i][1], trajectory[i][2], color='black', s=10)
-
-    trajectory = self.interplate(self.poses["patrol4"], self.poses["report"])
-    for i in range(len(trajectory) - 1):
-      self.ax.scatter(trajectory[i][0], trajectory[i][1], trajectory[i][2], color='black', s=10)
-
   def draw_area(self, area, label, color='cyan'):
     x_min, y_min, z_min, x_max, y_max, z_max = area[0], area[1], area[2], area[3], area[4], area[5]
     verts1 = [[(x_min, y_min, z_min), (x_max, y_min, z_min), (x_max, y_max, z_min), (x_min, y_max, z_min)]]
@@ -172,41 +155,28 @@ class Navigator:
     self.ax.add_collection3d(Poly3DCollection(verts5, color=color, alpha=self.alpha))
     self.ax.add_collection3d(Poly3DCollection(verts6, color=color, alpha=self.alpha))
 
-    # Draw the tag
-    # x_center = (x_min + x_max) / 2
-    # y_center = (y_min + y_max) / 2
-    # z_center = (z_min + z_max) / 2
-    # self.ax.text(x_center, y_center, z_center, label, color='black', fontsize=10, ha='center')
-    # print("Center of area:", label, (x_center, y_center, z_center))
-
 def draw_point(ax, point, label):
   x, y, z, qx, qy, qz, qw = point[0], point[1], point[2], point[3], point[4], point[5], point[6]
   ax.scatter(x, y, z, label=f"{label}", s=50)
-  
-  # Convert quaternion to direction vector
-  direction = np.array([1, 0, 0])  # Default direction vector (along x-axis)
-  
+
   # Quaternion to Rotation Matrix
-  q = np.array([qw, qx, qy, qz])
   R = np.array([
-    [1 - 2 * (qy**2 + qz**2), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
-    [2 * (qx * qy + qz * qw), 1 - 2 * (qx**2 + qz**2), 2 * (qy * qz - qx * qw)],
-    [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx**2 + qy**2)]
+    [1 - 2 * (qy**2 + qz**2),     2 * (qx*qy - qz*qw),     2 * (qx*qz + qy*qw)],
+    [    2 * (qx*qy + qz*qw), 1 - 2 * (qx**2 + qz**2),     2 * (qy*qz - qx*qw)],
+    [    2 * (qx*qz - qy*qw),     2 * (qy*qz + qx*qw), 1 - 2 * (qx**2 + qy**2)]
   ])
 
-  # Rotate the direction vector using the quaternion (i.e., applying the rotation matrix)
-  rotated_direction = np.dot(R, direction)
-  
-  # Plot the arrow representing orientation (from the point with the direction vector)
-  ax.quiver(x, y, z, rotated_direction[0], rotated_direction[1], rotated_direction[2], length=0.5, normalize=True, color='r', linewidth=2)
-  # ax.text(x, y, z, label, color='black', fontsize=10, ha='center')
+  # Local axes: x, y, z directions
+  x_axis = R[:, 0] # 第一列是 local x軸
+  y_axis = R[:, 1] # 第二列是 local y軸
+  z_axis = R[:, 2] # 第三列是 local z軸
 
+  length = 0.5 # Arrow length
 
-fig = plt.figure(figsize=(10, 7))
-ax = fig.add_subplot(111, projection='3d')
-
-navigator = Navigator(ax)
-navigator.plot()
+  # 畫三個方向的小箭頭
+  ax.quiver(x, y, z, x_axis[0], x_axis[1], x_axis[2], color='r', length=length, normalize=True, linewidth=2, label=label+"_x")
+  ax.quiver(x, y, z, y_axis[0], y_axis[1], y_axis[2], color='g', length=length, normalize=True, linewidth=2, label=label+"_y")
+  ax.quiver(x, y, z, z_axis[0], z_axis[1], z_axis[2], color='b', length=length, normalize=True, linewidth=2, label=label+"_z")
 
 def set_axes_equal(ax):
   x_limits = ax.get_xlim()
@@ -227,17 +197,34 @@ def set_axes_equal(ax):
   ax.set_ylim(y_middle - max_range, y_middle + max_range)
   ax.set_zlim(z_middle - max_range, z_middle + max_range)
 
+fig = plt.figure(figsize=(10, 7))
+ax = fig.add_subplot(111, projection='3d')
+
+navigator = Navigator(ax)
+
+x1, y1, z1, x2, y2, z2 = navigator.areas["Area 2"]
+x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol2"]
+target_x = (x1 + x2) / 2
+target_y = (y1 + y2) / 2
+target_z = (z1 + z2) / 2
+current_x = x_pose
+current_y = y_pose
+current_z = z_pose
+print(navigator.getQuaternionToFacePointWithUp(current_x, current_y, current_z, target_x, target_y, target_z, (0, 1, 0)))
+
+navigator.plot()
+
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
 ax.view_init(elev=200, azim=0)
+set_axes_equal(ax)
 
 # Function to update the view angle for animation
-def update(frame):
-  ax.view_init(elev=200, azim=frame*0.5)
-  return []
-ani = FuncAnimation(fig, update, frames=np.arange(0, 360, 2), interval=50, blit=False)
+# def update(frame):
+#   ax.view_init(elev=200, azim=frame*0.5)
+#   return []
+# ani = FuncAnimation(fig, update, frames=np.arange(0, 360, 2), interval=50, blit=False)
 
-set_axes_equal(ax)
 fig.tight_layout()
 plt.show()
