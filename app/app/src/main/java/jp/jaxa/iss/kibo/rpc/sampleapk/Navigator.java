@@ -306,13 +306,14 @@ public class Navigator {
     }
     
     // Set the final Quaternion to face the treasure
-    Pose finalPose = new Pose(new Point(finalX, finalY, finalZ), new Quaternion());
-    finalPose = getPoseToFaceTarget(finalPose, treasurePose);
+    Point finalPoint = new Point(finalX, finalY, finalZ);
+    Quaternion finalQuaternion = getQuaternionTo(currentPoint, finalPoint);
+    Pose finalPose = new Pose(finalPoint, finalQuaternion);
     Log.i(TAG, "I'm goint to " + finalPose.toString());
 
     Result result = moveTo(finalPose);
 
-    Log.i(TAG, "Move to Treasure. " + " Result: " + result.getMessage());
+    Log.i(TAG, "Move to find the treasure.");
     return result;
   }
 
@@ -417,73 +418,97 @@ public class Navigator {
   }
 
   /**
-   * Calculates the quaternion to rotate from the current pose to face the target pose.
+   * Calculates the quaternion to rotate from the current point to face the target point.
    * 
-   * @param current The current pose.
-   * @param target The target pose.
-   * @return A new pose with the same position as the current pose but rotated to face the target pose.
+   * @param currentPoint The current point.
+   * @param targetPoint The target point.
+   * @return A new quaternion that rotates current point to face the target point.
    */
-  public static Pose getPoseToFaceTarget(Pose current, Pose target) {
-    Point currentPoint = current.getPoint();
-    Point targetPoint = target.getPoint();
+  public static Quaternion getQuaternionTo(Point currentPoint, Point targetPoint) {
+    // Step 1: Compute forward vector
+    float fx = (float) targetPoint.getX() - (float) currentPoint.getX();
+    float fy = (float) targetPoint.getY() - (float) currentPoint.getY();
+    float fz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
+    float fMagnitude = (float) Math.sqrt(fx * fx + fy * fy + fz * fz);
 
-    // Calculate direction vector
-    float dx = (float) targetPoint.getX() - (float) currentPoint.getX();
-    float dy = (float) targetPoint.getY() - (float) currentPoint.getY();
-    float dz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
-
-    // Normalize the direction vector
-    float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (length == 0) {
-      return current; // No movement needed
-    }
-
-    dx /= length;
-    dy /= length;
-    dz /= length;
-
-    // Default direction vector
-    float ux = 1f;
-    float uy = 0f;
-    float uz = 0f;
-
-    // Dot product to find angle
-    float dot = ux * dx + uy * dy + uz * dz;
-    dot = Math.max(-1.0f, Math.min(1.0f, dot));
-    float theta = (float) Math.acos(dot);
-
-    // Special cases
-    if (Math.abs(dot - 1) < 1e-6) { // Already aligned with default direction
+    // Already face target
+    if (fMagnitude < 1e-6) {
       return current;
-    } else if (Math.abs(dot + 1) < 1e-6) { // 180° opposite to default direction
-      // Choose an arbitrary perpendicular axis (e.g., x-axis or y-axis)
-      return new Pose(currentPoint, new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)); // If aligned with x, rotate around x
     }
 
-    // Cross product to find rotation axis
-    float axisX = uy * dz - uz * dy;
-    float axisY = uz * dx - ux * dz;
-    float axisZ = ux * dy - uy * dx;
-    float axisMagnitude = (float) Math.sqrt(axisX * axisX + axisY * axisY + axisZ * axisZ);
+    fx /= fMagnitude;
+    fy /= fMagnitude;
+    fz /= fMagnitude;
 
-    // Avoid division by zero
-    if (axisMagnitude < 1e-6) {
-      return new Pose(currentPoint, new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+    // Step 2: Default up vector
+    float ux = 0f;
+    float uy = 0f;
+    float uz = 1f;
+
+    // Step 3: Compute right vector (up × forward)
+    float rx = uy * fz - uz * fy;
+    float ry = uz * fx - ux * fz;
+    float rz = ux * fy - uy * fx;
+    float rMagnitude = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
+
+    if (rMagnitude < 1e-6) {
+      // Forward and up are too close，change default up vector to  (0, 1, 0)
+      ux = 0f;
+      uy = 1f;
+      uz = 0f;
+      rx = uy * fz - uz * fy;
+      ry = uz * fx - ux * fz;
+      rz = ux * fy - uy * fx;
+      rMagnitude = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
     }
 
-    axisX /= axisMagnitude;
-    axisY /= axisMagnitude;
-    axisZ /= axisMagnitude;
+    rx /= rMagnitude;
+    ry /= rMagnitude;
+    rz /= rMagnitude;
 
-    // Calculate quaternion
-    float halfTheta = theta / 2;
-    float sinHalfTheta = (float) Math.sin(halfTheta);
-    float qx = axisX * sinHalfTheta;
-    float qy = axisY * sinHalfTheta;
-    float qz = axisZ * sinHalfTheta;
-    float qw = (float) Math.cos(halfTheta);
+    // Step 4: Compute true up (forward × right)
+    float tx = fy * rz - fz * ry;
+    float ty = fz * rx - fx * rz;
+    float tz = fx * ry - fy * rx;
 
-    return new Pose(currentPoint, new Quaternion(qx, qy, qz, qw));
+    // Step 5: Compute rotation matrix
+    float[][] rot = {
+      {fx, rx, tx},
+      {fy, ry, ty},
+      {fz, rz, tz}
+    };
+
+    // Step 6: Transform ratation matrix to quarternion
+    float trace = rot[0][0] + rot[1][1] + rot[2][2];
+    float qw, qx, qy, qz;
+
+    if (trace > 0f) {
+      float s = (float) (0.5f / Math.sqrt(trace + 1.0f));
+      qw = 0.25f / s;
+      qx = (rot[2][1] - rot[1][2]) * s;
+      qy = (rot[0][2] - rot[2][0]) * s;
+      qz = (rot[1][0] - rot[0][1]) * s;
+    } else if (rot[0][0] > rot[1][1] && rot[0][0] > rot[2][2]) {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[0][0] - rot[1][1] - rot[2][2]));
+      qw = (rot[2][1] - rot[1][2]) / s;
+      qx = 0.25f * s;
+      qy = (rot[0][1] + rot[1][0]) / s;
+      qz = (rot[0][2] + rot[2][0]) / s;
+    } else if (rot[1][1] > rot[2][2]) {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[1][1] - rot[0][0] - rot[2][2]));
+      qw = (rot[0][2] - rot[2][0]) / s;
+      qx = (rot[0][1] + rot[1][0]) / s;
+      qy = 0.25f * s;
+      qz = (rot[1][2] + rot[2][1]) / s;
+    } else {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[2][2] - rot[0][0] - rot[1][1]));
+      qw = (rot[1][0] - rot[0][1]) / s;
+      qx = (rot[0][2] + rot[2][0]) / s;
+      qy = (rot[1][2] + rot[2][1]) / s;
+      qz = 0.25f * s;
+    }
+
+    return new Quaternion(qx, qy, qz, qw);
   }
 
   /**
