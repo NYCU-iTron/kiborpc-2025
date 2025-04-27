@@ -172,26 +172,11 @@ public class Navigator {
    * @endcode
    */
   public Result navigateToArea1() {
-    // Pose subPose1 = new Pose (
-    //   new Point(10.45, -9.7, 4.47), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    // Pose subPose2 = new Pose (
-    //   new Point(10.45, -9.52, 4.47), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    // Pose subPose3 = new Pose(
-    //   new Point(10.95, -9.52, 4.9), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
     Pose finalPose = new Pose(
-      new Point(10.95, -9.9, 4.9),
-      new Quaternion(0.0f, -0.281f, -0.649f, 0.707f)
+      new Point(10.8, -9.78, 4.7),
+      new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f)
     );
 
-    // moveTo(subPoint1);
-    // moveTo(subPoint2);
-    // moveTo(subPoint3);
     Result result = moveTo(finalPose);
 
     Log.i(TAG, "Move to area 1. " + " Result: " + result.getMessage());
@@ -206,26 +191,11 @@ public class Navigator {
    * See example in @ref navigateToArea1().
    */
   public Result navigateToArea2() {
-    // Pose subPose1 = new Pose(
-    //   new Point(10.94, -9.5, 4.9), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(10.94, -9.48, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose3 = new Pose(
-    //   new Point(10.94, -8.875, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
     Pose finalPose = new Pose(
-      new Point(10.925, -8.875, 4.462),
-      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+      new Point(10.8, -8.875, 4.56),
+      new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)
     );
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    // moveTo(subPose3);
     Result result = moveTo(finalPose);
 
     Log.i(TAG, "Move to area 2. " + " Result: " + result.getMessage());
@@ -240,21 +210,11 @@ public class Navigator {
    * See example in @ref navigateToArea1().
    */
   public Result navigateToArea3() {
-    // Pose subPose1 = new Pose(
-    //   new Point(10.925, -8.875, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(10.925, -7.925, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
     Pose finalPose = new Pose(
-      new Point(10.925, -7.925, 4.462),
-      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
+      new Point(10.8, -7.925, 4.56),
+      new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)
     );
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
     Result result = moveTo(finalPose);
 
     Log.i(TAG, "Move to area 3. " + " Result: " + result.getMessage());
@@ -269,23 +229,13 @@ public class Navigator {
    * See example in @ref navigateToArea1().
    */
   public Result navigateToArea4() {
-    // Pose subPose1 = new Pose(
-    //   new Point(11.4, -7.4, 4.462), 
-    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(11.4, -6.853, 4.92), 
-    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
-    // );
     Pose finalPose = new Pose(
-      new Point(10.567, -6.853, 4.92),
-      new Quaternion(0.0f, -1.0f, 0.02f, 0.02f)
+      new Point(10.667, -6.853, 4.9654),
+      new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f)
     );
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
     Result result = moveTo(finalPose);
-
+    
     Log.i(TAG, "Move to area 4. " + " Result: " + result.getMessage());
     return result;
   }
