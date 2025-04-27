@@ -161,101 +161,56 @@ public class Navigator {
    * Example:
    * @code
    * // Area 1
-   * navigator.navigateToArea1();
+   * navigator.navigateToArea(1);
    * visionHandler.getCurrentPose(navigator.getCurrentPose());
    * visionHandler.inspectArea();
 
    * // Area 2
-   * navigator.navigateToArea2();
+   * navigator.navigateToArea(2);
    * visionHandler.getCurrentPose(navigator.getCurrentPose());
    * visionHandler.inspectArea();
    * @endcode
    */
-  public Result navigateToArea1() {
-    Pose finalPose = new Pose(
-      new Point(10.8, -9.78, 4.7),
-      new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f)
-    );
+  public Result navigateToArea(int area) {
+    Point point;
+    Quaternion quaternion;
+    Pose pose;
+    Result result;
+    switch (area) {
 
-    Result result = moveTo(finalPose);
+    case 1:
+      point = new Point(10.8, -9.78, 4.7);
+      quaternion = new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f);
+      break;
 
-    Log.i(TAG, "Move to area 1. " + " Result: " + result.getMessage());
-    return result;
-  }
+    case 2:
+      point = new Point(10.8, -8.875, 4.56);
+      quaternion = new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f);
+      break;
 
-  /**
-   * Moves the robot to the pose of taking photo in area 2.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea2() {
-    Pose finalPose = new Pose(
-      new Point(10.8, -8.875, 4.56),
-      new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)
-    );
+    case 3:
+      point = new Point(10.8, -7.925, 4.56);
+      quaternion = new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f);
+      break;
 
-    Result result = moveTo(finalPose);
+    case 4:
+      point = new Point(10.667, -6.853, 4.9654);
+      quaternion = new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f);
+      break;
 
-    Log.i(TAG, "Move to area 2. " + " Result: " + result.getMessage());
-    return result;
-  }
+    case 5: // Report
+      point = new Point(11.143, -6.7607, 4.9654);
+      quaternion = new Quaternion(0.0f, 0.0f, 0.707f, 0.707f);
+      break;
 
-  /**
-   * Moves the robot to the pose of taking photo in area 3.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea3() {
-    Pose finalPose = new Pose(
-      new Point(10.8, -7.925, 4.56),
-      new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)
-    );
+    default:
+      Log.w(TAG, "Unknown area Id, navigation aborted.");
+      return null;
+    }
 
-    Result result = moveTo(finalPose);
+    result = moveTo(new Pose(point, quaternion));
 
-    Log.i(TAG, "Move to area 3. " + " Result: " + result.getMessage());
-    return result;
-  }
-
-  /**
-   * Moves the robot to the pose of taking item's picture in area 4.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea4() {
-    Pose finalPose = new Pose(
-      new Point(10.667, -6.853, 4.9654),
-      new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f)
-    );
-
-    Result result = moveTo(finalPose);
-    
-    Log.i(TAG, "Move to area 4. " + " Result: " + result.getMessage());
-    return result;
-  }
-
-  /**
-   * Moves the robot to in front of the astronaut.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToReport() {
-    Pose finalPose = new Pose(
-      new Point(11.143, -6.7607, 4.9654),
-      new Quaternion(0.0f, 0.0f, 0.707f, 0.707f)
-    );
-    
-    Result result = moveTo(finalPose);
-
-    Log.i(TAG, "Move to report. " + " Result: " + result.getMessage());
+    Log.i(TAG, "Move to area " + area);
     return result;
   }
 
