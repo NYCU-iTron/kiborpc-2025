@@ -1,5 +1,31 @@
 # kiborpc-2025
 
+## Usage
+
+To enter docker build environment.
+
+```sh
+make
+```
+
+To compile apk in docker environment (The compiled apk will be generated in `app/app/build/outputs/apk/debug/`).
+
+```sh
+make build
+```
+
+To open this project in Android Studio.
+
+```sh
+make studio
+```
+
+To use doxygen to generate documentation
+
+```sh
+make doxygen
+```
+
 ## Schedule
 
 - 4/1: Simulator release
