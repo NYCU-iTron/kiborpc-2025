@@ -65,7 +65,10 @@ For more details, see [Progress](./docs/progress/progress.md)
 
 ## Repo of past competition
 
+- [5th-KIBO](https://github.com/KIBO-Astronut/5th-KIBO)
+  - The team from Tailand, winning the 1st place in 5th.
 - [Kibo-RPC](https://github.com/Kobe-uni-Hyperion/Kibo-RPC)
+  - The team from Japan
 - [kibo-2024](https://github.com/Team-Cartographer/kibo-2024)
 - [kiborpc-2023](https://github.com/Team-Cartographer/kiborpc-2023)
 - [3rd-Kibo-RPC_won-spaceYPublic](https://github.com/M-TRCH/3rd-Kibo-RPC_won-spaceY)
