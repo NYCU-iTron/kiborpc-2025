@@ -224,7 +224,7 @@ public class ItemDetector {
       Rect rect = new Rect(new Point(x1, y1), new Point(x2, y2));
 
       // Define rectangle color (red) and thickness
-      Scalar color = new Scalar(255, 0, 0); // Red color
+      Scalar color = new Scalar(0, 0, 0); // Black
       int thickness = 2;
 
       // Draw the rectangle on the image
