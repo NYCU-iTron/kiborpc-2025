@@ -433,7 +433,7 @@ public class Navigator {
 
     // Already face target
     if (fMagnitude < 1e-6) {
-      return current;
+      return new Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
     fx /= fMagnitude;
