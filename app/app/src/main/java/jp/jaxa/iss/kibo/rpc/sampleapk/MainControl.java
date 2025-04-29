@@ -61,7 +61,7 @@ public class MainControl {
      */
     private void exploreAllAreas() {
         // Exploring area 1
-        navigator.navigateToArea1();
+        navigator.navigateToArea(1);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area1Items = visionHandler.inspectArea(1);
         for (Item item : area1Items) {
@@ -77,7 +77,7 @@ public class MainControl {
         }
 
         // Exploring area 2
-        navigator.navigateToArea2();
+        navigator.navigateToArea(2);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area2Items = visionHandler.inspectArea(2);
         for (Item item : area2Items) {
@@ -93,7 +93,7 @@ public class MainControl {
         }
 
         // Exploring area 3
-        navigator.navigateToArea3();
+        navigator.navigateToArea(3);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area3Items = visionHandler.inspectArea(3);
         for (Item item : area3Items) {
@@ -109,7 +109,7 @@ public class MainControl {
         }
 
         // Exploring area 4
-        navigator.navigateToArea4();
+        navigator.navigateToArea(4);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area4Items = visionHandler.inspectArea(4);
         for (Item item : area4Items) {
@@ -130,7 +130,7 @@ public class MainControl {
      */
     private Item meetAstronaut() {
         // See the real treasure
-        navigator.navigateToReport();
+        navigator.navigateToArea(5);
         this.api.reportRoundingCompletion();
         // Recognize the treasure
         Item treasureItem = visionHandler.recognizeTreasure();

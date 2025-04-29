@@ -161,151 +161,56 @@ public class Navigator {
    * Example:
    * @code
    * // Area 1
-   * navigator.navigateToArea1();
+   * navigator.navigateToArea(1);
    * visionHandler.getCurrentPose(navigator.getCurrentPose());
    * visionHandler.inspectArea();
 
    * // Area 2
-   * navigator.navigateToArea2();
+   * navigator.navigateToArea(2);
    * visionHandler.getCurrentPose(navigator.getCurrentPose());
    * visionHandler.inspectArea();
    * @endcode
    */
-  public Result navigateToArea1() {
-    // Pose subPose1 = new Pose (
-    //   new Point(10.45, -9.7, 4.47), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    // Pose subPose2 = new Pose (
-    //   new Point(10.45, -9.52, 4.47), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    // Pose subPose3 = new Pose(
-    //   new Point(10.95, -9.52, 4.9), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.95, -9.9, 4.9),
-      new Quaternion(0.0f, -0.281f, -0.649f, 0.707f)
-    );
+  public Result navigateToArea(int area) {
+    Point point;
+    Quaternion quaternion;
+    Pose pose;
+    Result result;
+    switch (area) {
 
-    // moveTo(subPoint1);
-    // moveTo(subPoint2);
-    // moveTo(subPoint3);
-    Result result = moveTo(finalPose);
+    case 1:
+      point = new Point(10.8, -9.78, 4.7);
+      quaternion = new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f);
+      break;
 
-    Log.i(TAG, "Move to area 1. " + " Result: " + result.getMessage());
-    return result;
-  }
+    case 2:
+      point = new Point(10.8, -8.875, 4.56);
+      quaternion = new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f);
+      break;
 
-  /**
-   * Moves the robot to the pose of taking photo in area 2.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea2() {
-    // Pose subPose1 = new Pose(
-    //   new Point(10.94, -9.5, 4.9), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(10.94, -9.48, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose3 = new Pose(
-    //   new Point(10.94, -8.875, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.925, -8.875, 4.462),
-      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    );
+    case 3:
+      point = new Point(10.8, -7.925, 4.56);
+      quaternion = new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f);
+      break;
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    // moveTo(subPose3);
-    Result result = moveTo(finalPose);
+    case 4:
+      point = new Point(10.667, -6.853, 4.9654);
+      quaternion = new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f);
+      break;
 
-    Log.i(TAG, "Move to area 2. " + " Result: " + result.getMessage());
-    return result;
-  }
+    case 5: // Report
+      point = new Point(11.143, -6.7607, 4.9654);
+      quaternion = new Quaternion(0.0f, 0.0f, 0.707f, 0.707f);
+      break;
 
-  /**
-   * Moves the robot to the pose of taking photo in area 3.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea3() {
-    // Pose subPose1 = new Pose(
-    //   new Point(10.925, -8.875, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(10.925, -7.925, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.925, -7.925, 4.462),
-      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    );
+    default:
+      Log.w(TAG, "Unknown area Id, navigation aborted.");
+      return null;
+    }
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    Result result = moveTo(finalPose);
+    result = moveTo(new Pose(point, quaternion));
 
-    Log.i(TAG, "Move to area 3. " + " Result: " + result.getMessage());
-    return result;
-  }
-
-  /**
-   * Moves the robot to the pose of taking item's picture in area 4.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea4() {
-    // Pose subPose1 = new Pose(
-    //   new Point(11.4, -7.4, 4.462), 
-    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(11.4, -6.853, 4.92), 
-    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.567, -6.853, 4.92),
-      new Quaternion(0.0f, -1.0f, 0.02f, 0.02f)
-    );
-
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    Result result = moveTo(finalPose);
-
-    Log.i(TAG, "Move to area 4. " + " Result: " + result.getMessage());
-    return result;
-  }
-
-  /**
-   * Moves the robot to in front of the astronaut.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToReport() {
-    Pose finalPose = new Pose(
-      new Point(11.143, -6.7607, 4.9654),
-      new Quaternion(0.0f, 0.0f, 0.707f, 0.707f)
-    );
-    
-    Result result = moveTo(finalPose);
-
-    Log.i(TAG, "Move to report. " + " Result: " + result.getMessage());
+    Log.i(TAG, "Move to area " + area);
     return result;
   }
 
@@ -401,13 +306,14 @@ public class Navigator {
     }
     
     // Set the final Quaternion to face the treasure
-    Pose finalPose = new Pose(new Point(finalX, finalY, finalZ), new Quaternion());
-    finalPose = getPoseToFaceTarget(finalPose, treasurePose);
+    Point finalPoint = new Point(finalX, finalY, finalZ);
+    Quaternion finalQuaternion = getQuaternionTo(currentPoint, finalPoint);
+    Pose finalPose = new Pose(finalPoint, finalQuaternion);
     Log.i(TAG, "I'm goint to " + finalPose.toString());
 
     Result result = moveTo(finalPose);
 
-    Log.i(TAG, "Move to Treasure. " + " Result: " + result.getMessage());
+    Log.i(TAG, "Move to find the treasure.");
     return result;
   }
 
@@ -512,73 +418,97 @@ public class Navigator {
   }
 
   /**
-   * Calculates the quaternion to rotate from the current pose to face the target pose.
+   * Calculates the quaternion to rotate from the current point to face the target point.
    * 
-   * @param current The current pose.
-   * @param target The target pose.
-   * @return A new pose with the same position as the current pose but rotated to face the target pose.
+   * @param currentPoint The current point.
+   * @param targetPoint The target point.
+   * @return A new quaternion that rotates current point to face the target point.
    */
-  public static Pose getPoseToFaceTarget(Pose current, Pose target) {
-    Point currentPoint = current.getPoint();
-    Point targetPoint = target.getPoint();
+  public static Quaternion getQuaternionTo(Point currentPoint, Point targetPoint) {
+    // Step 1: Compute forward vector
+    float fx = (float) targetPoint.getX() - (float) currentPoint.getX();
+    float fy = (float) targetPoint.getY() - (float) currentPoint.getY();
+    float fz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
+    float fMagnitude = (float) Math.sqrt(fx * fx + fy * fy + fz * fz);
 
-    // Calculate direction vector
-    float dx = (float) targetPoint.getX() - (float) currentPoint.getX();
-    float dy = (float) targetPoint.getY() - (float) currentPoint.getY();
-    float dz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
-
-    // Normalize the direction vector
-    float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (length == 0) {
-      return current; // No movement needed
+    // Already face target
+    if (fMagnitude < 1e-6) {
+      return new Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    dx /= length;
-    dy /= length;
-    dz /= length;
+    fx /= fMagnitude;
+    fy /= fMagnitude;
+    fz /= fMagnitude;
 
-    // Default direction vector
-    float ux = 1f;
+    // Step 2: Default up vector
+    float ux = 0f;
     float uy = 0f;
-    float uz = 0f;
+    float uz = 1f;
 
-    // Dot product to find angle
-    float dot = ux * dx + uy * dy + uz * dz;
-    dot = Math.max(-1.0f, Math.min(1.0f, dot));
-    float theta = (float) Math.acos(dot);
+    // Step 3: Compute right vector (up × forward)
+    float rx = uy * fz - uz * fy;
+    float ry = uz * fx - ux * fz;
+    float rz = ux * fy - uy * fx;
+    float rMagnitude = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
 
-    // Special cases
-    if (Math.abs(dot - 1) < 1e-6) { // Already aligned with default direction
-      return current;
-    } else if (Math.abs(dot + 1) < 1e-6) { // 180° opposite to default direction
-      // Choose an arbitrary perpendicular axis (e.g., x-axis or y-axis)
-      return new Pose(currentPoint, new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)); // If aligned with x, rotate around x
+    if (rMagnitude < 1e-6) {
+      // Forward and up are too close，change default up vector to  (0, 1, 0)
+      ux = 0f;
+      uy = 1f;
+      uz = 0f;
+      rx = uy * fz - uz * fy;
+      ry = uz * fx - ux * fz;
+      rz = ux * fy - uy * fx;
+      rMagnitude = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
     }
 
-    // Cross product to find rotation axis
-    float axisX = uy * dz - uz * dy;
-    float axisY = uz * dx - ux * dz;
-    float axisZ = ux * dy - uy * dx;
-    float axisMagnitude = (float) Math.sqrt(axisX * axisX + axisY * axisY + axisZ * axisZ);
+    rx /= rMagnitude;
+    ry /= rMagnitude;
+    rz /= rMagnitude;
 
-    // Avoid division by zero
-    if (axisMagnitude < 1e-6) {
-      return new Pose(currentPoint, new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+    // Step 4: Compute true up (forward × right)
+    float tx = fy * rz - fz * ry;
+    float ty = fz * rx - fx * rz;
+    float tz = fx * ry - fy * rx;
+
+    // Step 5: Compute rotation matrix
+    float[][] rot = {
+      {fx, rx, tx},
+      {fy, ry, ty},
+      {fz, rz, tz}
+    };
+
+    // Step 6: Transform ratation matrix to quarternion
+    float trace = rot[0][0] + rot[1][1] + rot[2][2];
+    float qw, qx, qy, qz;
+
+    if (trace > 0f) {
+      float s = (float) (0.5f / Math.sqrt(trace + 1.0f));
+      qw = 0.25f / s;
+      qx = (rot[2][1] - rot[1][2]) * s;
+      qy = (rot[0][2] - rot[2][0]) * s;
+      qz = (rot[1][0] - rot[0][1]) * s;
+    } else if (rot[0][0] > rot[1][1] && rot[0][0] > rot[2][2]) {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[0][0] - rot[1][1] - rot[2][2]));
+      qw = (rot[2][1] - rot[1][2]) / s;
+      qx = 0.25f * s;
+      qy = (rot[0][1] + rot[1][0]) / s;
+      qz = (rot[0][2] + rot[2][0]) / s;
+    } else if (rot[1][1] > rot[2][2]) {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[1][1] - rot[0][0] - rot[2][2]));
+      qw = (rot[0][2] - rot[2][0]) / s;
+      qx = (rot[0][1] + rot[1][0]) / s;
+      qy = 0.25f * s;
+      qz = (rot[1][2] + rot[2][1]) / s;
+    } else {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[2][2] - rot[0][0] - rot[1][1]));
+      qw = (rot[1][0] - rot[0][1]) / s;
+      qx = (rot[0][2] + rot[2][0]) / s;
+      qy = (rot[1][2] + rot[2][1]) / s;
+      qz = 0.25f * s;
     }
 
-    axisX /= axisMagnitude;
-    axisY /= axisMagnitude;
-    axisZ /= axisMagnitude;
-
-    // Calculate quaternion
-    float halfTheta = theta / 2;
-    float sinHalfTheta = (float) Math.sin(halfTheta);
-    float qx = axisX * sinHalfTheta;
-    float qy = axisY * sinHalfTheta;
-    float qz = axisZ * sinHalfTheta;
-    float qw = (float) Math.cos(halfTheta);
-
-    return new Pose(currentPoint, new Quaternion(qx, qy, qz, qw));
+    return new Quaternion(qx, qy, qz, qw);
   }
 
   /**
