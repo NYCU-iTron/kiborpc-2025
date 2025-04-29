@@ -24,12 +24,13 @@ import org.opencv.core.Mat;
  * @todo implement yolo model in VisionHandler::inspectArea() to return proper item.
  */
 public class VisionHandler {
+  private KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
+  private boolean DEBUG = true;
+
   private final CameraHandler cameraHandler;
   private final ItemDetector itemDetector;
   private final ARTagDetector arTagDetector;
-  private KiboRpcApi api;
-
   private Pose currentPose = null;
 
   /**
@@ -78,34 +79,37 @@ public class VisionHandler {
    */
   public Item[] inspectArea(int area) {
     Mat rawImage = cameraHandler.captureImage();
+    if (DEBUG) api.saveMatImage(rawImage, String.format("area%d_raw.png", area));
+
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
-    Map<Integer, Pose> arResult = arTagDetector.detectFromImage(undistortedImage);
+    if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", area));
 
-    Log.i(TAG, "Current Body Pose in World: " + currentPose.toString());
-    for (Map.Entry<Integer, Pose> entry : arResult.entrySet()) {
-      Integer id = entry.getKey();
-      Pose pose = entry.getValue();
-      Pose poseWorld = arTagDetector.convertCameraToWorld(pose, currentPose);
-      Log.i(TAG, "ID: " + id + ", Pose in Cam: " + pose.toString());
-      Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
-    }
+    // Detect AR tag pose
+    Map<Integer, Pose> arResult = arTagDetector.detect(undistortedImage);
+    Pose tagPose = arTagDetector.filterResult(arResult, area, currentPose);
 
-    /**
-     * @todo implement yolo model to detect the item in the image.
-     */
-    Item[] detectedItemArray = new Item[2];
-    detectedItemArray[0] = new Item(area, 11, "crystal", 1, new Pose());
-    detectedItemArray[1] = new Item(area, 21, "coin", 1, new Pose());
+    // Detect item
+    List<float[]> detectResult = itemDetector.detect(undistortedImage);
+    Item[] detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
+    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, area);
+
     return detectedItemArray;
   }
 
   public Item recognizeTreasure() {
-    
-    /**
-     * @todo implement yolo model to detect the item in the treasure image.
-     */
-    Item detectedItem = new Item();
+    Mat rawImage = cameraHandler.captureImage();
+    if (DEBUG) api.saveMatImage(rawImage, "treasure_raw.png");
+
+    Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
+    if (DEBUG) api.saveMatImage(rawImage, "treasure_undistorted.png");
+
+    List<float[]> detectResult = itemDetector.detect(undistortedImage);
+    Item[] detectedItemArray = itemDetector.filterResult(detectResult, 5, new Pose());
+    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, 5);
+
+    Item detectedItem = detectedItemArray[0]; // This array is expected to be [treasureItem, landmarkItem]
     this.api.notifyRecognitionItem();
+
     return detectedItem;
   }
 

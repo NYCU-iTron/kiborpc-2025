@@ -1,5 +1,31 @@
 # kiborpc-2025
 
+## Usage
+
+To enter docker build environment.
+
+```sh
+make
+```
+
+To compile apk in docker environment (The compiled apk will be generated in `app/app/build/outputs/apk/debug/`).
+
+```sh
+make build
+```
+
+To open this project in Android Studio.
+
+```sh
+make studio
+```
+
+To use doxygen to generate documentation
+
+```sh
+make doxygen
+```
+
 ## Schedule
 
 - 4/1: Simulator release
@@ -10,16 +36,23 @@ For more details, see [Progress](./docs/progress/progress.md)
 
 ## Task Distribution
 
-- CameraHandler
-  - Take pictures
-  - Process the image
-  - Extract and store the items information
-- Navigator
-  - Move to the target
-  - Path planning
-  - Deal with the sensor error
-- Main controller
-  - Determine the current state
+- [CameraHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/CameraHandler.java)
+  - Take pictures and process the image.
+- [ARTagDetector](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ARTagDetector.java)
+  - Detect AR tags.
+- [ItemDetector](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ItemDetector.java)
+  - Detect items using yolo model.
+- [VisionHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/VisionHandler.java)
+  - Integrate CameraHandler, ARTagDetector and ItemDetector.
+- [Navigator](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/Navigator.java)
+  - Move to the target.
+  - Path planning.
+  - Deal with the sensor error.
+- [ItemManager](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ItemManager.java)
+  - Store the items information.
+- [Main controller](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/MainControl.java)
+  - Integrate Navigator, VisionHandler and ItemManager.
+  - Determine the current state.
 
 ## Useful links
 
