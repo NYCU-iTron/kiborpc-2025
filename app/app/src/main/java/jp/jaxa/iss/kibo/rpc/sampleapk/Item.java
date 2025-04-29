@@ -47,7 +47,7 @@ public class Item {
   public String getItemName() { return itemName; }
   public int getItemCount() { return itemCount; }
   public Pose getItemPose() { return itemPose; }
-
+  
   public String toString() {
     return "Item {" +
             "itemId=" + itemId +
