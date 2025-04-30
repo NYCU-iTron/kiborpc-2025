@@ -20,15 +20,38 @@ import android.util.Log;
 public class Navigator {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
-  long startTime;
 
   // Target poses in each area
-  public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
   public static final Pose Patrol1 = new Pose(new Point(10.95, -10, 4.8), new Quaternion(0.0f, -0.398f, -0.584f, 0.707f));
   public static final Pose Patrol2 = new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
   public static final Pose Patrol3 = new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
   public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0.0f, 0.0f, 1.0f, 0.0f));
   public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f));
+
+  // Safety factors
+  private static final double safeDistance = 0.8; // Vertical distance to the plane of the area.
+  private static final double subSafeDistance = 0.05; // Distance to the boundary of the projected zone of the area.
+
+  // Boundaries
+  private static final double area1MaxX = 11.48;
+  private static final double area1MinX = 10.42;
+  private static final double area1MaxZ = 5.57;
+  private static final double area1MinZ = 4.82;
+
+  private static final double area2MaxX = 11.55;
+  private static final double area2MinX = 10.3;
+  private static final double area2MaxY = -8.5;
+  private static final double area2MinY = -9.25;
+
+  private static final double area3MaxX = 11.55;
+  private static final double area3MinX = 10.3;
+  private static final double area3MaxY = -7.45;
+  private static final double area3MinY = -8.4;
+
+  private static final double area4MaxY = -6.365;
+  private static final double area4MinY = -7.34;
+  private static final double area4MaxZ = 5.57;
+  private static final double area4MinZ = 4.32;
 
   /**
    * Constructor
@@ -37,8 +60,7 @@ public class Navigator {
    */
   public Navigator(KiboRpcApi apiRef) {
     this.api = apiRef;
-    startTime = System.currentTimeMillis();
-    Log.i(TAG,  "Initialized at " + startTime);
+    Log.i(TAG,  "Initialized.");
   }
 
   /* -------------------------------------------------------------------------- */
@@ -228,9 +250,6 @@ public class Navigator {
     Point currentPoint = currentPose.getPoint();
     Point treasurePoint = treasurePose.getPoint();
 
-    // The final point should be within 0.9 m vertically from the plane of the area.
-    double safeDistance = 0.8;
-
     double t;
     double currentX = currentPoint.getX();
     double currentY = currentPoint.getY();
@@ -252,11 +271,16 @@ public class Navigator {
         t = (finalY - currentY) / (treasureY - currentY);
         finalX = currentX + t * (treasureX - currentX);
         finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area1MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area1MinX + subSafeDistance);
+        finalZ = Math.min(finalZ, area1MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area1MinZ + subSafeDistance);
         break;
 
       case 2:
-      case 3:
-        // Area2 and Area3 lie on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        // Area2 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
         finalZ = 3.76203 + safeDistance;
 
         // Treasure point
@@ -267,7 +291,34 @@ public class Navigator {
         // Interpolate
         t = (finalZ - currentZ) / (treasureZ - currentZ);
         finalX = currentX + t * (treasureX - currentX);
-        finalY = currentY + t * (treasureY - currentY);   
+        finalY = currentY + t * (treasureY - currentY);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area2MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area2MinX + subSafeDistance);
+        finalY = Math.min(finalY, area2MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area2MinY + subSafeDistance);
+        break;
+
+      case 3:
+        // Area3 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        finalZ = 3.76203 + safeDistance;
+
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = 3.76203; // or treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalZ - currentZ) / (treasureZ - currentZ);
+        finalX = currentX + t * (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area3MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area3MinX + subSafeDistance);
+        finalY = Math.min(finalY, area3MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area3MinY + subSafeDistance);
         break;
 
       case 4:
@@ -283,6 +334,12 @@ public class Navigator {
         t = (finalX - currentX) / (treasureX - currentX);
         finalY = currentY + t * (treasureY - currentY);
         finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the zone of the projected area
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
         break;
 
       default:
@@ -302,6 +359,12 @@ public class Navigator {
         t = (finalX - currentX) / (treasureX - currentX);
         finalY = currentY + t * (treasureY - currentY);
         finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the zone of projected area
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
         break;
     }
     
