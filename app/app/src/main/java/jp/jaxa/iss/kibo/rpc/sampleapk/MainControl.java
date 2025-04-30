@@ -135,6 +135,9 @@ public class MainControl {
         // Recognize the treasure
         Item treasureItem = visionHandler.recognizeTreasure();
         Log.i(TAG, "Treasure recognized: " + treasureItem.getItemName());
+        // Find the area of the treasure and the treasure item
+        treasureItem = itemManager.getTreasureInfo(treasureItem);
+        Log.i(TAG, "Treasure area: " + treasureItem.getAreaId());
         return treasureItem;
     }
 
