@@ -171,10 +171,16 @@ public class ItemDetector {
       }
 
       // No landmark was found in area
-      if (landmarkId == -1) landmarkId = rand.nextInt(8) + 21; // Random landmark ID
+      if (landmarkId == -1) {
+        Log.w(TAG, "No landmark found. Leave it to fate.");
+        landmarkId = rand.nextInt(8) + 21; // Random landmark ID
+      }
 
       // No treasure was found from astronaut
-      if (area == 5 && treasureId == -1) treasureId = rand.nextInt(3) + 11; // Random treasure ID
+      if (area == 5 && treasureId == -1) {
+        Log.w(TAG, "No treasure found from astronaut. Leave it to fate.");
+        treasureId = rand.nextInt(3) + 11; // Random treasure ID
+      }
 
       // Set item count
       defaultCount = rand.nextInt(3) + 1; // Random count (1-3)
