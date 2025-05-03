@@ -10,6 +10,8 @@ import gov.nasa.arc.astrobee.Result;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import android.util.Log;
 
@@ -20,15 +22,41 @@ import android.util.Log;
 public class Navigator {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
-  long startTime;
 
   // Target poses in each area
-  public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-  public static final Pose Patrol1 = new Pose(new Point(10.95, -10, 4.8), new Quaternion(0.0f, -0.398f, -0.584f, 0.707f));
-  public static final Pose Patrol2 = new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
-  public static final Pose Patrol3 = new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
-  public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0.0f, 0.0f, 1.0f, 0.0f));
-  public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f));
+  private static final Map<Integer, Pose> areaPoses = new HashMap<>();
+  static {
+    areaPoses.put(1, new Pose(new Point(10.8, -9.78, 4.7), new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f))); // Area 1
+    areaPoses.put(2, new Pose(new Point(10.8, -8.875, 4.56), new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)));   // Area 2
+    areaPoses.put(3, new Pose(new Point(10.8, -7.925, 4.56), new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)));   // Area 3
+    areaPoses.put(4, new Pose(new Point(10.667, -6.853, 4.9654), new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f)));   // Area 4
+    areaPoses.put(5, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
+  }
+
+  // Safety factors
+  private static final double safeDistance = 0.8; // Vertical distance to the plane of the area.
+  private static final double subSafeDistance = 0.05; // Distance to the boundary of the projected zone of the area.
+
+  // Boundaries
+  private static final double area1MaxX = 11.48;
+  private static final double area1MinX = 10.42;
+  private static final double area1MaxZ = 5.57;
+  private static final double area1MinZ = 4.82;
+
+  private static final double area2MaxX = 11.55;
+  private static final double area2MinX = 10.3;
+  private static final double area2MaxY = -8.5;
+  private static final double area2MinY = -9.25;
+
+  private static final double area3MaxX = 11.55;
+  private static final double area3MinX = 10.3;
+  private static final double area3MaxY = -7.45;
+  private static final double area3MinY = -8.4;
+
+  private static final double area4MaxY = -6.365;
+  private static final double area4MinY = -7.34;
+  private static final double area4MaxZ = 5.57;
+  private static final double area4MinZ = 4.32;
 
   /**
    * Constructor
@@ -37,8 +65,7 @@ public class Navigator {
    */
   public Navigator(KiboRpcApi apiRef) {
     this.api = apiRef;
-    startTime = System.currentTimeMillis();
-    Log.i(TAG,  "Initialized at " + startTime);
+    Log.i(TAG,  "Initialized.");
   }
 
   /* -------------------------------------------------------------------------- */
@@ -172,43 +199,14 @@ public class Navigator {
    * @endcode
    */
   public Result navigateToArea(int area) {
-    Point point;
-    Quaternion quaternion;
-    Pose pose;
-    Result result;
-    switch (area) {
+    Pose targetPose = areaPoses.get(area);
 
-    case 1:
-      point = new Point(10.8, -9.78, 4.7);
-      quaternion = new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f);
-      break;
-
-    case 2:
-      point = new Point(10.8, -8.875, 4.56);
-      quaternion = new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f);
-      break;
-
-    case 3:
-      point = new Point(10.8, -7.925, 4.56);
-      quaternion = new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f);
-      break;
-
-    case 4:
-      point = new Point(10.667, -6.853, 4.9654);
-      quaternion = new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f);
-      break;
-
-    case 5: // Report
-      point = new Point(11.143, -6.7607, 4.9654);
-      quaternion = new Quaternion(0.0f, 0.0f, 0.707f, 0.707f);
-      break;
-
-    default:
-      Log.w(TAG, "Unknown area Id, navigation aborted.");
+    if (targetPose == null) {
+      Log.w(TAG, "Unknown area Id: " + area + ", navigation aborted.");
       return null;
     }
 
-    result = moveTo(new Pose(point, quaternion));
+    Result result = moveTo(targetPose);
 
     Log.i(TAG, "Move to area " + area);
     return result;
@@ -227,9 +225,6 @@ public class Navigator {
 
     Point currentPoint = currentPose.getPoint();
     Point treasurePoint = treasurePose.getPoint();
-
-    // The final point should be within 0.9 m vertically from the plane of the area.
-    double safeDistance = 0.8;
 
     double t;
     double currentX = currentPoint.getX();
@@ -252,11 +247,16 @@ public class Navigator {
         t = (finalY - currentY) / (treasureY - currentY);
         finalX = currentX + t * (treasureX - currentX);
         finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area1MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area1MinX + subSafeDistance);
+        finalZ = Math.min(finalZ, area1MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area1MinZ + subSafeDistance);
         break;
 
       case 2:
-      case 3:
-        // Area2 and Area3 lie on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        // Area2 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
         finalZ = 3.76203 + safeDistance;
 
         // Treasure point
@@ -267,7 +267,34 @@ public class Navigator {
         // Interpolate
         t = (finalZ - currentZ) / (treasureZ - currentZ);
         finalX = currentX + t * (treasureX - currentX);
-        finalY = currentY + t * (treasureY - currentY);   
+        finalY = currentY + t * (treasureY - currentY);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area2MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area2MinX + subSafeDistance);
+        finalY = Math.min(finalY, area2MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area2MinY + subSafeDistance);
+        break;
+
+      case 3:
+        // Area3 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        finalZ = 3.76203 + safeDistance;
+
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = 3.76203; // or treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalZ - currentZ) / (treasureZ - currentZ);
+        finalX = currentX + t * (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area3MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area3MinX + subSafeDistance);
+        finalY = Math.min(finalY, area3MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area3MinY + subSafeDistance);
         break;
 
       case 4:
@@ -283,6 +310,12 @@ public class Navigator {
         t = (finalX - currentX) / (treasureX - currentX);
         finalY = currentY + t * (treasureY - currentY);
         finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the zone of the projected area
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
         break;
 
       default:
@@ -302,6 +335,12 @@ public class Navigator {
         t = (finalX - currentX) / (treasureX - currentX);
         finalY = currentY + t * (treasureY - currentY);
         finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the zone of projected area
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
         break;
     }
     
