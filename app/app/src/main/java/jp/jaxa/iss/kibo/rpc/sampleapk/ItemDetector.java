@@ -123,7 +123,7 @@ public class ItemDetector {
    * @param detectResult A list of detection results, each containing item details and confidence scores.
    * @param areaId       The area identifier where the detection occurred.
    * @param tagPose      The pose associated with the detection area.
-   * @return An array containing the selected treasure and landmark items.
+   * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
   public Item[] filterResult(List<float[]> detectResult, int areaId, Pose tagPose) {
     int treasureId = -1;
@@ -170,7 +170,7 @@ public class ItemDetector {
 
     results = new Item[2];
 
-    // Create the resulting items
+    // Create the treasure item
     if (treasureId == -1) {
       results[0] = new Item();
     } else {
@@ -179,6 +179,7 @@ public class ItemDetector {
       results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
     }
 
+    // Create landmark item
     if (landmarkId == -1) {
       results[1] = new Item();
     } else {
@@ -190,6 +191,13 @@ public class ItemDetector {
     return results;
   }
 
+  /**
+   * Guess the result.
+   *
+   * @param areaId       The area identifier where the detection occurred.
+   * @param tagPose      The pose associated with the detection area.
+   * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
+   */
   public Item[] guessResult(int areaId, Pose tagPose) {
     Item[] results = new Item[2];
 
