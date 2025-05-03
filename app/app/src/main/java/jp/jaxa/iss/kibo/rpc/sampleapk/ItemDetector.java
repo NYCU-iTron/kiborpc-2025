@@ -121,29 +121,26 @@ public class ItemDetector {
    * Filters the detection results to identify the treasure and landmark items with the highest confidence.
    *
    * @param detectResult A list of detection results, each containing item details and confidence scores.
-   * @param area         The area identifier where the detection occurred.
+   * @param areaId       The area identifier where the detection occurred.
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items.
    */
-  public Item[] filterResult(List<float[]> detectResult, int area, Pose tagPose) {
+  public Item[] filterResult(List<float[]> detectResult, int areaId, Pose tagPose) {
     int treasureId = -1;
     int landmarkId = -1;
     float treasureMaxConfidence = -1.0f;
     float landmarkMaxConfidence = -1.0f;
     int treasureCount = 0;
     int landmarkCount = 0;
-    int defaultCount = 0;
 
     Map<Integer, Integer> itemCountMap = new HashMap<>();
     Item[] results;
 
     // Handle empty detection results
     if (detectResult.isEmpty()) {
-      Log.w(TAG, "No detection found. Leave it to fate.");
-      treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
-      landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
-      landmarkCount = rand.nextInt(3) + 1; // Random count (1-3)
-      treasureCount = 1;
+      Log.w(TAG, "No detection found, return list contains one empty item.");
+      results = new Item[1];
+      results[0] = new Item();
     } else {
       for (float[] det : detectResult) {
         String label = labels.get((int) det[9]); // Get item label from detection
@@ -152,14 +149,14 @@ public class ItemDetector {
         // Update item count
         itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
 
-        // Check if the item is a treasure
+        // Record the treasure with the highest confidence
         if (itemId / 10 == 1) {
           if (det[8] > treasureMaxConfidence) {
             treasureMaxConfidence = det[8];
             treasureId = itemId;
           }
         }
-        // Check if the item is a landmark
+        // Record the landmark with the highest confidence
         else if (itemId / 10 == 2) {
           if (det[8] > landmarkMaxConfidence) {
             landmarkMaxConfidence = det[8];
@@ -169,34 +166,42 @@ public class ItemDetector {
           Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
         }
       }
-
-      // No landmark was found in area
-      if (landmarkId == -1) {
-        Log.w(TAG, "No landmark found. Leave it to fate.");
-        landmarkId = rand.nextInt(8) + 21; // Random landmark ID
-      }
-
-      // No treasure was found from astronaut
-      if (area == 5 && treasureId == -1) {
-        Log.w(TAG, "No treasure found from astronaut. Leave it to fate.");
-        treasureId = rand.nextInt(3) + 11; // Random treasure ID
-      }
-
-      // Set item count
-      defaultCount = rand.nextInt(3) + 1; // Random count (1-3)
-      landmarkCount = itemCountMap.getOrDefault(landmarkId, defaultCount);
-      treasureCount = itemCountMap.getOrDefault(landmarkId, 0);
     }
+
+    results = new Item[2];
 
     // Create the resulting items
     if (treasureId == -1) {
-      results = new Item[1];
-      results[0] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
+      results[0] = new Item();
     } else {
-      results = new Item[2];
-      results[0] = new Item(area, treasureId, idToNameMap.get(treasureId), treasureCount, tagPose);
-      results[1] = new Item(area, landmarkId, idToNameMap.get(landmarkId), landmarkCount, tagPose);
+      String treasureName = idToNameMap.get(treasureId);
+      treasureCount = itemCountMap.getOrDefault(treasureId, 1);
+      results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
     }
+
+    if (landmarkId == -1) {
+      results[1] = new Item();
+    } else {
+      String landmarkName = idToNameMap.get(landmarkId);
+      landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
+      results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
+    }
+
+    return results;
+  }
+
+  public Item[] guessResult(int areaId, Pose tagPose) {
+    Item[] results = new Item[2];
+
+    int treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
+    int landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
+    String treasureName = idToNameMap.get(treasureId);
+    String landmarkName = idToNameMap.get(landmarkId);
+    int treasureCount = 1;
+    int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
+
+    results[0] = new Item(areaId, landmarkId, treasureName, landmarkCount, tagPose);
+    results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
 
     return results;
   }
