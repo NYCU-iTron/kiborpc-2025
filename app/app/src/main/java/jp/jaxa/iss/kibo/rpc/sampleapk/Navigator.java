@@ -10,6 +10,8 @@ import gov.nasa.arc.astrobee.Result;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 import android.util.Log;
 
@@ -20,15 +22,41 @@ import android.util.Log;
 public class Navigator {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
-  long startTime;
 
   // Target poses in each area
-  public static final Pose Dock = new Pose(new Point(9.815, -9.806, 4.293), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-  public static final Pose Patrol1 = new Pose(new Point(10.95, -10, 4.8), new Quaternion(0.0f, -0.398f, -0.584f, 0.707f));
-  public static final Pose Patrol2 = new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
-  public static final Pose Patrol3 = new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f));
-  public static final Pose Patrol4 = new Pose(new Point(10.567, -6.853, 4.945), new Quaternion(0.0f, 0.0f, 1.0f, 0.0f));
-  public static final Pose Report = new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f));
+  private static final Map<Integer, Pose> areaPoses = new HashMap<>();
+  static {
+    areaPoses.put(1, new Pose(new Point(10.8, -9.78, 4.7), new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f))); // Area 1
+    areaPoses.put(2, new Pose(new Point(10.8, -8.875, 4.56), new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)));   // Area 2
+    areaPoses.put(3, new Pose(new Point(10.8, -7.925, 4.56), new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)));   // Area 3
+    areaPoses.put(4, new Pose(new Point(10.667, -6.853, 4.9654), new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f)));   // Area 4
+    areaPoses.put(5, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
+  }
+
+  // Safety factors
+  private static final double safeDistance = 0.8; // Vertical distance to the plane of the area.
+  private static final double subSafeDistance = 0.05; // Distance to the boundary of the projected zone of the area.
+
+  // Boundaries
+  private static final double area1MaxX = 11.48;
+  private static final double area1MinX = 10.42;
+  private static final double area1MaxZ = 5.57;
+  private static final double area1MinZ = 4.82;
+
+  private static final double area2MaxX = 11.55;
+  private static final double area2MinX = 10.3;
+  private static final double area2MaxY = -8.5;
+  private static final double area2MinY = -9.25;
+
+  private static final double area3MaxX = 11.55;
+  private static final double area3MinX = 10.3;
+  private static final double area3MaxY = -7.45;
+  private static final double area3MinY = -8.4;
+
+  private static final double area4MaxY = -6.365;
+  private static final double area4MinY = -7.34;
+  private static final double area4MaxZ = 5.57;
+  private static final double area4MinZ = 4.32;
 
   /**
    * Constructor
@@ -37,8 +65,7 @@ public class Navigator {
    */
   public Navigator(KiboRpcApi apiRef) {
     this.api = apiRef;
-    startTime = System.currentTimeMillis();
-    Log.i(TAG,  "Initialized at " + startTime);
+    Log.i(TAG,  "Initialized.");
   }
 
   /* -------------------------------------------------------------------------- */
@@ -161,151 +188,171 @@ public class Navigator {
    * Example:
    * @code
    * // Area 1
-   * navigator.navigateToArea1();
+   * navigator.navigateToArea(1);
    * visionHandler.getCurrentPose(navigator.getCurrentPose());
    * visionHandler.inspectArea();
 
    * // Area 2
-   * navigator.navigateToArea2();
+   * navigator.navigateToArea(2);
    * visionHandler.getCurrentPose(navigator.getCurrentPose());
    * visionHandler.inspectArea();
    * @endcode
    */
-  public Result navigateToArea1() {
-    // Pose subPose1 = new Pose (
-    //   new Point(10.45, -9.7, 4.47), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    // Pose subPose2 = new Pose (
-    //   new Point(10.45, -9.52, 4.47), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    // Pose subPose3 = new Pose(
-    //   new Point(10.95, -9.52, 4.9), 
-    //   new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.95, -9.9, 4.9),
-      new Quaternion(0.0f, -0.281f, -0.649f, 0.707f)
-    );
+  public Result navigateToArea(int area) {
+    Pose targetPose = areaPoses.get(area);
 
-    // moveTo(subPoint1);
-    // moveTo(subPoint2);
-    // moveTo(subPoint3);
-    Result result = moveTo(finalPose);
+    if (targetPose == null) {
+      Log.w(TAG, "Unknown area Id: " + area + ", navigation aborted.");
+      return null;
+    }
 
-    Log.i(TAG, "Move to area 1. " + " Result: " + result.getMessage());
+    Result result = moveTo(targetPose);
+
+    Log.i(TAG, "Move to area " + area);
     return result;
   }
 
   /**
-   * Moves the robot to the pose of taking photo in area 2.
+   * Moves the robot to find the treasure item.
    * 
    * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
    */
-  public Result navigateToArea2() {
-    // Pose subPose1 = new Pose(
-    //   new Point(10.94, -9.5, 4.9), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(10.94, -9.48, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose3 = new Pose(
-    //   new Point(10.94, -8.875, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.925, -8.875, 4.462),
-      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    );
+  public Result navigateToTreasure(Item treasureItem) {
+    int areaId = treasureItem.getAreaId();
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    // moveTo(subPose3);
-    Result result = moveTo(finalPose);
+    Pose currentPose = getCurrentPose();
+    Pose treasurePose = treasureItem.getItemPose();
 
-    Log.i(TAG, "Move to area 2. " + " Result: " + result.getMessage());
-    return result;
-  }
+    Point currentPoint = currentPose.getPoint();
+    Point treasurePoint = treasurePose.getPoint();
 
-  /**
-   * Moves the robot to the pose of taking photo in area 3.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea3() {
-    // Pose subPose1 = new Pose(
-    //   new Point(10.925, -8.875, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(10.925, -7.925, 5.43), 
-    //   new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.925, -7.925, 4.462),
-      new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)
-    );
+    double t;
+    double currentX = currentPoint.getX();
+    double currentY = currentPoint.getY();
+    double currentZ = currentPoint.getZ();
+    double finalX = 0, finalY = 0, finalZ = 0;
+    double treasureX = 0, treasureY = 0, treasureZ = 0;
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    Result result = moveTo(finalPose);
+    switch (areaId) {
+      case 1:
+        // Area1 lies on the XZ plane, so the vertical distance along the Y-axis should be within 0.9 m
+        finalY = -10.58 + safeDistance;
 
-    Log.i(TAG, "Move to area 3. " + " Result: " + result.getMessage());
-    return result;
-  }
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = -10.58; // or treasurePoint.getY(), not sure whether to trust the rule book or the ARTagDetector
+        treasureZ = treasurePoint.getZ();
 
-  /**
-   * Moves the robot to the pose of taking item's picture in area 4.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToArea4() {
-    // Pose subPose1 = new Pose(
-    //   new Point(11.4, -7.4, 4.462), 
-    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
-    // );
-    // Pose subPose2 = new Pose(
-    //   new Point(11.4, -6.853, 4.92), 
-    //   new Quaternion(0.0f, 0.0f, 1.0f, 0.0f)
-    // );
-    Pose finalPose = new Pose(
-      new Point(10.567, -6.853, 4.92),
-      new Quaternion(0.0f, -1.0f, 0.02f, 0.02f)
-    );
+        // Interpolate
+        t = (finalY - currentY) / (treasureY - currentY);
+        finalX = currentX + t * (treasureX - currentX);
+        finalZ = currentZ + t * (treasureZ - currentZ);
 
-    // moveTo(subPose1);
-    // moveTo(subPose2);
-    Result result = moveTo(finalPose);
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area1MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area1MinX + subSafeDistance);
+        finalZ = Math.min(finalZ, area1MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area1MinZ + subSafeDistance);
+        break;
 
-    Log.i(TAG, "Move to area 4. " + " Result: " + result.getMessage());
-    return result;
-  }
+      case 2:
+        // Area2 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        finalZ = 3.76203 + safeDistance;
 
-  /**
-   * Moves the robot to in front of the astronaut.
-   * 
-   * @return The result of the last move command.
-   * 
-   * See example in @ref navigateToArea1().
-   */
-  public Result navigateToReport() {
-    Pose finalPose = new Pose(
-      new Point(11.143, -6.7607, 4.9654),
-      new Quaternion(0.0f, 0.0f, 0.707f, 0.707f)
-    );
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = 3.76203; // or treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalZ - currentZ) / (treasureZ - currentZ);
+        finalX = currentX + t * (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area2MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area2MinX + subSafeDistance);
+        finalY = Math.min(finalY, area2MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area2MinY + subSafeDistance);
+        break;
+
+      case 3:
+        // Area3 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
+        finalZ = 3.76203 + safeDistance;
+
+        // Treasure point
+        treasureX = treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = 3.76203; // or treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalZ - currentZ) / (treasureZ - currentZ);
+        finalX = currentX + t * (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+
+        // Ensure final point to be within the projected zone of the area
+        finalX = Math.min(finalX, area3MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area3MinX + subSafeDistance);
+        finalY = Math.min(finalY, area3MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area3MinY + subSafeDistance);
+        break;
+
+      case 4:
+        // Area4 lies on the YZ plane, so the vertical distance along the X-axis should be within 0.9 m
+        finalX = 9.866984 + safeDistance;
+
+        // Treasure point
+        treasureX = 9.866984; // or treasurePoint.getX();
+        treasureY = treasurePoint.getY();
+        treasureZ = treasurePoint.getZ();
+
+        // Interpolate
+        t = (finalX - currentX) / (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+        finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the zone of the projected area
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
+        break;
+
+      default:
+        // Handle error
+        Log.w(TAG, String.format("Invalid areaId: %d. Using default final pose.", areaId));
+        
+        // Guess the item is in the middle of area 4
+        // Area 4: (9.866984, -7.34, 4.32, 9.866984, -6.365, 5.57)
+        finalX = 9.866984 + safeDistance;
+
+        // Treasure point
+        treasureX = 9.866984;
+        treasureY = (-7.34 - 6.365) / 2;
+        treasureZ = (4.32 + 5.57) / 2;
+        
+        // Interpolate
+        t = (finalX - currentX) / (treasureX - currentX);
+        finalY = currentY + t * (treasureY - currentY);
+        finalZ = currentZ + t * (treasureZ - currentZ);
+
+        // Ensure final point to be within the zone of projected area
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
+        break;
+    }
     
+    // Set the final Quaternion to face the treasure
+    Point finalPoint = new Point(finalX, finalY, finalZ);
+    Quaternion finalQuaternion = getQuaternionTo(currentPoint, finalPoint);
+    Pose finalPose = new Pose(finalPoint, finalQuaternion);
+    Log.i(TAG, "I'm goint to " + finalPose.toString());
+
     Result result = moveTo(finalPose);
 
-    Log.i(TAG, "Move to report. " + " Result: " + result.getMessage());
+    Log.i(TAG, "Move to find the treasure.");
     return result;
   }
 
@@ -410,73 +457,97 @@ public class Navigator {
   }
 
   /**
-   * Calculates the quaternion to rotate from the current pose to face the target pose.
+   * Calculates the quaternion to rotate from the current point to face the target point.
    * 
-   * @param current The current pose.
-   * @param target The target pose.
-   * @return A new pose with the same position as the current pose but rotated to face the target pose.
+   * @param currentPoint The current point.
+   * @param targetPoint The target point.
+   * @return A new quaternion that rotates current point to face the target point.
    */
-  public static Pose getPoseToFaceTarget(Pose current, Pose target) {
-    Point currentPoint = current.getPoint();
-    Point targetPoint = target.getPoint();
+  public static Quaternion getQuaternionTo(Point currentPoint, Point targetPoint) {
+    // Step 1: Compute forward vector
+    float fx = (float) targetPoint.getX() - (float) currentPoint.getX();
+    float fy = (float) targetPoint.getY() - (float) currentPoint.getY();
+    float fz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
+    float fMagnitude = (float) Math.sqrt(fx * fx + fy * fy + fz * fz);
 
-    // Calculate direction vector
-    float dx = (float) targetPoint.getX() - (float) currentPoint.getX();
-    float dy = (float) targetPoint.getY() - (float) currentPoint.getY();
-    float dz = (float) targetPoint.getZ() - (float) currentPoint.getZ();
-
-    // Normalize the direction vector
-    float length = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-    if (length == 0) {
-      return current; // No movement needed
+    // Already face target
+    if (fMagnitude < 1e-6) {
+      return new Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    dx /= length;
-    dy /= length;
-    dz /= length;
+    fx /= fMagnitude;
+    fy /= fMagnitude;
+    fz /= fMagnitude;
 
-    // Default direction vector
-    float ux = 1f;
+    // Step 2: Default up vector
+    float ux = 0f;
     float uy = 0f;
-    float uz = 0f;
+    float uz = 1f;
 
-    // Dot product to find angle
-    float dot = ux * dx + uy * dy + uz * dz;
-    dot = Math.max(-1.0f, Math.min(1.0f, dot));
-    float theta = (float) Math.acos(dot);
+    // Step 3: Compute right vector (up × forward)
+    float rx = uy * fz - uz * fy;
+    float ry = uz * fx - ux * fz;
+    float rz = ux * fy - uy * fx;
+    float rMagnitude = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
 
-    // Special cases
-    if (Math.abs(dot - 1) < 1e-6) { // Already aligned with default direction
-      return current;
-    } else if (Math.abs(dot + 1) < 1e-6) { // 180° opposite to default direction
-      // Choose an arbitrary perpendicular axis (e.g., x-axis or y-axis)
-      return new Pose(currentPoint, new Quaternion(1.0f, 0.0f, 0.0f, 0.0f)); // If aligned with x, rotate around x
+    if (rMagnitude < 1e-6) {
+      // Forward and up are too close，change default up vector to  (0, 1, 0)
+      ux = 0f;
+      uy = 1f;
+      uz = 0f;
+      rx = uy * fz - uz * fy;
+      ry = uz * fx - ux * fz;
+      rz = ux * fy - uy * fx;
+      rMagnitude = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
     }
 
-    // Cross product to find rotation axis
-    float axisX = uy * dz - uz * dy;
-    float axisY = uz * dx - ux * dz;
-    float axisZ = ux * dy - uy * dx;
-    float axisMagnitude = (float) Math.sqrt(axisX * axisX + axisY * axisY + axisZ * axisZ);
+    rx /= rMagnitude;
+    ry /= rMagnitude;
+    rz /= rMagnitude;
 
-    // Avoid division by zero
-    if (axisMagnitude < 1e-6) {
-      return new Pose(currentPoint, new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+    // Step 4: Compute true up (forward × right)
+    float tx = fy * rz - fz * ry;
+    float ty = fz * rx - fx * rz;
+    float tz = fx * ry - fy * rx;
+
+    // Step 5: Compute rotation matrix
+    float[][] rot = {
+      {fx, rx, tx},
+      {fy, ry, ty},
+      {fz, rz, tz}
+    };
+
+    // Step 6: Transform ratation matrix to quarternion
+    float trace = rot[0][0] + rot[1][1] + rot[2][2];
+    float qw, qx, qy, qz;
+
+    if (trace > 0f) {
+      float s = (float) (0.5f / Math.sqrt(trace + 1.0f));
+      qw = 0.25f / s;
+      qx = (rot[2][1] - rot[1][2]) * s;
+      qy = (rot[0][2] - rot[2][0]) * s;
+      qz = (rot[1][0] - rot[0][1]) * s;
+    } else if (rot[0][0] > rot[1][1] && rot[0][0] > rot[2][2]) {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[0][0] - rot[1][1] - rot[2][2]));
+      qw = (rot[2][1] - rot[1][2]) / s;
+      qx = 0.25f * s;
+      qy = (rot[0][1] + rot[1][0]) / s;
+      qz = (rot[0][2] + rot[2][0]) / s;
+    } else if (rot[1][1] > rot[2][2]) {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[1][1] - rot[0][0] - rot[2][2]));
+      qw = (rot[0][2] - rot[2][0]) / s;
+      qx = (rot[0][1] + rot[1][0]) / s;
+      qy = 0.25f * s;
+      qz = (rot[1][2] + rot[2][1]) / s;
+    } else {
+      float s = (float) (2.0f * Math.sqrt(1.0f + rot[2][2] - rot[0][0] - rot[1][1]));
+      qw = (rot[1][0] - rot[0][1]) / s;
+      qx = (rot[0][2] + rot[2][0]) / s;
+      qy = (rot[1][2] + rot[2][1]) / s;
+      qz = 0.25f * s;
     }
 
-    axisX /= axisMagnitude;
-    axisY /= axisMagnitude;
-    axisZ /= axisMagnitude;
-
-    // Calculate quaternion
-    float halfTheta = theta / 2;
-    float sinHalfTheta = (float) Math.sin(halfTheta);
-    float qx = axisX * sinHalfTheta;
-    float qy = axisY * sinHalfTheta;
-    float qz = axisZ * sinHalfTheta;
-    float qw = (float) Math.cos(halfTheta);
-
-    return new Pose(currentPoint, new Quaternion(qx, qy, qz, qw));
+    return new Quaternion(qx, qy, qz, qw);
   }
 
   /**

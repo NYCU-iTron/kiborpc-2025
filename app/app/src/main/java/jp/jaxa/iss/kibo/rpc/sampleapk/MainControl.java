@@ -61,56 +61,64 @@ public class MainControl {
      */
     private void exploreAllAreas() {
         // Exploring area 1
-        navigator.navigateToArea1();
+        navigator.navigateToArea(1);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area1Items = visionHandler.inspectArea(1);
         for (Item item : area1Items) {
             if (item.getItemId() / 10 == 1) { // Treasure Item
                 itemManager.storeTreasureInfo(item);
+                Log.i(TAG, "Area 1: Found treasure " + item.getItemName());
             } else if (item.getItemId() / 10 == 2) { // Landmark Item
                 itemManager.setAreaInfo(item);
+                Log.i(TAG, "Area 1: Found landmark " + item.getItemName());
             } else {
                 Log.w(TAG, "Unknown item ID: " + item.getItemId());
             }
         }
 
         // Exploring area 2
-        navigator.navigateToArea2();
+        navigator.navigateToArea(2);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area2Items = visionHandler.inspectArea(2);
         for (Item item : area2Items) {
             if (item.getItemId() / 10 == 1) { // Treasure Item
                 itemManager.storeTreasureInfo(item);
+                Log.i(TAG, "Area 2: Found treasure " + item.getItemName());
             } else if (item.getItemId() / 10 == 2) { // Landmark Item
                 itemManager.setAreaInfo(item);
+                Log.i(TAG, "Area 2: Found landmark " + item.getItemName());
             } else {
                 Log.w(TAG, "Unknown item ID: " + item.getItemId());
             }
         }
 
         // Exploring area 3
-        navigator.navigateToArea3();
+        navigator.navigateToArea(3);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area3Items = visionHandler.inspectArea(3);
         for (Item item : area3Items) {
             if (item.getItemId() / 10 == 1) { // Treasure Item
                 itemManager.storeTreasureInfo(item);
+                Log.i(TAG, "Area 3: Found treasure " + item.getItemName());
             } else if (item.getItemId() / 10 == 2) { // Landmark Item
                 itemManager.setAreaInfo(item);
+                Log.i(TAG, "Area 3: Found landmark " + item.getItemName());
             } else {
                 Log.w(TAG, "Unknown item ID: " + item.getItemId());
             }
         }
 
         // Exploring area 4
-        navigator.navigateToArea4();
+        navigator.navigateToArea(4);
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         Item[] area4Items = visionHandler.inspectArea(4);
         for (Item item : area4Items) {
             if (item.getItemId() / 10 == 1) { // Treasure Item
                 itemManager.storeTreasureInfo(item);
+                Log.i(TAG, "Area 4: Found treasure " + item.getItemName());
             } else if (item.getItemId() / 10 == 2) { // Landmark Item
                 itemManager.setAreaInfo(item);
+                Log.i(TAG, "Area 4: Found landmark " + item.getItemName());
             } else {
                 Log.w(TAG, "Unknown item ID: " + item.getItemId());
             }
@@ -122,10 +130,14 @@ public class MainControl {
      */
     private Item meetAstronaut() {
         // See the real treasure
-        navigator.navigateToReport();
+        navigator.navigateToArea(5);
         this.api.reportRoundingCompletion();
         // Recognize the treasure
         Item treasureItem = visionHandler.recognizeTreasure();
+        Log.i(TAG, "Treasure recognized: " + treasureItem.getItemName());
+        // Find the area of the treasure and the treasure item
+        treasureItem = itemManager.getTreasureInfo(treasureItem);
+        Log.i(TAG, "Treasure area: " + treasureItem.getAreaId());
         return treasureItem;
     }
 
@@ -133,29 +145,8 @@ public class MainControl {
      * @brief Third part of the mission to find and capture treasure.
      */
     private void findAndCaptureTreasure(Item treasureItem) {
-        // maybe a more optimal pose can be used to take the picture of the treasure?
-        Item treasureInfo = itemManager.getTreasureInfo(treasureItem);
-        int treasureArea = treasureInfo.getAreaId();
-        switch (treasureArea) {
-            case 1:
-                navigator.navigateToArea1();
-                break;
-            case 2:
-                navigator.navigateToArea2();
-                break;
-            case 3:
-                navigator.navigateToArea3();
-                break;
-            case 4:
-                navigator.navigateToArea4();
-                break;
-            default:
-                // Handle error
-                Log.w(TAG, "No treasure found in any area.");
-                // guessing the treasure is in area 1
-                navigator.navigateToArea1();
-                break;
-        }
+        navigator.navigateToTreasure(treasureItem);
+        Log.i(TAG, "Navigating to treasure " + treasureItem.getItemName() + " at " + treasureItem.getAreaId());
         // Capture the treasure image
         visionHandler.captureTreasureImage();
     }
