@@ -118,4 +118,9 @@ public class VisionHandler {
   public void captureTreasureImage() {
     this.api.takeTargetItemSnapshot();
   }
+
+  public Item[] guessResult(int areaId) {
+    Item[] guessItemArray = itemDetector.guessResult(areaId, currentPose);
+    return guessItemArray;
+  }
 }
