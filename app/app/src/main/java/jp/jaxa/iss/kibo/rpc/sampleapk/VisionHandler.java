@@ -87,6 +87,8 @@ public class VisionHandler {
     // Detect AR tag pose
     Map<Integer, Pose> arResult = arTagDetector.detect(undistortedImage);
     Pose tagPose = arTagDetector.filterResult(arResult, area, currentPose);
+    Mat clippedImage = arTagDetector.getclippedImage(undistortedImage);
+    if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", area));
 
     // Detect item
     List<float[]> detectResult = itemDetector.detect(undistortedImage);
