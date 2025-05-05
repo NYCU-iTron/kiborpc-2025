@@ -83,45 +83,15 @@ public class MainControl {
                     }                    
                     break;
                 } else {
-                    // Fallback behavior
-                    switch (retry) {
-                        case 1:
-                            Log.w(TAG, "No landmark found, pause system for a short time then retry.");
-                            
-                            try {
-                                Thread.sleep(200);
-                            } catch (InterruptedException e) {
-                                Log.w(TAG, "Fail to sleep thread" + e);
-                            }
-
-                            areaItems = visionHandler.inspectArea(areaId);
-                            break;
-                        
-                        case 2:
-                            Log.w(TAG, "No landmark found, moving to second pose.");
-                            // Move to backup pose
-                            // navigator.navigateToBackup(areaId);
-                            // visionHandler.getCurrentPose(navigator.getCurrentPose());
-                            areaItems = visionHandler.inspectArea(areaId);
-                            break;
-                        
-                        case 3:
-                            Log.w(TAG, "No landmark found at second pose, pause system for a short time then retry.");
-
-                            try {
-                                Thread.sleep(200);
-                            } catch (InterruptedException e) {
-                                Log.w(TAG, "Fail to sleep thread" + e);
-                            }
-                            
-                            areaItems = visionHandler.inspectArea(areaId);
-                            break;
-                        
-                        case 4:
-                            Log.w(TAG, "No landmark found, leaving to fate.");
-                            areaItems = visionHandler.guessResult(areaId);
-                            break;
+                    Log.w(TAG, "No landmark found, pause system for a short time then retry.");
+                    
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "Fail to sleep thread" + e);
                     }
+
+                    areaItems = visionHandler.inspectArea(areaId);   
                 }
             }
         }
