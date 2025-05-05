@@ -60,69 +60,48 @@ public class MainControl {
      * @brief First part of the mission to explore all areas.
      */
     private void exploreAllAreas() {
-        // Exploring area 1
-        navigator.navigateToArea(1);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item[] area1Items = visionHandler.inspectArea(1);
-        for (Item item : area1Items) {
-            if (item.getItemId() / 10 == 1) { // Treasure Item
-                itemManager.storeTreasureInfo(item);
-                Log.i(TAG, "Area 1: Found treasure " + item.getItemName());
-            } else if (item.getItemId() / 10 == 2) { // Landmark Item
-                itemManager.setAreaInfo(item);
-                Log.i(TAG, "Area 1: Found landmark " + item.getItemName());
-            } else {
-                Log.w(TAG, "Unknown item ID: " + item.getItemId());
-            }
-        }
+        for(int areaId = 1; areaId <= 4; areaId++) {
+            navigator.navigateToArea(areaId);
+            visionHandler.getCurrentPose(navigator.getCurrentPose());
+            Item[] areaItems = visionHandler.inspectArea(areaId);
 
-        // Exploring area 2
-        navigator.navigateToArea(2);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item[] area2Items = visionHandler.inspectArea(2);
-        for (Item item : area2Items) {
-            if (item.getItemId() / 10 == 1) { // Treasure Item
-                itemManager.storeTreasureInfo(item);
-                Log.i(TAG, "Area 2: Found treasure " + item.getItemName());
-            } else if (item.getItemId() / 10 == 2) { // Landmark Item
-                itemManager.setAreaInfo(item);
-                Log.i(TAG, "Area 2: Found landmark " + item.getItemName());
-            } else {
-                Log.w(TAG, "Unknown item ID: " + item.getItemId());
-            }
-        }
+            for (int retry = 1; retry <= 5; retry++) {
+                Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
+                
+                if (containsLandmark(areaItems)) {
+                    // Item manager handle items
+                    for (Item item : areaItems) {
+                        if (item.getItemId() / 10 == 1) { // Treasure Item
+                            itemManager.storeTreasureInfo(item);
+                            Log.i(TAG, "Area " + areaId + ": Found treasure " + item.getItemName());
+                        } else if (item.getItemId() / 10 == 2) { // Landmark Item
+                            itemManager.setAreaInfo(item);
+                            Log.i(TAG, "Area " + areaId + ": Found landmark " + item.getItemName());
+                        } else {
+                            Log.w(TAG, "Unknown item ID: " + item.getItemId());
+                        }
+                    }                    
+                    break;
+                } else {
+                    Log.w(TAG, "No landmark found, pause system for a short time then retry.");
+                    
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "Fail to sleep thread" + e);
+                    }
 
-        // Exploring area 3
-        navigator.navigateToArea(3);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item[] area3Items = visionHandler.inspectArea(3);
-        for (Item item : area3Items) {
-            if (item.getItemId() / 10 == 1) { // Treasure Item
-                itemManager.storeTreasureInfo(item);
-                Log.i(TAG, "Area 3: Found treasure " + item.getItemName());
-            } else if (item.getItemId() / 10 == 2) { // Landmark Item
-                itemManager.setAreaInfo(item);
-                Log.i(TAG, "Area 3: Found landmark " + item.getItemName());
-            } else {
-                Log.w(TAG, "Unknown item ID: " + item.getItemId());
+                    areaItems = visionHandler.inspectArea(areaId);   
+                }
             }
         }
+    }
 
-        // Exploring area 4
-        navigator.navigateToArea(4);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
-        Item[] area4Items = visionHandler.inspectArea(4);
-        for (Item item : area4Items) {
-            if (item.getItemId() / 10 == 1) { // Treasure Item
-                itemManager.storeTreasureInfo(item);
-                Log.i(TAG, "Area 4: Found treasure " + item.getItemName());
-            } else if (item.getItemId() / 10 == 2) { // Landmark Item
-                itemManager.setAreaInfo(item);
-                Log.i(TAG, "Area 4: Found landmark " + item.getItemName());
-            } else {
-                Log.w(TAG, "Unknown item ID: " + item.getItemId());
-            }
+    private boolean containsLandmark(Item[] items) {
+        for (Item item : items) {
+            if (item.getItemId() / 10 == 2) return true;
         }
+        return false;
     }
 
     /**
