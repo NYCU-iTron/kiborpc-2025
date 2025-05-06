@@ -99,6 +99,7 @@ public class VisionHandler {
   }
 
   public Item recognizeTreasure() {
+    int areaId = 0;
     Mat rawImage = cameraHandler.captureImage();
     if (DEBUG) api.saveMatImage(rawImage, "treasure_raw.png");
 
@@ -106,11 +107,10 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(rawImage, "treasure_undistorted.png");
 
     List<float[]> detectResult = itemDetector.detect(undistortedImage);
-    Item[] detectedItemArray = itemDetector.filterResult(detectResult, 5, new Pose());
-    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, 5);
+    Item[] detectedItemArray = itemDetector.filterResult(detectResult, areaId, new Pose());
+    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, areaId);
 
     Item detectedItem = detectedItemArray[0]; // This array is expected to be [treasureItem, landmarkItem]
-    this.api.notifyRecognitionItem();
 
     return detectedItem;
   }

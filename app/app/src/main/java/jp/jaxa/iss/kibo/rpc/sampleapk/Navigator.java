@@ -26,11 +26,11 @@ public class Navigator {
   // Target poses in each area
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
-    areaPoses.put(1, new Pose(new Point(10.8, -9.78, 4.7), new Quaternion(-0.172f, -0.208f, -0.615f, 0.741f))); // Area 1
-    areaPoses.put(2, new Pose(new Point(10.8, -8.875, 4.56), new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)));   // Area 2
-    areaPoses.put(3, new Pose(new Point(10.8, -7.925, 4.56), new Quaternion(-0.537f, 0.46f, 0.46f, 0.537f)));   // Area 3
-    areaPoses.put(4, new Pose(new Point(10.667, -6.853, 4.9654), new Quaternion(-0.013f, 0.0f, 1.0f, 0.0f)));   // Area 4
-    areaPoses.put(5, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
+    areaPoses.put(1, new Pose(new Point(10.95, -9.88, 5.2), new Quaternion(-0.707f, 0.707f, 0.0f, 0.0f)));      // Area 1
+    areaPoses.put(2, new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 2
+    areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 3
+    areaPoses.put(4, new Pose(new Point(10.57, -6.853, 4.945), new Quaternion(0.0f, 0.707f, 0.707f, 0.0f)));    // Area 4
+    areaPoses.put(0, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
   }
 
   // Safety factors
@@ -181,7 +181,7 @@ public class Navigator {
   }
 
   /**
-   * Moves the robot to the pose of taking photo in area 1.
+   * Moves the robot to the pose of taking photo in given area.
    * 
    * @return The result of the last move command.
    * 
@@ -220,102 +220,56 @@ public class Navigator {
   public Result navigateToTreasure(Item treasureItem) {
     int areaId = treasureItem.getAreaId();
 
-    Pose currentPose = getCurrentPose();
     Pose treasurePose = treasureItem.getItemPose();
-
-    Point currentPoint = currentPose.getPoint();
     Point treasurePoint = treasurePose.getPoint();
 
-    double t;
-    double currentX = currentPoint.getX();
-    double currentY = currentPoint.getY();
-    double currentZ = currentPoint.getZ();
+    Point finalPoint = null;
+    Quaternion finalQuaternion = null;
     double finalX = 0, finalY = 0, finalZ = 0;
-    double treasureX = 0, treasureY = 0, treasureZ = 0;
 
     switch (areaId) {
       case 1:
         // Area1 lies on the XZ plane, so the vertical distance along the Y-axis should be within 0.9 m
         finalY = -10.58 + safeDistance;
+        finalX = treasurePoint.getX();
+        finalZ = treasurePoint.getZ();
 
-        // Treasure point
-        treasureX = treasurePoint.getX();
-        treasureY = -10.58; // or treasurePoint.getY(), not sure whether to trust the rule book or the ARTagDetector
-        treasureZ = treasurePoint.getZ();
+        finalPoint = new Point(finalX, finalY, finalZ);
+        finalQuaternion = new Quaternion(-0.707f, 0.707f, 0.0f, 0.0f);
 
-        // Interpolate
-        t = (finalY - currentY) / (treasureY - currentY);
-        finalX = currentX + t * (treasureX - currentX);
-        finalZ = currentZ + t * (treasureZ - currentZ);
-
-        // Ensure final point to be within the projected zone of the area
-        finalX = Math.min(finalX, area1MaxX - subSafeDistance);
-        finalX = Math.max(finalX, area1MinX + subSafeDistance);
-        finalZ = Math.min(finalZ, area1MaxZ - subSafeDistance);
-        finalZ = Math.max(finalZ, area1MinZ + subSafeDistance);
         break;
 
       case 2:
         // Area2 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
         finalZ = 3.76203 + safeDistance;
+        finalX = treasurePoint.getX();
+        finalY = treasurePoint.getY();
 
-        // Treasure point
-        treasureX = treasurePoint.getX();
-        treasureY = treasurePoint.getY();
-        treasureZ = 3.76203; // or treasurePoint.getZ();
+        finalPoint = new Point(finalX, finalY, finalZ);
+        finalQuaternion = new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f);
 
-        // Interpolate
-        t = (finalZ - currentZ) / (treasureZ - currentZ);
-        finalX = currentX + t * (treasureX - currentX);
-        finalY = currentY + t * (treasureY - currentY);
-
-        // Ensure final point to be within the projected zone of the area
-        finalX = Math.min(finalX, area2MaxX - subSafeDistance);
-        finalX = Math.max(finalX, area2MinX + subSafeDistance);
-        finalY = Math.min(finalY, area2MaxY - subSafeDistance);
-        finalY = Math.max(finalY, area2MinY + subSafeDistance);
         break;
 
       case 3:
         // Area3 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
         finalZ = 3.76203 + safeDistance;
+        finalX = treasurePoint.getX();
+        finalY = treasurePoint.getY();
 
-        // Treasure point
-        treasureX = treasurePoint.getX();
-        treasureY = treasurePoint.getY();
-        treasureZ = 3.76203; // or treasurePoint.getZ();
+        finalPoint = new Point(finalX, finalY, finalZ);
+        finalQuaternion = new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f);
 
-        // Interpolate
-        t = (finalZ - currentZ) / (treasureZ - currentZ);
-        finalX = currentX + t * (treasureX - currentX);
-        finalY = currentY + t * (treasureY - currentY);
-
-        // Ensure final point to be within the projected zone of the area
-        finalX = Math.min(finalX, area3MaxX - subSafeDistance);
-        finalX = Math.max(finalX, area3MinX + subSafeDistance);
-        finalY = Math.min(finalY, area3MaxY - subSafeDistance);
-        finalY = Math.max(finalY, area3MinY + subSafeDistance);
         break;
 
       case 4:
         // Area4 lies on the YZ plane, so the vertical distance along the X-axis should be within 0.9 m
         finalX = 9.866984 + safeDistance;
+        finalY = treasurePoint.getY();
+        finalZ = treasurePoint.getZ();
 
-        // Treasure point
-        treasureX = 9.866984; // or treasurePoint.getX();
-        treasureY = treasurePoint.getY();
-        treasureZ = treasurePoint.getZ();
+        finalPoint = new Point(finalX, finalY, finalZ);
+        finalQuaternion = new Quaternion(0.0f, 0.707f, 0.707f, 0.0f);
 
-        // Interpolate
-        t = (finalX - currentX) / (treasureX - currentX);
-        finalY = currentY + t * (treasureY - currentY);
-        finalZ = currentZ + t * (treasureZ - currentZ);
-
-        // Ensure final point to be within the zone of the projected area
-        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
-        finalY = Math.max(finalY, area4MinY + subSafeDistance);
-        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
-        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
         break;
 
       default:
@@ -325,28 +279,16 @@ public class Navigator {
         // Guess the item is in the middle of area 4
         // Area 4: (9.866984, -7.34, 4.32, 9.866984, -6.365, 5.57)
         finalX = 9.866984 + safeDistance;
+        finalY = (-7.34 - 6.365) / 2;
+        finalZ = (4.32 + 5.57) / 2;
 
-        // Treasure point
-        treasureX = 9.866984;
-        treasureY = (-7.34 - 6.365) / 2;
-        treasureZ = (4.32 + 5.57) / 2;
-        
-        // Interpolate
-        t = (finalX - currentX) / (treasureX - currentX);
-        finalY = currentY + t * (treasureY - currentY);
-        finalZ = currentZ + t * (treasureZ - currentZ);
+        finalPoint = new Point(finalX, finalY, finalZ);
+        finalQuaternion = new Quaternion(0.0f, 0.707f, 0.707f, 0.0f);
 
-        // Ensure final point to be within the zone of projected area
-        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
-        finalY = Math.max(finalY, area4MinY + subSafeDistance);
-        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
-        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
         break;
     }
     
-    // Set the final Quaternion to face the treasure
-    Point finalPoint = new Point(finalX, finalY, finalZ);
-    Quaternion finalQuaternion = getQuaternionTo(currentPoint, finalPoint);
+    // Set the final Pose
     Pose finalPose = new Pose(finalPoint, finalQuaternion);
     Log.i(TAG, "I'm goint to " + finalPose.toString());
 

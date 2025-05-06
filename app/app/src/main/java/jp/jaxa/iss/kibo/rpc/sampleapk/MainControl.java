@@ -65,11 +65,11 @@ public class MainControl {
             visionHandler.getCurrentPose(navigator.getCurrentPose());
             Item[] areaItems = visionHandler.inspectArea(areaId);
 
-            for (int retry = 1; retry <= 5; retry++) {
+            int retryMax = 5;
+            for (int retry = 1; retry <= retryMax - 1; retry++) {
                 Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
                 
                 if (containsLandmark(areaItems)) {
-                    // Item manager handle items
                     for (Item item : areaItems) {
                         if (item.getItemId() / 10 == 1) { // Treasure Item
                             itemManager.storeTreasureInfo(item);
@@ -83,40 +83,69 @@ public class MainControl {
                     }                    
                     break;
                 } else {
-                    Log.w(TAG, "No landmark found, pause system for a short time then retry.");
-                    
-                    try {
-                        Thread.sleep(200);
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, "Fail to sleep thread" + e);
-                    }
+                    if (retry == retryMax - 1) {
+                        Log.w(TAG, "No landmark found, leaving to fate.");
+                        areaItems = visionHandler.guessResult(areaId);
+                    } else {
+                        Log.w(TAG, "No landmark found, pause system for a short time then retry.");
+                        
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException e) {
+                            Log.w(TAG, "Fail to sleep thread" + e);
+                        }
 
-                    areaItems = visionHandler.inspectArea(areaId);   
+                        areaItems = visionHandler.inspectArea(areaId);
+                    }
                 }
             }
         }
-    }
-
-    private boolean containsLandmark(Item[] items) {
-        for (Item item : items) {
-            if (item.getItemId() / 10 == 2) return true;
-        }
-        return false;
     }
 
     /**
      * @brief Second part of the mission to meet astronauts.
      */
     private Item meetAstronaut() {
+        int areaId = 0;
+
         // See the real treasure
-        navigator.navigateToArea(5);
-        this.api.reportRoundingCompletion();
+        navigator.navigateToArea(areaId);
+        api.reportRoundingCompletion();
+        
         // Recognize the treasure
-        Item treasureItem = visionHandler.recognizeTreasure();
+        Item[] areaItems = visionHandler.inspectArea(areaId);
+        Item treasureItem = null;
+
+        int retryMax = 20;
+        for (int retry = 1; retry <= retryMax; retry++) {
+            if (containsTreasure(areaItems)) {
+                treasureItem = areaItems[0];                
+                break;
+            } else {
+                if (retry == retryMax - 1) {
+                    Log.w(TAG, "No treasure found, leaving to fate.");
+                    areaItems = visionHandler.guessResult(areaId);
+                } else {
+                    Log.w(TAG, "No treasure found, pause system for a short time then retry.");
+                        
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "Fail to sleep thread" + e);
+                    }
+
+                    areaItems = visionHandler.inspectArea(areaId);
+                }
+            }
+        }
+
         Log.i(TAG, "Treasure recognized: " + treasureItem.getItemName());
+        api.notifyRecognitionItem();
+
         // Find the area of the treasure and the treasure item
         treasureItem = itemManager.getTreasureInfo(treasureItem);
         Log.i(TAG, "Treasure area: " + treasureItem.getAreaId());
+
         return treasureItem;
     }
 
@@ -128,5 +157,19 @@ public class MainControl {
         Log.i(TAG, "Navigating to treasure " + treasureItem.getItemName() + " at " + treasureItem.getAreaId());
         // Capture the treasure image
         visionHandler.captureTreasureImage();
+    }
+
+    private boolean containsLandmark(Item[] items) {
+        for (Item item : items) {
+            if (item.getItemId() / 10 == 2) return true;
+        }
+        return false;
+    }
+
+    private boolean containsTreasure(Item[] items) {
+        for (Item item : items) {
+            if (item.getItemId() / 10 == 1) return true;
+        }
+        return false;
     }
 }

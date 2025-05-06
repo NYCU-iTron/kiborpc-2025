@@ -28,10 +28,10 @@ class Navigator:
 
   poses = {
     "dock": (9.815, -9.806, 4.293, 1, 0, 0, 0),
-    "patrol1":(10.8, -9.78, 4.7, -0.172, -0.208, -0.615, 0.741),
-    "patrol2":(10.8, -8.875, 4.56, -0.537, 0.46, 0.46, 0.537),
-    "patrol3":(10.8, -7.925, 4.56, -0.537, 0.46, 0.46, 0.537),
-    "patrol4":(10.667, -6.853, 4.9654, -0.013, 0.0, 1.0, 0.0),
+    "patrol1":(10.95, -9.88, 5.2, -0.707, 0.707, 0.0, 0.0),
+    "patrol2":(10.925, -8.875, 4.462, -0.5, 0.5, 0.5, 0.5),
+    "patrol3":(10.925, -7.925, 4.462, -0.5, 0.5, 0.5, 0.5),
+    "patrol4":(10.57, -6.853, 4.945, 0.0, 0.707, 0.707, 0.0),
     "report": (11.143, -6.7607, 4.9654, 0, 0, 0.707, 0.707),
   }
 
@@ -202,8 +202,8 @@ ax = fig.add_subplot(111, projection='3d')
 
 navigator = Navigator(ax)
 
-x1, y1, z1, x2, y2, z2 = navigator.areas["Area 2"]
-x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol2"]
+x1, y1, z1, x2, y2, z2 = navigator.areas["Area 4"]
+x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol4"]
 target_x = (x1 + x2) / 2
 target_y = (y1 + y2) / 2
 target_z = (z1 + z2) / 2
