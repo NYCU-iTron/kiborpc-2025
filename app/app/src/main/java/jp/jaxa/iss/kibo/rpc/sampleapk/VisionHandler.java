@@ -110,7 +110,6 @@ public class VisionHandler {
     if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, 5);
 
     Item detectedItem = detectedItemArray[0]; // This array is expected to be [treasureItem, landmarkItem]
-    this.api.notifyRecognitionItem();
 
     return detectedItem;
   }
