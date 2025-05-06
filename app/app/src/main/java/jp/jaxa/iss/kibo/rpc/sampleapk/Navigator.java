@@ -28,9 +28,9 @@ public class Navigator {
   static {
     areaPoses.put(1, new Pose(new Point(10.95, -9.88, 5.2), new Quaternion(-0.707f, 0.707f, 0.0f, 0.0f)));      // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.875, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 2
-    areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));         // Area 3
-    areaPoses.put(4, new Pose(new Point(10.57, -6.853, 4.945), new Quaternion(0.0f, 0.707f, 0.707f, 0.0f)));   // Area 4
-    areaPoses.put(5, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
+    areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 3
+    areaPoses.put(4, new Pose(new Point(10.57, -6.853, 4.945), new Quaternion(0.0f, 0.707f, 0.707f, 0.0f)));    // Area 4
+    areaPoses.put(0, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
   }
 
   // Safety factors
@@ -181,7 +181,7 @@ public class Navigator {
   }
 
   /**
-   * Moves the robot to the pose of taking photo in area 1.
+   * Moves the robot to the pose of taking photo in given area.
    * 
    * @return The result of the last move command.
    * 

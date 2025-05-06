@@ -103,7 +103,7 @@ public class ARTagDetector {
     return result;
   }
 
-  public Pose filterResult(Map<Integer, Pose> arResult, int area, Pose currentPose) {
+  public Pose filterResult(Map<Integer, Pose> arResult, int areaId, Pose currentPose) {
     Pose tagPose = null;
     Log.i(TAG, "Current Body Pose in World: " + currentPose.toString());
     for (Map.Entry<Integer, Pose> entry : arResult.entrySet()) {
@@ -112,7 +112,7 @@ public class ARTagDetector {
       Pose poseWorld = convertCameraToWorld(pose, currentPose);
       Log.i(TAG, "ID: " + id + ", Pose in poseWorld: " + poseWorld.toString());
 
-      if(id % 100 == area) {
+      if(id % 100 == areaId) {
         tagPose = poseWorld;
       }
     }
@@ -120,14 +120,16 @@ public class ARTagDetector {
     if (tagPose == null) {
       Log.w(TAG, "No correct tag found, set tagPose to the center of this area.");
 
-      if (area == 1) {
+      if (areaId == 1) {
         tagPose = new Pose(new Point((10.42 + 11.48) / 2, -10.58, (4.82 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else if (area == 2) {
+      } else if (areaId == 2) {
         tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-9.25 + -8.5) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else if (area == 3) {
+      } else if (areaId == 3) {
         tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-8.4 + -7.45) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
-      } else if (area == 4) {
+      } else if (areaId == 4) {
         tagPose = new Pose(new Point(9.866984, (-7.34 + -6.365) / 2, (4.32 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
+      } else if (areaId == 0) {
+        tagPose = new Pose();
       } else {
         Log.i(TAG, "Area id not valid.");
       }

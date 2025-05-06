@@ -106,7 +106,7 @@ public class MainControl {
      * @brief Second part of the mission to meet astronauts.
      */
     private Item meetAstronaut() {
-        int areaId = 5;
+        int areaId = 0;
 
         // See the real treasure
         navigator.navigateToArea(areaId);
