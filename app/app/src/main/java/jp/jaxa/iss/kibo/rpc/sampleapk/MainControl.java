@@ -65,11 +65,11 @@ public class MainControl {
             visionHandler.getCurrentPose(navigator.getCurrentPose());
             Item[] areaItems = visionHandler.inspectArea(areaId);
 
-            for (int retry = 1; retry <= 5; retry++) {
+            int retryMax = 5;
+            for (int retry = 1; retry <= retryMax - 1; retry++) {
                 Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
                 
                 if (containsLandmark(areaItems)) {
-                    // Item manager handle items
                     for (Item item : areaItems) {
                         if (item.getItemId() / 10 == 1) { // Treasure Item
                             itemManager.storeTreasureInfo(item);
@@ -83,43 +83,23 @@ public class MainControl {
                     }                    
                     break;
                 } else {
-                    switch (retry) {
-                        case 1:
-                        case 2:
-                        case 3:
-                            Log.w(TAG, "No landmark found, pause system for a short time then retry.");
-                            
-                            try {
-                                Thread.sleep(200);
-                            } catch (InterruptedException e) {
-                                Log.w(TAG, "Fail to sleep thread" + e);
-                            }
+                    if (retry == retryMax - 1) {
+                        Log.w(TAG, "No landmark found, leaving to fate.");
+                        areaItems = visionHandler.guessResult(areaId);
+                    } else {
+                        Log.w(TAG, "No landmark found, pause system for a short time then retry.");
+                        
+                        try {
+                            Thread.sleep(200);
+                        } catch (InterruptedException e) {
+                            Log.w(TAG, "Fail to sleep thread" + e);
+                        }
 
-                            areaItems = visionHandler.inspectArea(areaId);
-                            break;
-
-                        case 4:
-                            Log.w(TAG, "No landmark found, leaving to fate.");
-                            areaItems = visionHandler.guessResult(areaId);
-                            break;
+                        areaItems = visionHandler.inspectArea(areaId);
                     }
                 }
             }
         }
-    }
-
-    private boolean containsLandmark(Item[] items) {
-        for (Item item : items) {
-            if (item.getItemId() / 10 == 2) return true;
-        }
-        return false;
-    }
-
-    private boolean containsTreasure(Item[] items) {
-        for (Item item : items) {
-            if (item.getItemId() / 10 == 1) return true;
-        }
-        return false;
     }
 
     /**
@@ -136,12 +116,13 @@ public class MainControl {
         Item[] areaItems = visionHandler.inspectArea(areaId);
         Item treasureItem = null;
 
-        for (int retry = 1; retry <= 20; retry++) {
+        int retryMax = 20;
+        for (int retry = 1; retry <= retryMax; retry++) {
             if (containsTreasure(areaItems)) {
                 treasureItem = areaItems[0];                
                 break;
             } else {
-                if (retry == 19) {
+                if (retry == retryMax - 1) {
                     Log.w(TAG, "No treasure found, leaving to fate.");
                     areaItems = visionHandler.guessResult(areaId);
                 } else {
@@ -176,5 +157,19 @@ public class MainControl {
         Log.i(TAG, "Navigating to treasure " + treasureItem.getItemName() + " at " + treasureItem.getAreaId());
         // Capture the treasure image
         visionHandler.captureTreasureImage();
+    }
+
+    private boolean containsLandmark(Item[] items) {
+        for (Item item : items) {
+            if (item.getItemId() / 10 == 2) return true;
+        }
+        return false;
+    }
+
+    private boolean containsTreasure(Item[] items) {
+        for (Item item : items) {
+            if (item.getItemId() / 10 == 1) return true;
+        }
+        return false;
     }
 }
