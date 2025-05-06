@@ -83,15 +83,26 @@ public class MainControl {
                     }                    
                     break;
                 } else {
-                    Log.w(TAG, "No landmark found, pause system for a short time then retry.");
-                    
-                    try {
-                        Thread.sleep(200);
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, "Fail to sleep thread" + e);
-                    }
+                    switch (retry) {
+                        case 1:
+                        case 2:
+                        case 3:
+                            Log.w(TAG, "No landmark found, pause system for a short time then retry.");
+                            
+                            try {
+                                Thread.sleep(200);
+                            } catch (InterruptedException e) {
+                                Log.w(TAG, "Fail to sleep thread" + e);
+                            }
 
-                    areaItems = visionHandler.inspectArea(areaId);   
+                            areaItems = visionHandler.inspectArea(areaId);
+                            break;
+
+                        case 4:
+                            Log.w(TAG, "No landmark found, leaving to fate.");
+                            areaItems = visionHandler.guessResult(areaId);
+                            break;
+                    }
                 }
             }
         }
@@ -104,19 +115,56 @@ public class MainControl {
         return false;
     }
 
+    private boolean containsTreasure(Item[] items) {
+        for (Item item : items) {
+            if (item.getItemId() / 10 == 1) return true;
+        }
+        return false;
+    }
+
     /**
      * @brief Second part of the mission to meet astronauts.
      */
     private Item meetAstronaut() {
+        int areaId = 5;
+
         // See the real treasure
-        navigator.navigateToArea(5);
-        this.api.reportRoundingCompletion();
+        navigator.navigateToArea(areaId);
+        api.reportRoundingCompletion();
+        
         // Recognize the treasure
-        Item treasureItem = visionHandler.recognizeTreasure();
+        Item[] areaItems = visionHandler.inspectArea(areaId);
+        Item treasureItem = null;
+
+        for (int retry = 1; retry <= 20; retry++) {
+            if (containsTreasure(areaItems)) {
+                treasureItem = areaItems[0];                
+                break;
+            } else {
+                if (retry == 19) {
+                    Log.w(TAG, "No treasure found, leaving to fate.");
+                    areaItems = visionHandler.guessResult(areaId);
+                } else {
+                    Log.w(TAG, "No treasure found, pause system for a short time then retry.");
+                        
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "Fail to sleep thread" + e);
+                    }
+
+                    areaItems = visionHandler.inspectArea(areaId);
+                }
+            }
+        }
+
         Log.i(TAG, "Treasure recognized: " + treasureItem.getItemName());
+        api.notifyRecognitionItem();
+
         // Find the area of the treasure and the treasure item
         treasureItem = itemManager.getTreasureInfo(treasureItem);
         Log.i(TAG, "Treasure area: " + treasureItem.getAreaId());
+
         return treasureItem;
     }
 
