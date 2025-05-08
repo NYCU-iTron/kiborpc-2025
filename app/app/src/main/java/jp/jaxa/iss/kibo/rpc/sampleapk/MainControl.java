@@ -70,17 +70,22 @@ public class MainControl {
                 Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
                 
                 if (containsLandmark(areaItems)) {
-                    for (Item item : areaItems) {
-                        if (item.getItemId() / 10 == 1) { // Treasure Item
-                            itemManager.storeTreasureInfo(item);
-                            Log.i(TAG, "Area " + areaId + ": Found treasure " + item.getItemName());
-                        } else if (item.getItemId() / 10 == 2) { // Landmark Item
-                            itemManager.setAreaInfo(item);
-                            Log.i(TAG, "Area " + areaId + ": Found landmark " + item.getItemName());
-                        } else {
-                            Log.w(TAG, "Unknown item ID: " + item.getItemId());
-                        }
-                    }                    
+                    // Treasure Item
+                    if (areaItems[0].getItemId() / 10 == 1) {
+                        itemManager.storeTreasureInfo(areaItems[0]);
+                        Log.i(TAG, "Area " + areaId + ": Found treasure " + areaItems[0].getItemName());
+                    } else {
+                        Log.w(TAG, "Area " + areaId + ": Treasure not found.");
+                    }
+                    
+                    // Landmark Item
+                    if (areaItems[1].getItemId() / 10 == 2) {
+                        itemManager.setAreaInfo(areaItems[1]);
+                        Log.i(TAG, "Area " + areaId + ": Found landmark " + areaItems[1].getItemName());
+                    } else {
+                        Log.w(TAG, "Area " + areaId + ": Landmark not found."); // Should never happen
+                    }
+
                     break;
                 } else {
                     if (retry == retryMax - 1) {
