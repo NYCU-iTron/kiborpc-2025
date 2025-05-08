@@ -3,8 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tflite_runtime.interpreter as tflite
 
+model = "../app/app/src/main/assets/best_clipped.tflite"
+label = "../app/app/src/main/assets/labels.txt"
+
 # === Load model ===
-interpreter = tflite.Interpreter(model_path="best.tflite")
+interpreter = tflite.Interpreter(model_path=model)
 interpreter.allocate_tensors()
 input_details = interpreter.get_input_details()[0]
 output_details = interpreter.get_output_details()[0]
@@ -16,7 +19,7 @@ out_index = output_details["index"]
 out_scale, out_zero_point = output_details["quantization"]
 
 # Load labels
-with open("labels.txt", "r", encoding="utf-8") as f:
+with open(label, "r", encoding="utf-8") as f:
   labels = {i: line.strip() for i, line in enumerate(f.readlines())}
 np.random.seed(42)
 color_palette = np.random.uniform(128, 255, size=(len(labels), 3))
@@ -24,7 +27,7 @@ color_palette = np.random.uniform(128, 255, size=(len(labels), 3))
 # Configuration
 conf_threshold = 0.8 # Lowered for debugging
 iou_threshold = 0.45
-image_path = "2.png"
+image_path = "1.png"
 
 # Letterbox preprocessing 
 def letterbox(img, new_shape=(in_height, in_width)):
