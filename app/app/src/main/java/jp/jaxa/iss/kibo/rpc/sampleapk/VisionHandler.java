@@ -91,9 +91,24 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", area));
 
     // Detect item
-    List<float[]> detectResult = itemDetector.detect(undistortedImage);
-    Item[] detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
-    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, area);
+    List<float[]> detectResult = null;
+    Item[] detectedItemArray = null;
+    
+    // If get the clipped image
+    if (clippedImage != null) {
+      Log.i(TAG, "Detect from clipped image.");
+      detectResult = itemDetector.detectFromClipped(clippedImage);
+      detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
+      if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, detectResult, area);
+    }
+    
+    // If not get the clipped image or didn't detect anything from clipped image
+    if (clippedImage == null || detectedItemArray == null){
+      Log.i(TAG, "Detect from env (undistortedImage).");
+      detectResult = itemDetector.detectFromEnv(undistortedImage);
+      detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
+      if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, area);
+    }
 
     return detectedItemArray;
   }
@@ -106,7 +121,7 @@ public class VisionHandler {
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     if (DEBUG) api.saveMatImage(rawImage, "treasure_undistorted.png");
 
-    List<float[]> detectResult = itemDetector.detect(undistortedImage);
+    List<float[]> detectResult = itemDetector.detectFromEnv(undistortedImage);
     Item[] detectedItemArray = itemDetector.filterResult(detectResult, areaId, new Pose());
     if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, areaId);
 

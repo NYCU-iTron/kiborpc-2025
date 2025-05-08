@@ -6,6 +6,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.util.Log;
 
 import org.tensorflow.lite.DataType;
@@ -52,10 +53,12 @@ public class ItemDetector {
   private final String TAG = this.getClass().getSimpleName();
   private boolean DEBUG = true;
 
-  private Interpreter interpreter;
+  private Interpreter envInterpreter;
+  private Interpreter clippedInterpreter;
+
   private List<String> labels;
-  private final ImageProcessor imageProcessor;
-  private Map<Integer, String> idToNameMap = new HashMap<>();
+  private ImageProcessor imageProcessor;
+  private Map<Integer, String> idToNameMap;
   private Random rand; // Deal with no item detected
 
   private int tensorWidth;
@@ -63,7 +66,7 @@ public class ItemDetector {
   private int numChannel;
   private int numElements;
 
-  private static final float CONFIDENCE_THRESHOLD = 0.7f;
+  private static final float CONFIDENCE_THRESHOLD = 0.8F;
   private static final float IOU_THRESHOLD = 0.4F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
@@ -79,13 +82,22 @@ public class ItemDetector {
     this.api = apiRef;
     this.context = context;
 
-    initializeItemMappings();  // Initialize item ID mappings
+    idToNameMap = initItemMappings();  // Initialize item ID mappings
     rand = new Random();       // Create a random generator
 
+    // Load yolo models
     try {
-      setupModel();
+      envInterpreter = loadInterpreter("best_env.tflite");
+      clippedInterpreter = loadInterpreter("best_clipped.tflite");
     } catch (IOException e) {
-      Log.e(TAG, "Failed to load model or labels", e);
+      Log.e(TAG, "Failed to setup interpreter", e);
+    }
+
+    // Load labels
+    try {
+      labels = FileUtil.loadLabels(context, "labels.txt");
+    } catch (IOException e) {
+      Log.e(TAG, "Failed to load label", e);
     }
 
     // Build an image processor: normalize and cast input images
@@ -103,15 +115,29 @@ public class ItemDetector {
    * @param undistortImage The input image as a Mat object, which has been undistorted.
    * @return A list of detected items, or an empty list if the TensorFlow Lite model is not initialized.
    */
-  public List<float[]> detect(Mat undistortImage) {
-    if (interpreter == null) {
+  public List<float[]> detectFromEnv(Mat undistortImage) {
+    if (envInterpreter == null) {
       Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
       return new ArrayList<>();
     }
 
-    ByteBuffer imageBuffer = preprocess(undistortImage);
-    float[] outputArray = runReference(imageBuffer);
-    List<float[]> detections = parsePredictions(outputArray);
+    ByteBuffer imageBuffer = preprocess(undistortImage, envInterpreter);
+    float[] outputArray = runReference(imageBuffer, envInterpreter);
+    List<float[]> detections = parsePredictions(outputArray, envInterpreter);
+    List<float[]> results = applyNonMaximumSuppression(detections);
+
+    return results;
+  }
+
+  public List<float[]> detectFromClipped(Mat clippedImage) {
+    if (clippedInterpreter == null) {
+      Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
+      return new ArrayList<>();
+    }
+
+    ByteBuffer imageBuffer = preprocess(clippedImage, clippedInterpreter);
+    float[] outputArray = runReference(imageBuffer, clippedInterpreter);
+    List<float[]> detections = parsePredictions(outputArray, clippedInterpreter);
     List<float[]> results = applyNonMaximumSuppression(detections);
 
     return results;
@@ -208,7 +234,7 @@ public class ItemDetector {
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
 
-    results[0] = new Item(areaId, landmarkId, treasureName, landmarkCount, tagPose);
+    results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
     results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
 
     return results;
@@ -217,40 +243,60 @@ public class ItemDetector {
   /**
    * Draws bounding boxes on the given image based on the detection results.
    *
-   * @param undistortImage The input image to draw on.
+   * @param image The input image to draw on.
    * @param detectResult   List of detection results containing bounding box coordinates.
    * @param area           The area identifier used for saving the image.
    */
-  public void drawBoundingBoxes(Mat undistortImage, List<float[]> detectResult, int area) {
+  public void drawBoundingBoxes(Mat image, List<float[]> detectResult, int area) {
     if (detectResult == null || detectResult.isEmpty()) {
       Log.i(TAG, "No detections to draw.");
       return;
     }
 
-    int imageWidth = undistortImage.cols();
-    int imageHeight = undistortImage.rows();
+    int imageWidth = image.cols();
+    int imageHeight = image.rows();
+
+    int inputWidth = 640;
+    int inputHeight = 640;
+
+    float scale = Math.min((float) inputWidth / imageWidth, (float) inputHeight / imageHeight);
+    int newWidth = Math.round(imageWidth * scale);
+    int newHeight = Math.round(imageHeight * scale);
+
+    int padX = (inputWidth - newWidth) / 2;
+    int padY = (inputHeight - newHeight) / 2;
 
     for (float[] det : detectResult) {
       // Extract bounding box coordinates
-      int x1 = (int) (det[0] * imageWidth);
-      int y1 = (int) (det[1] * imageHeight);
-      int x2 = (int) (det[2] * imageWidth);
-      int y2 = (int) (det[3] * imageHeight);
+      float x1 = det[0] * inputWidth;
+      float y1 = det[1] * inputHeight;
+      float x2 = det[2] * inputWidth;
+      float y2 = det[3] * inputHeight;
 
-      Log.i(TAG, "Draw Bounding Boxe at (" + x1 + "," + y1 + "," + x2 + "," + y2 + ")");
+      x1 = (x1 - padX) / scale;
+      y1 = (y1 - padY) / scale;
+      x2 = (x2 - padX) / scale;
+      y2 = (y2 - padY) / scale;
+
+      int ix1 = Math.max(0, Math.min((int) x1, imageWidth - 1));
+      int iy1 = Math.max(0, Math.min((int) y1, imageHeight - 1));
+      int ix2 = Math.max(0, Math.min((int) x2, imageWidth - 1));
+      int iy2 = Math.max(0, Math.min((int) y2, imageHeight - 1));
+
+      Log.i(TAG, "Drawing Bounding Box at (" + ix1 + "," + iy1 + "," + ix2 + "," + iy2 + ")");
 
       // Create a rectangle from the top-left and bottom-right points
-      Rect rect = new Rect(new Point(x1, y1), new Point(x2, y2));
-
+      Rect rect = new Rect(new Point(ix1, iy1), new Point(ix2, iy2));
+      
       // Define rectangle color (red) and thickness
       Scalar color = new Scalar(0, 0, 0); // Black
       int thickness = 2;
 
       // Draw the rectangle on the image
-      Imgproc.rectangle(undistortImage, rect, color, thickness);
+      Imgproc.rectangle(image, rect, color, thickness);
     }
 
-    api.saveMatImage(undistortImage, String.format("area%d_bbox.png", area));
+    api.saveMatImage(image, String.format("area%d_bbox.png", area));
   }
 
   /* ----------------------------- Tool Functions ----------------------------- */
@@ -258,7 +304,9 @@ public class ItemDetector {
   /**
    * Initializes the mapping between item IDs and item names.
    */
-  private void initializeItemMappings() {
+  private Map<Integer, String> initItemMappings() {
+    Map<Integer, String> idToNameMap = new HashMap<>();
+
     // Treasure
     idToNameMap.put(11, "crystal");
     idToNameMap.put(12, "diamond");
@@ -273,6 +321,8 @@ public class ItemDetector {
     idToNameMap.put(26, "letter");
     idToNameMap.put(27, "shell");
     idToNameMap.put(28, "treasure_box");
+
+    return idToNameMap;
   }
 
   /**
@@ -280,9 +330,11 @@ public class ItemDetector {
    *
    * @throws IOException if the model or label files cannot be loaded.
    */
-  private void setupModel() throws IOException {
+  private Interpreter loadInterpreter(String model_path) throws IOException {
+    Log.i(TAG, "Load interpreter.");
+
     // Load the TFLite model from assets
-    InputStream inputStream = context.getAssets().open("best.tflite");
+    InputStream inputStream = context.getAssets().open(model_path);
     ByteBuffer model = ByteBuffer.allocateDirect(inputStream.available());
     byte[] buffer = new byte[inputStream.available()];
     inputStream.read(buffer);
@@ -294,10 +346,7 @@ public class ItemDetector {
     options.setNumThreads(4);
 
     // Initialize the TFLite interpreter with the model
-    interpreter = new Interpreter(model, options);
-
-    // Load labels from labels.txt
-    labels = FileUtil.loadLabels(context, "labels.txt");
+    Interpreter interpreter = new Interpreter(model, options);
 
     // Get input and output tensor shapes
     int[] inputShape = interpreter.getInputTensor(0).shape();
@@ -311,23 +360,29 @@ public class ItemDetector {
     Log.i(TAG, "Input shape: " + Arrays.toString(inputShape));
     Log.i(TAG, "Output shape: " + Arrays.toString(outputShape));
     Log.i(TAG, "numChannel: " + numChannel + ", numElements: " + numElements);
+
+    return interpreter;
   }
 
   /**
    * Preprocesses the input image by resizing and normalizing it.
    *
-   * @param undistortImage The input image as a Mat object.
+   * @param image The input image as a Mat object.
    * @return A ByteBuffer ready for model input.
    */
-  private ByteBuffer preprocess(Mat undistortImage) {
+  private ByteBuffer preprocess(Mat image, Interpreter interpreter) {
+    int[] inputShape = interpreter.getInputTensor(0).shape();
+    tensorWidth = inputShape[1];
+    tensorHeight = inputShape[2];
+
     // Convert Mat to Bitmap format
-    Bitmap bitmap = Bitmap.createBitmap(undistortImage.cols(), undistortImage.rows(), Bitmap.Config.ARGB_8888);
-    Utils.matToBitmap(undistortImage, bitmap);
+    Bitmap bitmap = Bitmap.createBitmap(image.cols(), image.rows(), Bitmap.Config.ARGB_8888);
+    Utils.matToBitmap(image, bitmap);
 
     // Resize Bitmap to match the model input size
-    Bitmap resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false);
+    Bitmap resizedBitmap = letterbox(bitmap, tensorWidth, tensorHeight);
 
-    Log.i(TAG, "Original image size: " + undistortImage.cols() + "x" + undistortImage.rows());
+    Log.i(TAG, "Original image size: " + image.cols() + "x" + image.rows());
     Log.i(TAG, "Resized to: " + tensorWidth + "x" + tensorHeight);
 
     // Load the resized Bitmap into a TensorImage
@@ -343,13 +398,44 @@ public class ItemDetector {
     return imageBuffer;
   }
 
+  private Bitmap letterbox(Bitmap src, int targetWidth, int targetHeight) {
+    int srcWidth = src.getWidth();
+    int srcHeight = src.getHeight();
+
+    float scale = Math.min((float) targetWidth / srcWidth, (float) targetHeight / srcHeight);
+    int newWidth = Math.round(srcWidth * scale);
+    int newHeight = Math.round(srcHeight * scale);
+
+    // Resize the original image
+    Bitmap resized = Bitmap.createScaledBitmap(src, newWidth, newHeight, true);
+
+    // Create a new bitmap with gray background
+    Bitmap letterboxed = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888);
+    Canvas canvas = new Canvas(letterboxed);
+    Paint paint = new Paint();
+    paint.setColor(Color.rgb(114, 114, 114)); // gray background
+    canvas.drawRect(0, 0, targetWidth, targetHeight, paint);
+
+    // Paste the resized image in the center
+    int dx = (targetWidth - newWidth) / 2;
+    int dy = (targetHeight - newHeight) / 2;
+    canvas.drawBitmap(resized, dx, dy, null);
+
+    return letterboxed;
+  }
+
   /**
    * Runs the TensorFlow Lite model inference on the input image buffer.
    *
    * @param imageBuffer The preprocessed input image as a ByteBuffer.
    * @return The model output as a float array.
    */
-  private float[] runReference(ByteBuffer imageBuffer) {
+  private float[] runReference(ByteBuffer imageBuffer, Interpreter interpreter) {
+    // Get output tensor shapes
+    int[] outputShape = interpreter.getOutputTensor(0).shape();
+    numChannel = outputShape[1];
+    numElements = outputShape[2];
+
     // Create an output buffer with the expected shape and type
     TensorBuffer output = TensorBuffer.createFixedSize(new int[]{1, numChannel, numElements}, DataType.FLOAT32);
 
@@ -368,7 +454,12 @@ public class ItemDetector {
    * @param outputArray The raw output array from the model.
    * @return A list of detected bounding boxes and related information.
    */
-  private List<float[]> parsePredictions(float[] outputArray) {
+  private List<float[]> parsePredictions(float[] outputArray, Interpreter interpreter) {
+    // Get output tensor shapes
+    int[] outputShape = interpreter.getOutputTensor(0).shape();
+    numChannel = outputShape[1];
+    numElements = outputShape[2];
+
     List<float[]> detections = new ArrayList<>();
 
     // Loop through each element (candidate detection)
@@ -405,15 +496,13 @@ public class ItemDetector {
           detections.add(new float[]{x1, y1, x2, y2, cx, cy, w, h, maxConf, maxIdx});
         } else {
           // Skip detections that are out of bounds
-          Log.i(TAG, "  Detection out of bounds, skipping");
+          Log.i(TAG, "Detection out of bounds, skipping");
         }
       }
     }
 
-    Log.i(TAG, "Total valid detections before NMS: " + detections.size());
     return detections;
   }
-
 
   /**
    * Applies Non-Maximum Suppression (NMS) to remove overlapping detections.
