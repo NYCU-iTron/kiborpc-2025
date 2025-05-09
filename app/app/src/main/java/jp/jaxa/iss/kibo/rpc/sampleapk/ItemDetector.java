@@ -57,8 +57,9 @@ public class ItemDetector {
   private Interpreter clippedInterpreter;
 
   private List<String> labels;
-  private ImageProcessor imageProcessor;
   private Map<Integer, String> idToNameMap;
+  private Map<ModelType, Interpreter> modelMap = new HashMap<>();
+  private ImageProcessor imageProcessor;
   private Random rand; // Deal with no item detected
 
   private int tensorWidth;
@@ -70,6 +71,12 @@ public class ItemDetector {
   private static final float IOU_THRESHOLD = 0.4F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
+
+  public enum ModelType {
+    CLIPPED,
+    ENV,
+    MANUAL,
+  }
 
   /**
    * Constructor for ItemDetector.
@@ -92,6 +99,8 @@ public class ItemDetector {
     } catch (IOException e) {
       Log.e(TAG, "Failed to setup interpreter", e);
     }
+    modelMap.put(ModelType.CLIPPED, clippedInterpreter);
+    modelMap.put(ModelType.ENV, envInterpreter);
 
     // Load labels
     try {
@@ -109,35 +118,17 @@ public class ItemDetector {
     Log.i(TAG, "Initialized");
   }
 
-  /**
-   * Detects items in the given undistorted image using a TensorFlow Lite model.
-   *
-   * @param undistortImage The input image as a Mat object, which has been undistorted.
-   * @return A list of detected items, or an empty list if the TensorFlow Lite model is not initialized.
-   */
-  public List<float[]> detectFromEnv(Mat undistortImage) {
-    if (envInterpreter == null) {
+  public List<float[]> detect(Mat image, ModelType modelType) {
+    Interpreter interpreter = modelMap.get(modelType);
+
+    if (interpreter == null) {
       Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
       return new ArrayList<>();
     }
 
-    ByteBuffer imageBuffer = preprocess(undistortImage, envInterpreter);
-    float[] outputArray = runReference(imageBuffer, envInterpreter);
-    List<float[]> detections = parsePredictions(outputArray, envInterpreter);
-    List<float[]> results = applyNonMaximumSuppression(detections);
-
-    return results;
-  }
-
-  public List<float[]> detectFromClipped(Mat clippedImage) {
-    if (clippedInterpreter == null) {
-      Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
-      return new ArrayList<>();
-    }
-
-    ByteBuffer imageBuffer = preprocess(clippedImage, clippedInterpreter);
-    float[] outputArray = runReference(imageBuffer, clippedInterpreter);
-    List<float[]> detections = parsePredictions(outputArray, clippedInterpreter);
+    ByteBuffer imageBuffer = preprocess(image, interpreter);
+    float[] outputArray = runReference(imageBuffer, interpreter);
+    List<float[]> detections = parsePredictions(outputArray, interpreter);
     List<float[]> results = applyNonMaximumSuppression(detections);
 
     return results;
@@ -151,7 +142,7 @@ public class ItemDetector {
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
-  public Item[] filterResult(List<float[]> detectResult, int areaId, Pose tagPose) {
+  public List<Item> filterResult(List<float[]> itemResults, int areaId, Pose tagPose) {
     int treasureId = -1;
     int landmarkId = -1;
     float treasureMaxConfidence = -1.0f;
@@ -160,61 +151,58 @@ public class ItemDetector {
     int landmarkCount = 0;
 
     Map<Integer, Integer> itemCountMap = new HashMap<>();
-    Item[] results;
+    List<Item> itemList = new ArrayList<>();
 
     // Handle empty detection results
-    if (detectResult.isEmpty()) {
-      Log.w(TAG, "No detection found, return list contains one empty item.");
-      results = new Item[1];
-      results[0] = new Item();
-    } else {
-      for (float[] det : detectResult) {
-        String label = labels.get((int) det[9]); // Get item label from detection
-        int itemId = Integer.parseInt(label);   // Convert label to item ID
+    if (itemResults.isEmpty()) {
+      Log.w(TAG, "No detection found, return empty list.");
+      return itemList;
+    }
 
-        // Update item count
-        itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
+    for (float[] det : itemResults) {
+      String label = labels.get((int) det[9]); // Get item label from detection
+      int itemId = Integer.parseInt(label);   // Convert label to item ID
 
-        // Record the treasure with the highest confidence
-        if (itemId / 10 == 1) {
-          if (det[8] > treasureMaxConfidence) {
-            treasureMaxConfidence = det[8];
-            treasureId = itemId;
-          }
+      // Update item count
+      itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
+
+      // Record the treasure with the highest confidence
+      if (itemId / 10 == 1) {
+        if (det[8] > treasureMaxConfidence) {
+          treasureMaxConfidence = det[8];
+          treasureId = itemId;
         }
-        // Record the landmark with the highest confidence
-        else if (itemId / 10 == 2) {
-          if (det[8] > landmarkMaxConfidence) {
-            landmarkMaxConfidence = det[8];
-            landmarkId = itemId;
-          }
-        } else {
-          Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
+      }
+      // Record the landmark with the highest confidence
+      else if (itemId / 10 == 2) {
+        if (det[8] > landmarkMaxConfidence) {
+          landmarkMaxConfidence = det[8];
+          landmarkId = itemId;
         }
+      } else {
+        Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
       }
     }
 
-    results = new Item[2];
-
     // Create the treasure item
     if (treasureId == -1) {
-      results[0] = new Item();
+      itemList.add(new Item());
     } else {
       String treasureName = idToNameMap.get(treasureId);
       treasureCount = itemCountMap.getOrDefault(treasureId, 1);
-      results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
+      itemList.add(new Item(areaId, treasureId, treasureName, treasureCount, tagPose));
     }
 
     // Create landmark item
     if (landmarkId == -1) {
-      results[1] = new Item();
+      itemList.add(new Item());
     } else {
       String landmarkName = idToNameMap.get(landmarkId);
       landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
-      results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
+      itemList.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
     }
 
-    return results;
+    return itemList;
   }
 
   /**
@@ -224,8 +212,8 @@ public class ItemDetector {
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
-  public Item[] guessResult(int areaId, Pose tagPose) {
-    Item[] results = new Item[2];
+  public List<Item> guessResult(int areaId, Pose tagPose) {
+    List<Item> results = new ArrayList<>();
 
     int treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
     int landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
@@ -234,8 +222,8 @@ public class ItemDetector {
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
 
-    results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
-    results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
+    results.add(new Item(areaId, treasureId, treasureName, treasureCount, tagPose));
+    results.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
 
     return results;
   }
@@ -331,7 +319,7 @@ public class ItemDetector {
    * @throws IOException if the model or label files cannot be loaded.
    */
   private Interpreter loadInterpreter(String model_path) throws IOException {
-    Log.i(TAG, "Load interpreter.");
+    Log.i(TAG, "Load interpreter " + model_path);
 
     // Load the TFLite model from assets
     InputStream inputStream = context.getAssets().open(model_path);
