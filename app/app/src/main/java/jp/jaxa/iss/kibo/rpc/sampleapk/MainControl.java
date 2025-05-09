@@ -5,6 +5,8 @@ import jp.jaxa.iss.kibo.rpc.api.KiboRpcApi;
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
 
+import java.util.List;
+
 import org.opencv.core.Mat;
 
 import android.util.Log;
@@ -63,7 +65,7 @@ public class MainControl {
         for(int areaId = 1; areaId <= 4; areaId++) {
             navigator.navigateToArea(areaId);
             visionHandler.getCurrentPose(navigator.getCurrentPose());
-            Item[] areaItems = visionHandler.inspectArea(areaId);
+            List<Item> areaItems = visionHandler.inspectArea(areaId);
 
             int retryMax = 5;
             for (int retry = 1; retry <= retryMax - 1; retry++) {
@@ -71,17 +73,19 @@ public class MainControl {
                 
                 if (containsLandmark(areaItems)) {
                     // Treasure Item
-                    if (areaItems[0].getItemId() / 10 == 1) {
-                        itemManager.storeTreasureInfo(areaItems[0]);
-                        Log.i(TAG, "Area " + areaId + ": Found treasure " + areaItems[0].getItemName());
+                    Item treasureItem = areaItems.get(0); 
+                    if (treasureItem.getItemId() / 10 == 1) {
+                        itemManager.storeTreasureInfo(treasureItem);
+                        Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
                     } else {
                         Log.w(TAG, "Area " + areaId + ": Treasure not found.");
                     }
                     
                     // Landmark Item
-                    if (areaItems[1].getItemId() / 10 == 2) {
-                        itemManager.setAreaInfo(areaItems[1]);
-                        Log.i(TAG, "Area " + areaId + ": Found landmark " + areaItems[1].getItemName());
+                    Item landmarkItem = areaItems.get(1);
+                    if (landmarkItem.getItemId() / 10 == 2) {
+                        itemManager.setAreaInfo(landmarkItem);
+                        Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName());
                     } else {
                         Log.w(TAG, "Area " + areaId + ": Landmark not found."); // Should never happen
                     }
@@ -118,13 +122,13 @@ public class MainControl {
         api.reportRoundingCompletion();
         
         // Recognize the treasure
-        Item[] areaItems = visionHandler.inspectArea(areaId);
+        List<Item> areaItems = visionHandler.inspectArea(areaId);
         Item treasureItem = null;
 
         int retryMax = 20;
         for (int retry = 1; retry <= retryMax; retry++) {
             if (containsTreasure(areaItems)) {
-                treasureItem = areaItems[0];                
+                treasureItem = areaItems.get(0);
                 break;
             } else {
                 if (retry == retryMax - 1) {
@@ -164,14 +168,14 @@ public class MainControl {
         visionHandler.captureTreasureImage();
     }
 
-    private boolean containsLandmark(Item[] items) {
+    private boolean containsLandmark(List<Item> items) {
         for (Item item : items) {
             if (item.getItemId() / 10 == 2) return true;
         }
         return false;
     }
 
-    private boolean containsTreasure(Item[] items) {
+    private boolean containsTreasure(List<Item> items) {
         for (Item item : items) {
             if (item.getItemId() / 10 == 1) return true;
         }
