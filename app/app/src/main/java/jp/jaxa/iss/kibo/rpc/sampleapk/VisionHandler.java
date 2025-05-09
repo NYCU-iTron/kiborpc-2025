@@ -77,65 +77,75 @@ public class VisionHandler {
    * visionHandler.inspectArea();
    * @endcode
    */
-  public Item[] inspectArea(int area) {
+  public List<Item> inspectArea(int areaId) {
+    // Get raw image
     Mat rawImage = cameraHandler.captureImage();
-    if (DEBUG) api.saveMatImage(rawImage, String.format("area%d_raw.png", area));
+    if (DEBUG) api.saveMatImage(rawImage, String.format("area%d_raw.png", areaId));
 
+    // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
-    if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", area));
+    if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", areaId));
 
-    // Detect AR tag pose
-    Map<Integer, Pose> arResult = arTagDetector.detect(undistortedImage);
-    Pose tagPose = arTagDetector.filterResult(arResult, area, currentPose);
-    Mat clippedImage = arTagDetector.getclippedImage(undistortedImage);
-    if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", area));
+    // Get tag pose and clipped image
+    List<ARTag> arResults = arTagDetector.detect(undistortedImage);
+    Map<Integer, Pose> tagPoses = arTagDetector.filterResult(arResults, currentPose);
+    Map<Integer, Mat> clippedImages = arTagDetector.getclippedImages(arResults, undistortedImage);
+    if (DEBUG) {
+      for (Map.Entry<Integer, Mat> entry : clippedImages.entrySet()) {
+        int markerId = entry.getKey();
+        Mat image = entry.getValue();
 
-    // Detect item
-    List<float[]> detectResult = null;
-    Item[] detectedItemArray = null;
+        String filename = String.format("area%d_marker%d_clipped.png", areaId, markerId);
+        api.saveMatImage(image, filename);
+      }
+    }
     
-    // If get the clipped image
+    // Set the target markerId in this area
+    int markerId = areaId + 100;
+    Pose tagPose = tagPoses.get(markerId);
+    Mat clippedImage = clippedImages.get(markerId);
+
+    List<float[]> itemResults = new ArrayList<>();
+    List<Item> itemList = new ArrayList<>();
+    
     if (clippedImage != null) {
-      Log.i(TAG, "Detect from clipped image.");
-      detectResult = itemDetector.detectFromClipped(clippedImage);
-      detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
-      if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, detectResult, area);
-    }
-    
-    // If not get the clipped image or didn't detect anything from clipped image
-    if (clippedImage == null || detectedItemArray == null){
-      Log.i(TAG, "Detect from env (undistortedImage).");
-      detectResult = itemDetector.detectFromEnv(undistortedImage);
-      detectedItemArray = itemDetector.filterResult(detectResult, area, tagPose);
-      if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, area);
+      // Detect item
+      itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
+      itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
+      if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
     }
 
-    return detectedItemArray;
+    return itemList;
   }
 
   public Item recognizeTreasure() {
     int areaId = 0;
+
+    // Get raw image
     Mat rawImage = cameraHandler.captureImage();
     if (DEBUG) api.saveMatImage(rawImage, "treasure_raw.png");
-
+    
+    // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     if (DEBUG) api.saveMatImage(rawImage, "treasure_undistorted.png");
 
-    List<float[]> detectResult = itemDetector.detectFromEnv(undistortedImage);
-    Item[] detectedItemArray = itemDetector.filterResult(detectResult, areaId, new Pose());
-    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, detectResult, areaId);
+    // Detect item
+    List<float[]> itemResults = itemDetector.detect(undistortedImage, ItemDetector.ModelType.ENV);
+    List<Item> itemList = itemDetector.filterResult(itemResults, areaId, new Pose());
+    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, itemResults, areaId);
 
-    Item detectedItem = detectedItemArray[0]; // This array is expected to be [treasureItem, landmarkItem]
+    Item treasureItem = itemList.get(0); // This array is expected to be [treasureItem, landmarkItem]
 
-    return detectedItem;
+    return treasureItem;
   }
 
   public void captureTreasureImage() {
     this.api.takeTargetItemSnapshot();
   }
 
-  public Item[] guessResult(int areaId) {
-    Item[] guessItemArray = itemDetector.guessResult(areaId, currentPose);
+  public List<Item> guessResult(int areaId) {
+    Pose tagPose = arTagDetector.guessResult(areaId);
+    List<Item> guessItemArray = itemDetector.guessResult(areaId, tagPose);
     return guessItemArray;
   }
 }
