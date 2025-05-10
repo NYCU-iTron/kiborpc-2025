@@ -27,8 +27,8 @@ public class Navigator {
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
     areaPoses.put(1, new Pose(new Point(10.95, -9.88, 5.2), new Quaternion(-0.707f, 0.707f, 0.0f, 0.0f)));      // Area 1
-    areaPoses.put(2, new Pose(new Point(10.925, -8.47, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 2
-    areaPoses.put(3, new Pose(new Point(10.925, -7.8, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 3
+    areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 2
+    areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f)));      // Area 3
     areaPoses.put(4, new Pose(new Point(10.7, -6.853, 4.945), new Quaternion(0.0f, 0.707f, 0.707f, 0.0f)));     // Area 4
     areaPoses.put(0, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(0.0f, 0.0f, 0.707f, 0.707f))); // Report
   }

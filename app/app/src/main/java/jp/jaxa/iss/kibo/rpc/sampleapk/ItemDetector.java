@@ -53,23 +53,29 @@ public class ItemDetector {
   private final String TAG = this.getClass().getSimpleName();
   private boolean DEBUG = true;
 
-  private Interpreter envInterpreter;
-  private Interpreter clippedInterpreter;
-
-  private List<String> labels;
   private ImageProcessor imageProcessor;
-  private Map<Integer, String> idToNameMap;
+  private List<String> labels;
   private Random rand; // Deal with no item detected
-
+  
   private int tensorWidth;
   private int tensorHeight;
   private int numChannel;
   private int numElements;
 
-  private static final float CONFIDENCE_THRESHOLD = 0.8F;
+  private Map<String, Integer> labelToIdMap;
+  private Map<Integer, String> idToLabelMap;
+  private Map<ModelType, Interpreter> modelMap = new HashMap<>();
+
+  private static final float CONFIDENCE_THRESHOLD = 0.85F;
   private static final float IOU_THRESHOLD = 0.4F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
+
+  public enum ModelType {
+    CLIPPED,
+    ENV,
+    MANUAL,
+  }
 
   /**
    * Constructor for ItemDetector.
@@ -82,13 +88,13 @@ public class ItemDetector {
     this.api = apiRef;
     this.context = context;
 
-    idToNameMap = initItemMappings();  // Initialize item ID mappings
-    rand = new Random();       // Create a random generator
+    initItemMappings();  // Initialize mappings between item id and name
+    rand = new Random(); // Create a random generator
 
     // Load yolo models
     try {
-      envInterpreter = loadInterpreter("best_env.tflite");
-      clippedInterpreter = loadInterpreter("best_clipped.tflite");
+      modelMap.put(ModelType.CLIPPED, loadInterpreter("best_clipped.tflite"));
+      modelMap.put(ModelType.ENV, loadInterpreter("best_env.tflite"));
     } catch (IOException e) {
       Log.e(TAG, "Failed to setup interpreter", e);
     }
@@ -109,35 +115,17 @@ public class ItemDetector {
     Log.i(TAG, "Initialized");
   }
 
-  /**
-   * Detects items in the given undistorted image using a TensorFlow Lite model.
-   *
-   * @param undistortImage The input image as a Mat object, which has been undistorted.
-   * @return A list of detected items, or an empty list if the TensorFlow Lite model is not initialized.
-   */
-  public List<float[]> detectFromEnv(Mat undistortImage) {
-    if (envInterpreter == null) {
+  public List<float[]> detect(Mat image, ModelType modelType) {
+    Interpreter interpreter = modelMap.get(modelType);
+
+    if (interpreter == null) {
       Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
       return new ArrayList<>();
     }
 
-    ByteBuffer imageBuffer = preprocess(undistortImage, envInterpreter);
-    float[] outputArray = runReference(imageBuffer, envInterpreter);
-    List<float[]> detections = parsePredictions(outputArray, envInterpreter);
-    List<float[]> results = applyNonMaximumSuppression(detections);
-
-    return results;
-  }
-
-  public List<float[]> detectFromClipped(Mat clippedImage) {
-    if (clippedInterpreter == null) {
-      Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
-      return new ArrayList<>();
-    }
-
-    ByteBuffer imageBuffer = preprocess(clippedImage, clippedInterpreter);
-    float[] outputArray = runReference(imageBuffer, clippedInterpreter);
-    List<float[]> detections = parsePredictions(outputArray, clippedInterpreter);
+    ByteBuffer imageBuffer = preprocess(image, interpreter);
+    float[] outputArray = runReference(imageBuffer, interpreter);
+    List<float[]> detections = parsePredictions(outputArray, interpreter);
     List<float[]> results = applyNonMaximumSuppression(detections);
 
     return results;
@@ -151,70 +139,69 @@ public class ItemDetector {
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
-  public Item[] filterResult(List<float[]> detectResult, int areaId, Pose tagPose) {
+  public List<Item> filterResult(List<float[]> itemResults, int areaId, Pose tagPose) {
     int treasureId = -1;
     int landmarkId = -1;
+    String treasureName = null;
+    String landmarkName = null;
     float treasureMaxConfidence = -1.0f;
     float landmarkMaxConfidence = -1.0f;
     int treasureCount = 0;
     int landmarkCount = 0;
 
     Map<Integer, Integer> itemCountMap = new HashMap<>();
-    Item[] results;
+    List<Item> itemList = new ArrayList<>();
 
     // Handle empty detection results
-    if (detectResult.isEmpty()) {
-      Log.w(TAG, "No detection found, return list contains one empty item.");
-      results = new Item[1];
-      results[0] = new Item();
-    } else {
-      for (float[] det : detectResult) {
-        String label = labels.get((int) det[9]); // Get item label from detection
-        int itemId = Integer.parseInt(label);   // Convert label to item ID
+    if (itemResults.isEmpty()) {
+      Log.w(TAG, "No detection found, return empty list.");
+      return itemList;
+    }
 
-        // Update item count
-        itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
+    for (float[] det : itemResults) {
+      String label = labels.get((int) det[9]); // Get item label from detection
+      int itemId = labelToIdMap.get(label); // Convert label to item ID
 
-        // Record the treasure with the highest confidence
-        if (itemId / 10 == 1) {
-          if (det[8] > treasureMaxConfidence) {
-            treasureMaxConfidence = det[8];
-            treasureId = itemId;
-          }
+      // Update item count
+      itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
+
+      // Record the treasure with the highest confidence
+      if (itemId / 10 == 1) {
+        if (det[8] > treasureMaxConfidence) {
+          treasureMaxConfidence = det[8];
+          treasureId = itemId;
+          treasureName = label;
         }
-        // Record the landmark with the highest confidence
-        else if (itemId / 10 == 2) {
-          if (det[8] > landmarkMaxConfidence) {
-            landmarkMaxConfidence = det[8];
-            landmarkId = itemId;
-          }
-        } else {
-          Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
+      }
+      // Record the landmark with the highest confidence
+      else if (itemId / 10 == 2) {
+        if (det[8] > landmarkMaxConfidence) {
+          landmarkMaxConfidence = det[8];
+          landmarkId = itemId;
+          landmarkName = label;
         }
+      } else {
+        Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
       }
     }
 
-    results = new Item[2];
-
     // Create the treasure item
     if (treasureId == -1) {
-      results[0] = new Item();
+      itemList.add(new Item());
     } else {
-      String treasureName = idToNameMap.get(treasureId);
       treasureCount = itemCountMap.getOrDefault(treasureId, 1);
-      results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
+      itemList.add(new Item(areaId, treasureId, treasureName, treasureCount, tagPose));
     }
 
     // Create landmark item
     if (landmarkId == -1) {
-      results[1] = new Item();
+      itemList.add(new Item());
     } else {
-      String landmarkName = idToNameMap.get(landmarkId);
       landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
-      results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
+      itemList.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
     }
 
-    return results;
+    return itemList;
   }
 
   /**
@@ -224,18 +211,18 @@ public class ItemDetector {
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
-  public Item[] guessResult(int areaId, Pose tagPose) {
-    Item[] results = new Item[2];
+  public List<Item> guessResult(int areaId, Pose tagPose) {
+    List<Item> results = new ArrayList<>();
 
     int treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
     int landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
-    String treasureName = idToNameMap.get(treasureId);
-    String landmarkName = idToNameMap.get(landmarkId);
+    String treasureName = idToLabelMap.get(treasureId);
+    String landmarkName = idToLabelMap.get(landmarkId);
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
 
-    results[0] = new Item(areaId, treasureId, treasureName, treasureCount, tagPose);
-    results[1] = new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose);
+    results.add(new Item(areaId, treasureId, treasureName, treasureCount, tagPose));
+    results.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
 
     return results;
   }
@@ -290,10 +277,19 @@ public class ItemDetector {
       
       // Define rectangle color (red) and thickness
       Scalar color = new Scalar(0, 0, 0); // Black
-      int thickness = 2;
+      int thickness = 1;
 
       // Draw the rectangle on the image
       Imgproc.rectangle(image, rect, color, thickness);
+
+      String label = labels.get((int) det[9]);
+      Scalar textColor = new Scalar(0, 0, 0);
+      int font = Imgproc.FONT_HERSHEY_SIMPLEX;
+      double fontScale = 0.5;
+      int thicknessText = 1;
+
+      Point labelPosition = new Point(ix1, iy1 - 5); // Position slightly above the bounding box
+      Imgproc.putText(image, label, labelPosition, font, fontScale, textColor, thicknessText);
     }
 
     api.saveMatImage(image, String.format("area%d_bbox.png", area));
@@ -304,25 +300,37 @@ public class ItemDetector {
   /**
    * Initializes the mapping between item IDs and item names.
    */
-  private Map<Integer, String> initItemMappings() {
-    Map<Integer, String> idToNameMap = new HashMap<>();
+  private void initItemMappings() {
+    idToLabelMap = new HashMap<>();
+    labelToIdMap = new HashMap<>();
 
     // Treasure
-    idToNameMap.put(11, "crystal");
-    idToNameMap.put(12, "diamond");
-    idToNameMap.put(13, "emerald");
+    idToLabelMap.put(11, "crystal");
+    idToLabelMap.put(12, "diamond");
+    idToLabelMap.put(13, "emerald");
+
+    labelToIdMap.put("crystal", 11);
+    labelToIdMap.put("diamond", 12);
+    labelToIdMap.put("emerald", 13);
 
     // Landmark
-    idToNameMap.put(21, "coin");
-    idToNameMap.put(22, "compass");
-    idToNameMap.put(23, "coral");
-    idToNameMap.put(24, "fossil");
-    idToNameMap.put(25, "key");
-    idToNameMap.put(26, "letter");
-    idToNameMap.put(27, "shell");
-    idToNameMap.put(28, "treasure_box");
+    idToLabelMap.put(21, "coin");
+    idToLabelMap.put(22, "compass");
+    idToLabelMap.put(23, "coral");
+    idToLabelMap.put(24, "fossil");
+    idToLabelMap.put(25, "key");
+    idToLabelMap.put(26, "letter");
+    idToLabelMap.put(27, "shell");
+    idToLabelMap.put(28, "treasure_box");
 
-    return idToNameMap;
+    labelToIdMap.put("coin"        , 21);
+    labelToIdMap.put("compass"     , 22);
+    labelToIdMap.put("coral"       , 23);
+    labelToIdMap.put("fossil"      , 24);
+    labelToIdMap.put("key"         , 25);
+    labelToIdMap.put("letter"      , 26);
+    labelToIdMap.put("shell"       , 27);
+    labelToIdMap.put("treasure_box", 28);
   }
 
   /**
@@ -331,7 +339,7 @@ public class ItemDetector {
    * @throws IOException if the model or label files cannot be loaded.
    */
   private Interpreter loadInterpreter(String model_path) throws IOException {
-    Log.i(TAG, "Load interpreter.");
+    Log.i(TAG, "Load interpreter " + model_path);
 
     // Load the TFLite model from assets
     InputStream inputStream = context.getAssets().open(model_path);
