@@ -301,6 +301,9 @@ public class ItemDetector {
    * Initializes the mapping between item IDs and item names.
    */
   private void initItemMappings() {
+    idToLabelMap = new HashMap<>();
+    labelToIdMap = new HashMap<>();
+
     // Treasure
     idToLabelMap.put(11, "crystal");
     idToLabelMap.put(12, "diamond");
