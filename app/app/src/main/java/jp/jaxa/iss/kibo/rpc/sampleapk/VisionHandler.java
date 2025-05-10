@@ -78,29 +78,20 @@ public class VisionHandler {
    * @endcode
    */
   public List<Item> inspectArea(int areaId) {
-    // Get raw image
     Mat rawImage = cameraHandler.captureImage();
     if (DEBUG) api.saveMatImage(rawImage, String.format("area%d_raw.png", areaId));
+    Log.i(TAG, "Get raw image");
 
     // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", areaId));
+    Log.i(TAG, "Get undistorted image.");
 
     // Get tag pose and clipped image
     List<ARTag> arResults = arTagDetector.detect(undistortedImage);
     Map<Integer, Pose> tagPoses = arTagDetector.filterResult(arResults, currentPose);
     Map<Integer, Mat> clippedImages = arTagDetector.getclippedImages(arResults, undistortedImage);
-    if (DEBUG) {
-      for (Map.Entry<Integer, Mat> entry : clippedImages.entrySet()) {
-        int markerId = entry.getKey();
-        Mat image = entry.getValue();
-
-        String filename = String.format("area%d_marker%d_clipped.png", areaId, markerId);
-        api.saveMatImage(image, filename);
-      }
-    }
     
-    // Set the target markerId in this area
     int markerId = areaId + 100;
     Pose tagPose = tagPoses.get(markerId);
     Mat clippedImage = clippedImages.get(markerId);
@@ -108,12 +99,18 @@ public class VisionHandler {
     List<float[]> itemResults = new ArrayList<>();
     List<Item> itemList = new ArrayList<>();
     
-    if (clippedImage != null) {
-      // Detect item
-      itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
-      itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
-      if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
+    if (clippedImage == null) {
+      Log.w(TAG, "No clipped image found.");
+      return itemList;
     }
+
+    if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
+    Log.i(TAG, "Get clipped image.");
+
+    // Detect item
+    itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
+    itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
+    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
 
     return itemList;
   }
