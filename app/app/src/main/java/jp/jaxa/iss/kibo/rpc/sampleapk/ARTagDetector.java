@@ -108,8 +108,6 @@ public class ARTagDetector {
   }
 
   public Pose guessResult(int areaId) {
-    Log.w(TAG, "No correct tag found, set tagPose to the center of this area.");
-    
     Pose tagPose; 
 
     if (areaId == 1) {
@@ -137,12 +135,12 @@ public class ARTagDetector {
    * @return The clipped image.
    */
   public Map<Integer, Mat> getclippedImages(List<ARTag> arResults, Mat undistortedImage) {
+    Map<Integer, Mat> clippedImages = new HashMap<>();
+    
     if (arResults.isEmpty()) {
-      Log.w(TAG, "No AR Tag Found.");
-      return null;
+      return clippedImages;
     }
 
-    Map<Integer, Mat> clippedImages = new HashMap<>();
     for(ARTag arTag : arResults) {
       int markerId = arTag.getMarkerId();
       Mat corner = arTag.getCorner();
