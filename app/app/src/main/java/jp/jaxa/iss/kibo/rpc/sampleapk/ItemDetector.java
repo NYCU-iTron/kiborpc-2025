@@ -54,8 +54,6 @@ public class ItemDetector {
   private boolean DEBUG = true;
 
   private ImageProcessor imageProcessor;
-  private Interpreter envInterpreter;
-  private Interpreter clippedInterpreter;
   private List<String> labels;
   private Random rand; // Deal with no item detected
   
@@ -95,13 +93,11 @@ public class ItemDetector {
 
     // Load yolo models
     try {
-      envInterpreter = loadInterpreter("best_env.tflite");
-      clippedInterpreter = loadInterpreter("best_clipped.tflite");
+      modelMap.put(ModelType.CLIPPED, loadInterpreter("best_clipped.tflite"));
+      modelMap.put(ModelType.ENV, loadInterpreter("best_env.tflite"));
     } catch (IOException e) {
       Log.e(TAG, "Failed to setup interpreter", e);
     }
-    modelMap.put(ModelType.CLIPPED, clippedInterpreter);
-    modelMap.put(ModelType.ENV, envInterpreter);
 
     // Load labels
     try {
