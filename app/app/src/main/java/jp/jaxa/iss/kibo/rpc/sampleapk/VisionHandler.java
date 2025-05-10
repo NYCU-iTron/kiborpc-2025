@@ -108,7 +108,7 @@ public class VisionHandler {
     // Detect item
     itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
     itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
-    // if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
+    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
 
     return itemList;
   }
