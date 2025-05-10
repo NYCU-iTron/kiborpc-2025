@@ -98,6 +98,6 @@ public class YourService extends KiboRpcService {
         mainControl = new MainControl(getApplicationContext(), api);
         
         // Call the first method of MainControl class.
-        mainControl.method1();
+        mainControl.method2();
     }
 }
