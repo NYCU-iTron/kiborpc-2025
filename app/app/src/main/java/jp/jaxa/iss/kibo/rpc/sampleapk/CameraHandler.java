@@ -52,8 +52,4 @@ public class CameraHandler {
     distCoeffs.put(0, 0, api.getNavCamIntrinsics()[1]);
     return distCoeffs;
   }
-
-  public void saveImage(Mat image, String filename) {
-    api.saveMatImage(image, filename);
-  }
 }
