@@ -78,14 +78,13 @@ public class VisionHandler {
    * @endcode
    */
   public List<Item> inspectArea(int areaId) {
+    // Get raw image
     Mat rawImage = cameraHandler.captureImage();
-    if (DEBUG) api.saveMatImage(rawImage, String.format("area%d_raw.png", areaId));
-    Log.i(TAG, "Get raw image");
+    // if (DEBUG) api.saveMatImage(rawImage, String.format("area%d_raw.png", areaId));
 
     // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", areaId));
-    Log.i(TAG, "Get undistorted image.");
 
     // Get tag pose and clipped image
     List<ARTag> arResults = arTagDetector.detect(undistortedImage);
@@ -110,7 +109,7 @@ public class VisionHandler {
     // Detect item
     itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
     itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
-    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
+    // if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
 
     return itemList;
   }
