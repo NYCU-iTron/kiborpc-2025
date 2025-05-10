@@ -104,8 +104,7 @@ public class VisionHandler {
     }
 
     if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
-    Log.i(TAG, "Get clipped image.");
-
+    
     // Detect item
     itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
     itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
