@@ -163,25 +163,6 @@ public class Navigator {
   }
 
   /**
-   * Moves the robot from currentPose to targetPose through a series of waypoints.
-   * 
-   * @param targetPose
-   * @return The result of the last move command.
-   */
-  public Result navigateThrough(Pose targetPose) {
-    Pose currentPose = getCurrentPose();
-    List<Pose> poses = interpolate(currentPose, targetPose);
-    Result result = null;
-
-    for (Pose pose : poses) {
-      result = moveTo(pose);
-    }
-
-    Log.i(TAG, "Move to: " + targetPose.toString() + " Result: " + result.getMessage());
-    return result;
-  }
-
-  /**
    * Moves the robot to the pose of taking photo in given area.
    * 
    * @return The result of the last move command.
@@ -239,8 +220,14 @@ public class Navigator {
       case 1:
         // Area1 lies on the XZ plane, so the vertical distance along the Y-axis should be within 0.9 m
         finalY = -10.58 + safeDistance;
+
         finalX = treasurePoint.getX();
+        finalX = Math.min(finalX, area1MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area1MinX + subSafeDistance);
+
         finalZ = treasurePoint.getZ();
+        finalZ = Math.min(finalZ, area1MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area1MinZ + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
         finalQuaternion = new Quaternion(0.0f, 0.0f, -0.707f, 0.707f);
@@ -250,8 +237,14 @@ public class Navigator {
       case 2:
         // Area2 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
         finalZ = 3.76203 + safeDistance;
+
         finalX = treasurePoint.getX();
+        finalX = Math.min(finalX, area2MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area2MinX + subSafeDistance);
+
         finalY = treasurePoint.getY();
+        finalY = Math.min(finalY, area2MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area2MinY + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
         finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
@@ -261,8 +254,14 @@ public class Navigator {
       case 3:
         // Area3 lies on the XY plane, so the vertical distance along the Z-axis should be within 0.9 m
         finalZ = 3.76203 + safeDistance;
+
         finalX = treasurePoint.getX();
+        finalX = Math.min(finalX, area3MaxX - subSafeDistance);
+        finalX = Math.max(finalX, area3MinX + subSafeDistance);
+
         finalY = treasurePoint.getY();
+        finalY = Math.min(finalY, area3MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area3MinY + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
         finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
@@ -272,8 +271,14 @@ public class Navigator {
       case 4:
         // Area4 lies on the YZ plane, so the vertical distance along the X-axis should be within 0.9 m
         finalX = 9.866984 + safeDistance;
+
         finalY = treasurePoint.getY();
+        finalY = Math.min(finalY, area4MaxY - subSafeDistance);
+        finalY = Math.max(finalY, area4MinY + subSafeDistance);
+
         finalZ = treasurePoint.getZ();
+        finalZ = Math.min(finalZ, area4MaxZ - subSafeDistance);
+        finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
         finalQuaternion = new Quaternion(0.0f, -0.707f, 0.707f, 0.0f);
@@ -309,102 +314,6 @@ public class Navigator {
   /* -------------------------------------------------------------------------- */
   /*                               Tool Functions                               */
   /* -------------------------------------------------------------------------- */
-
-  /**
-   * Interpolates between two poses to create a smooth transition.
-   * 
-   * @param start The starting pose.
-   * @param end The ending pose.
-   * @return A list of poses representing the interpolated path.
-   */
-  public static List<Pose> interpolate(Pose start, Pose end) {
-    Point startPoint = start.getPoint();
-    Point endPoint = end.getPoint();
-
-    double dx = endPoint.getX() - startPoint.getX();
-    double dy = endPoint.getY() - startPoint.getY();
-    double dz = endPoint.getZ() - startPoint.getZ();
-
-    double linearUnit = 0.2;
-    double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    int numSteps = (int) (distance / linearUnit);
-    List<Pose> poses = new ArrayList<>();
-
-    if (numSteps == 0) {
-      poses.add(end);
-      return poses;
-    }
-    
-    for (int i = 0; i <= numSteps; i++) {
-      double t = (double) i / numSteps;
-      Pose current = new Pose(
-        lerpPoint(start.getPoint(), end.getPoint(), t),
-        slerp(start.getQuaternion(), end.getQuaternion(), (float) t)
-      );
-      poses.add(current);
-    }
-
-    return poses;
-  }
-
-  /**
-   * Performs linear interpolation between two points.
-   * 
-   * @param a The first point.
-   * @param b The second point.
-   * @param t The interpolation parameter (0 <= t <= 1).
-   * @return A new point that is the result of the interpolation.
-   */
-  public static Point lerpPoint(Point a, Point b, double t) {
-    double x = a.getX() + (b.getX() - a.getX()) * t;
-    double y = a.getY() + (b.getY() - a.getY()) * t;
-    double z = a.getZ() + (b.getZ() - a.getZ()) * t;
-    return new Point(x, y, z);
-  }
-
-  /**
-   * Performs spherical linear interpolation (SLERP) between two quaternions.
-   * 
-   * @param q1 The first quaternion.
-   * @param q2 The second quaternion.
-   * @param t The interpolation parameter (0 <= t <= 1).
-   * @return A new quaternion that is the result of the interpolation.
-   */
-  public static Quaternion slerp(Quaternion q1, Quaternion q2, float t) {
-    float dot = q1.getX() * q2.getX() + q1.getY() * q2.getY() + q1.getZ() * q2.getZ() + q1.getW() * q2.getW();
-
-    // If dot < 0, the interpolation will take the long way around the sphere. So we reverse one quaternion.
-    if (dot < 0.0f) {
-      q2 = new Quaternion(-q2.getX(), -q2.getY(), -q2.getZ(), -q2.getW());
-      dot = -dot;
-    }
-
-    final float DOT_THRESHOLD = 0.995f;
-    if (dot > DOT_THRESHOLD) {
-      // Use linear interpolation to avoid division by 0
-      float x = q1.getX() + t * (q2.getX() - q1.getX());
-      float y = q1.getY() + t * (q2.getY() - q1.getY());
-      float z = q1.getZ() + t * (q2.getZ() - q1.getZ());
-      float w = q1.getW() + t * (q2.getW() - q1.getW());
-      float norm = (float) Math.sqrt(x * x + y * y + z * z + w * w);
-      return new Quaternion(x / norm, y / norm, z / norm, w / norm);
-    }
-
-    float theta_0 = (float) Math.acos(dot); // angle between input quaternions
-    float theta = theta_0 * t;              // angle at interpolation parameter t
-    float sin_theta = (float) Math.sin(theta);
-    float sin_theta_0 = (float) Math.sin(theta_0);
-
-    float s1 = (float) Math.cos(theta) - dot * sin_theta / sin_theta_0;
-    float s2 = sin_theta / sin_theta_0;
-
-    float x = s1 * q1.getX() + s2 * q2.getX();
-    float y = s1 * q1.getY() + s2 * q2.getY();
-    float z = s1 * q1.getZ() + s2 * q2.getZ();
-    float w = s1 * q1.getW() + s2 * q2.getW();
-
-    return new Quaternion(x, y, z, w);
-  }
 
   /**
    * Calculates the quaternion to rotate from the current point to face the target point.
