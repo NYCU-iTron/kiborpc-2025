@@ -351,10 +351,10 @@ public class ARTagDetector {
     double[] corner2 = corner.get(0, 2);
     double[] corner3 = corner.get(0, 3);
 
-    double h0 = -5.0;
-    double h1 = 0.85;
-    double v0 = -1.25;
-    double v1 = 3.75;
+    double h0 = -4.4;
+    double h1 = 0.0;
+    double v0 = -0.5;
+    double v1 = 3.0;
 
     // Calculate the width and height of the rectangle
     points[0] = new org.opencv.core.Point(h0 * (corner1[0] - corner0[0]) + v0 * (corner3[0] - corner0[0]) + corner0[0], h0 * (corner1[1] - corner0[1]) + v0 * (corner3[1] - corner0[1]) + corner0[1]);
