@@ -237,7 +237,7 @@ public class MainControl {
                     Log.w(TAG, "No treasure found, pause system for a short time then retry.");
                         
                     try {
-                        Thread.sleep(200);
+                        Thread.sleep(500);
                     } catch (InterruptedException e) {
                         Log.w(TAG, "Fail to sleep thread" + e);
                     }
