@@ -137,7 +137,7 @@ public class MainControl {
             Log.i(TAG, "Exploring area 2 and 3 together (try " + retry + ")");
 
             // Check area 2 items
-            if (containsLandmark(area2Items)) {
+            if (success2 == false && containsLandmark(area2Items)) {
                 // Treasure Item
                 Item treasureItem = area2Items.get(0);
                 if (treasureItem.getItemId() / 10 == 1) {
@@ -160,7 +160,7 @@ public class MainControl {
             }
 
             // Check area 3 items
-            if (containsLandmark(area3Items)) {
+            if (success3 == false && containsLandmark(area3Items)) {
                 // Treasure Item
                 Item treasureItem = area3Items.get(0); 
                 if (treasureItem.getItemId() / 10 == 1) {
