@@ -30,7 +30,7 @@ public class Navigator {
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
     areaPoses.put(4, new Pose(new Point(10.7, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
-    areaPoses.put(5, new Pose(new Point(10.925, -8.2, 4.8), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f))); // Combined Area 2 3
+    areaPoses.put(5, new Pose(new Point(10.925, -8.25, 4.8), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f))); // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.143, -6.7607, 4.9654), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
   }
 
@@ -243,7 +243,7 @@ public class Navigator {
         finalZ = treasurePoint.getZ();
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(-0.707f, 0.707f, 0.0f, 0.0f);
+        finalQuaternion = new Quaternion(0.0f, 0.0f, -0.707f, 0.707f);
 
         break;
 
@@ -254,7 +254,7 @@ public class Navigator {
         finalY = treasurePoint.getY();
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f);
+        finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
 
         break;
 
@@ -265,7 +265,7 @@ public class Navigator {
         finalY = treasurePoint.getY();
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(-0.5f, 0.5f, 0.5f, 0.5f);
+        finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
 
         break;
 
@@ -276,7 +276,7 @@ public class Navigator {
         finalZ = treasurePoint.getZ();
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.0f, 0.707f, 0.707f, 0.0f);
+        finalQuaternion = new Quaternion(0.0f, -0.707f, 0.707f, 0.0f);
 
         break;
 
@@ -291,7 +291,7 @@ public class Navigator {
         finalZ = (4.32 + 5.57) / 2;
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.0f, 0.707f, 0.707f, 0.0f);
+        finalQuaternion = new Quaternion(0.0f, -0.707f, 0.707f, 0.0f);
 
         break;
     }
