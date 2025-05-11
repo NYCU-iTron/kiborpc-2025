@@ -66,7 +66,7 @@ public class ItemDetector {
   private Map<Integer, String> idToLabelMap;
   private Map<ModelType, Interpreter> modelMap = new HashMap<>();
 
-  private static final float CONFIDENCE_THRESHOLD = 0.8F;
+  private static final float CONFIDENCE_THRESHOLD = 0.85F;
   private static final float IOU_THRESHOLD = 0.4F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
