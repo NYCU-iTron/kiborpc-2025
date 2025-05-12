@@ -106,7 +106,7 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
     
     // Detect item
-    itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
+    itemResults = itemDetector.detect(clippedImage);
     itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
     if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
 
@@ -125,7 +125,7 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(rawImage, "treasure_undistorted.png");
 
     // Detect item
-    List<float[]> itemResults = itemDetector.detect(undistortedImage, ItemDetector.ModelType.ENV);
+    List<float[]> itemResults = itemDetector.detect(undistortedImage);
     List<Item> itemList = itemDetector.filterResult(itemResults, areaId, new Pose());
     if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, itemResults, areaId);
 
