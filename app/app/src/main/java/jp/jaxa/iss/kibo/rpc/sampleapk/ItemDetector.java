@@ -64,18 +64,12 @@ public class ItemDetector {
 
   private Map<String, Integer> labelToIdMap;
   private Map<Integer, String> idToLabelMap;
-  private Map<ModelType, Interpreter> modelMap = new HashMap<>();
+  private Interpreter interpreter;
 
   private static final float CONFIDENCE_THRESHOLD = 0.85F;
   private static final float IOU_THRESHOLD = 0.4F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
-
-  public enum ModelType {
-    CLIPPED,
-    ENV,
-    MANUAL,
-  }
 
   /**
    * Constructor for ItemDetector.
@@ -93,8 +87,7 @@ public class ItemDetector {
 
     // Load yolo models
     try {
-      modelMap.put(ModelType.CLIPPED, loadInterpreter("best_clipped.tflite"));
-      modelMap.put(ModelType.ENV, loadInterpreter("best_env.tflite"));
+      interpreter = loadInterpreter("best_float32.tflite");
     } catch (IOException e) {
       Log.e(TAG, "Failed to setup interpreter", e);
     }
@@ -115,9 +108,7 @@ public class ItemDetector {
     Log.i(TAG, "Initialized");
   }
 
-  public List<float[]> detect(Mat image, ModelType modelType) {
-    Interpreter interpreter = modelMap.get(modelType);
-
+  public List<float[]> detect(Mat image) {
     if (interpreter == null) {
       Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
       return new ArrayList<>();
