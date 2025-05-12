@@ -20,7 +20,7 @@ matplotlib==3.10.1
 mdurl==0.1.2
 more-itertools==10.6.0
 nh3==0.2.21
-numpy==2.2.4
+numpy<2
 opencv-python==4.11.0.86
 packaging==24.2
 pillow==11.1.0
@@ -45,3 +45,14 @@ typing==3.7.4.3
 urllib3==2.3.0
 ushlex==0.99.1
 websocket-client==1.8.0
+ultralytics==8.3.131
+tensorflow
+tf_keras
+sng4onnx>=1.0.1
+onnx_graphsurgeon>=0.3.26
+ai-edge-litert>=1.2.0
+onnx>=1.12.0
+onnx2tf>=1.26.3
+onnxslim>=0.1.46
+onnxruntime
+protobuf>=5

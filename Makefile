@@ -18,3 +18,7 @@ doxygen:
 	fi
 	doxygen Doxyfile
 	xdg-open docs/doxygen/html/index.html
+
+# train yolo model
+train:
+	source venv/bin/activate && $(MAKE) -C pyproto/yolo-script all

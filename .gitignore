@@ -3,3 +3,6 @@ venv/
 assets/dataset/
 assets/item_template_images/
 docs/doxygen/
+runs/
+pyproto/yolo-script/yolo11n.pt
+*.npy
