@@ -64,7 +64,7 @@ public class ItemDetector {
 
   private Map<String, Integer> labelToIdMap;
   private Map<Integer, String> idToLabelMap;
-  private Interpreter interpreter;
+  private Interpreter interpreter = null;
 
   private static final float CONFIDENCE_THRESHOLD = 0.85F;
   private static final float IOU_THRESHOLD = 0.4F;
