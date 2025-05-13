@@ -14,10 +14,10 @@ model = YOLO(model = "yolo11n.pt")
 
 results = model.train(
     data = DATASET,
-    epochs = 100
+    epochs = 1
 )
 results = model.val(
     data = DATASET,
 )
 
-model.export(format = "tflite", int8=False, dynamic=False, nms=False)
+model.export(format = "tflite")
