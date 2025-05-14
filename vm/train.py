@@ -3,10 +3,13 @@ import os
 from pathlib import Path
 from data_generator import DataGenerator
 
-image_per_run = 10
+images_per_run = 10
+total_run = 5
+epoches_per_run = 2
+
 data_generator = DataGenerator()
 data_generator.generate_yaml()
-data_generator.generate_data(image_per_run)
+data_generator.generate_data(images_per_run)
 data_generator.split_data()
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +27,7 @@ model = YOLO(model = model_path)
 
 results = model.train(
   data=DATA_YAML,
-  epochs=2,
+  epochs=epoches_per_run,
   imgsz=640,
 )
 
@@ -32,15 +35,15 @@ results = model.val(
   data = DATA_YAML,
 )
 
-for i in range(5):
-  data_generator.generate_data(image_per_run)
+for i in range(total_run):
+  data_generator.generate_data(images_per_run)
   data_generator.split_data()
 
   model = YOLO(model_path)
 
   results = model.train(
     data=DATA_YAML,
-    epochs=1,
+    epochs=epoches_per_run,
     imgsz=640,
   )
 
