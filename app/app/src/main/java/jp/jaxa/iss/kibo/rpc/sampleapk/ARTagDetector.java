@@ -351,11 +351,16 @@ public class ARTagDetector {
     double[] corner2 = corner.get(0, 2);
     double[] corner3 = corner.get(0, 3);
 
+    double h0 = -4.4;
+    double h1 = 0.0;
+    double v0 = -0.5;
+    double v1 = 3.0;
+
     // Calculate the width and height of the rectangle
-    points[0] = new org.opencv.core.Point(-103 / 20 * (corner1[0] - corner0[0]) - 5 / 4 * (corner3[0] - corner0[0]) + corner0[0], -103 / 20 * (corner1[1] - corner0[1]) - 5 / 4 * (corner3[1] - corner0[1]) + corner0[1]);
-    points[1] = new org.opencv.core.Point(17 / 20 * (corner1[0] - corner0[0]) - 5 / 4 * (corner3[0] - corner0[0]) + corner0[0], 17 / 20 * (corner1[1] - corner0[1]) - 5 / 4 * (corner3[1] - corner0[1]) + corner0[1]);
-    points[2] = new org.opencv.core.Point(17 / 20 * (corner1[0] - corner0[0]) + 15 / 4 * (corner3[0] - corner0[0]) + corner0[0], 17 / 20 * (corner1[1] - corner0[1]) + 15 / 4 * (corner3[1] - corner0[1]) + corner0[1]);
-    points[3] = new org.opencv.core.Point(-103 / 20 * (corner1[0] - corner0[0]) + 15 / 4 * (corner3[0] - corner0[0]) + corner0[0], -103 / 20 * (corner1[1] - corner0[1]) + 15 / 4 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[0] = new org.opencv.core.Point(h0 * (corner1[0] - corner0[0]) + v0 * (corner3[0] - corner0[0]) + corner0[0], h0 * (corner1[1] - corner0[1]) + v0 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[1] = new org.opencv.core.Point(h1 * (corner1[0] - corner0[0]) + v0 * (corner3[0] - corner0[0]) + corner0[0], h1 * (corner1[1] - corner0[1]) + v0 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[2] = new org.opencv.core.Point(h1 * (corner1[0] - corner0[0]) + v1 * (corner3[0] - corner0[0]) + corner0[0], h1 * (corner1[1] - corner0[1]) + v1 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[3] = new org.opencv.core.Point(h0 * (corner1[0] - corner0[0]) + v1 * (corner3[0] - corner0[0]) + corner0[0], h0 * (corner1[1] - corner0[1]) + v1 * (corner3[1] - corner0[1]) + corner0[1]);
 
     double width = Math.sqrt(Math.pow(points[0].x - points[1].x, 2) + Math.pow(points[0].y - points[1].y, 2));
     double height = Math.sqrt(Math.pow(points[0].x - points[3].x, 2) + Math.pow(points[0].y - points[3].y, 2));

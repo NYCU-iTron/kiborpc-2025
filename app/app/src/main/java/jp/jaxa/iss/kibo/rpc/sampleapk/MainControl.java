@@ -53,61 +53,160 @@ public class MainControl {
      */
     public void method1() {
         api.startMission();
-        exploreAllAreas();
+
+        // Explore all areas
+        for(int areaId = 1; areaId <= 4; areaId++) {
+            handleSingleArea(areaId);
+        }
+
         Item treasureItem = meetAstronaut();
         findAndCaptureTreasure(treasureItem);
     }
 
-    /**
-     * @brief First part of the mission to explore all areas.
-     */
-    private void exploreAllAreas() {
-        for(int areaId = 1; areaId <= 4; areaId++) {
-            navigator.navigateToArea(areaId);
-            visionHandler.getCurrentPose(navigator.getCurrentPose());
-            List<Item> areaItems = visionHandler.inspectArea(areaId);
+    public void method2() {
+        api.startMission();
 
-            int retryMax = 5;
-            for (int retry = 1; retry <= retryMax - 1; retry++) {
-                Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
-                
-                if (containsLandmark(areaItems)) {
-                    // Treasure Item
-                    Item treasureItem = areaItems.get(0); 
-                    if (treasureItem.getItemId() / 10 == 1) {
-                        itemManager.storeTreasureInfo(treasureItem);
-                        Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
-                    } else {
-                        Log.w(TAG, "Area " + areaId + ": Treasure not found.");
-                    }
-                    
-                    // Landmark Item
-                    Item landmarkItem = areaItems.get(1);
-                    if (landmarkItem.getItemId() / 10 == 2) {
-                        itemManager.setAreaInfo(landmarkItem);
-                        Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName());
-                    } else {
-                        Log.w(TAG, "Area " + areaId + ": Landmark not found."); // Should never happen
-                    }
+        // Explore all areas
+        handleSingleArea(1);
+        handleCombinedArea();
+        handleSingleArea(4);
 
-                    break;
+        Item treasureItem = meetAstronaut();
+        findAndCaptureTreasure(treasureItem);
+    }
+
+    private void handleSingleArea(int areaId) {
+        navigator.navigateToArea(areaId);
+        visionHandler.getCurrentPose(navigator.getCurrentPose());
+        List<Item> areaItems = visionHandler.inspectArea(areaId);
+
+        int retryMax = 5;
+        for (int retry = 1; retry <= retryMax; retry++) {
+            Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
+            
+            if (containsLandmark(areaItems)) {
+                // Treasure Item
+                Item treasureItem = areaItems.get(0); 
+                if (treasureItem.getItemId() / 10 == 1) {
+                    itemManager.storeTreasureInfo(treasureItem);
+                    Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
                 } else {
-                    if (retry == retryMax - 1) {
-                        Log.w(TAG, "No landmark found, leaving to fate.");
-                        areaItems = visionHandler.guessResult(areaId);
-                    } else {
-                        Log.w(TAG, "No landmark found, pause system for a short time then retry.");
-                        
-                        try {
-                            Thread.sleep(200);
-                        } catch (InterruptedException e) {
-                            Log.w(TAG, "Fail to sleep thread" + e);
-                        }
+                    Log.w(TAG, "Area " + areaId + ": Treasure not found.");
+                }
+                
+                // Landmark Item
+                Item landmarkItem = areaItems.get(1);
+                if (landmarkItem.getItemId() / 10 == 2) {
+                    itemManager.setAreaInfo(landmarkItem);
+                    Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName());
+                } else {
+                    Log.w(TAG, "Area " + areaId + ": Landmark not found."); // Should never happen
+                }
 
-                        areaItems = visionHandler.inspectArea(areaId);
+                break;
+            } else {
+                if (retry == retryMax - 1) {
+                    Log.w(TAG, "No landmark found, leaving to fate.");
+                    areaItems = visionHandler.guessResult(areaId);
+                } else {
+                    Log.w(TAG, "No landmark found, pause system for a short time then retry.");
+                    
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "Fail to sleep thread" + e);
                     }
+
+                    areaItems = visionHandler.inspectArea(areaId);
                 }
             }
+        }
+    }
+
+    private void handleCombinedArea() {
+        navigator.navigateToArea(5);
+        visionHandler.getCurrentPose(navigator.getCurrentPose());
+        List<Item> area2Items = visionHandler.inspectArea(2);
+        List<Item> area3Items = visionHandler.inspectArea(3);
+        
+        boolean success2 = false;
+        boolean success3 = false;
+
+        int retryMax = 5;
+        for (int retry = 1; retry <= retryMax; retry++) {
+            Log.i(TAG, "Exploring area 2 and 3 together (try " + retry + ")");
+
+            // Check area 2 items
+            if (success2 == false && containsLandmark(area2Items)) {
+                // Treasure Item
+                Item treasureItem = area2Items.get(0);
+                if (treasureItem.getItemId() / 10 == 1) {
+                    itemManager.storeTreasureInfo(treasureItem);
+                    Log.i(TAG, "Area 2: Found treasure " + treasureItem.getItemName());
+                } else {
+                    Log.w(TAG, "Area 2: Treasure not found.");
+                }
+                
+                // Landmark Item
+                Item landmarkItem = area2Items.get(1);
+                if (landmarkItem.getItemId() / 10 == 2) {
+                    itemManager.setAreaInfo(landmarkItem);
+                    Log.i(TAG, "Area 2: Found landmark " + landmarkItem.getItemName());
+                } else {
+                    Log.w(TAG, "Area 2: Landmark not found."); // Should never happen
+                }
+
+                success2 = true;
+            }
+
+            // Check area 3 items
+            if (success3 == false && containsLandmark(area3Items)) {
+                // Treasure Item
+                Item treasureItem = area3Items.get(0); 
+                if (treasureItem.getItemId() / 10 == 1) {
+                    itemManager.storeTreasureInfo(treasureItem);
+                    Log.i(TAG, "Area 3: Found treasure " + treasureItem.getItemName());
+                } else {
+                    Log.w(TAG, "Area 3: Treasure not found.");
+                }
+                
+                // Landmark Item
+                Item landmarkItem = area3Items.get(1);
+                if (landmarkItem.getItemId() / 10 == 2) {
+                    itemManager.setAreaInfo(landmarkItem);
+                    Log.i(TAG, "Area 3: Found landmark " + landmarkItem.getItemName());
+                } else {
+                    Log.w(TAG, "Area 3: Landmark not found."); // Should never happen
+                }
+
+                success3 = true;               
+            }
+
+            if(success2 == true && success3 == true) {
+                break;
+            }
+
+            if(retry == retryMax) {
+                if(success2 == false) {
+                    handleSingleArea(2);
+                }
+                if(success3 == false) {
+                    handleSingleArea(3);
+                }
+            } else {
+                Log.w(TAG, "Exploration not completed, pause system for a short time then retry.");
+
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Log.w(TAG, "Fail to sleep thread" + e);
+                }
+            }
+
+            if(success2 == false)
+                area2Items = visionHandler.inspectArea(2);
+            if(success3 == false)
+                area3Items = visionHandler.inspectArea(3);
         }
     }
 
@@ -138,7 +237,7 @@ public class MainControl {
                     Log.w(TAG, "No treasure found, pause system for a short time then retry.");
                         
                     try {
-                        Thread.sleep(200);
+                        Thread.sleep(500);
                     } catch (InterruptedException e) {
                         Log.w(TAG, "Fail to sleep thread" + e);
                     }
