@@ -1,15 +1,8 @@
 from ultralytics import YOLO
 import os
 from pathlib import Path
-from data_generator import DataGenerator
 
-total_images = 20000
 epoches = 100
-
-data_generator = DataGenerator()
-data_generator.generate_yaml()
-data_generator.generate_data(total_images)
-data_generator.split_data()
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 dataset_dir = os.path.join(base_dir, 'dataset')
