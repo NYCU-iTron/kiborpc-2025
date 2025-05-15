@@ -87,7 +87,7 @@ public class ItemDetector {
 
     // Load yolo models
     try {
-      interpreter = loadInterpreter("best_float32.tflite");
+      interpreter = loadInterpreter("best_float16.tflite");
     } catch (IOException e) {
       Log.e(TAG, "Failed to setup interpreter", e);
     }

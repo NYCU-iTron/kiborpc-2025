@@ -20,4 +20,4 @@ results = model.val(
     data = DATASET,
 )
 
-model.export(format = "tflite")
+model.export(format = "tflite", half = True)
