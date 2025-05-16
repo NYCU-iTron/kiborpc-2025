@@ -16,7 +16,7 @@ sync-to-vm:
 	gcloud compute scp --recurse  $(CURDIR)/train.py alfonso@deeplearning-1-vm:/home/alfonso/vm/
 
 download-pt:
-	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/yolo11s.pt $(CURDIR)/
+	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/runs/detect/train/weights/best.pt $(CURDIR)/
 
 attach-tmux:
 	tmux attach -t 0
