@@ -9,8 +9,7 @@ import random
 class DataGenerator:
   def __init__(self):
     self.output_size = (640, 640)
-    self.total_image_count = 10
-  
+
     # Set the base directory to the directory of this script
     self.base_dir = os.path.dirname(os.path.abspath(__file__))
     print(f"Base directory: {self.base_dir}")
@@ -83,7 +82,7 @@ class DataGenerator:
     random.shuffle(image_files)
 
     # split 80% train, 20% val
-    split_idx = int(0.8 * len(image_files))
+    split_idx = int(0.9 * len(image_files))
     train_files = image_files[:split_idx]
     val_files = image_files[split_idx:]
 

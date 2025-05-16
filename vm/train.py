@@ -13,9 +13,9 @@ if not DATA_YAML.exists():
   print(f"Dataset YAML file not found at {DATA_YAML.resolve()}")
   exit(1)
 
-model_path = os.path.join(base_dir, "yolo11m.pt")
+model_path = os.path.join(base_dir, "yolo11s.pt")
 
-model = YOLO()
+model = YOLO(model_path)
 results = model.train(
   data=DATA_YAML,
   epochs=epoches,
