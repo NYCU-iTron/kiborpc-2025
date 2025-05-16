@@ -7,7 +7,7 @@ import numpy as np
 base_dir = Path(__file__).resolve().parent
 test_set_dir = (base_dir / '../assets/test_set').resolve()
 test_results_dir = (base_dir / '../assets/test_result').resolve()
-model_path = (base_dir / '../assets/test_model/best.pt').resolve()
+model_path = (base_dir / '../assets/test_model/s_15000_0516.pt').resolve()
 
 # 確保輸出資料夾存在
 test_results_dir.mkdir(parents=True, exist_ok=True)
@@ -27,7 +27,7 @@ for image_path in image_paths:
     continue
 
   # 推論
-  results = model.predict(source=img, conf=0.6, iou=0.45, verbose=False)
+  results = model.predict(source=img, conf=0.4, iou=0.45, verbose=False)
 
   # 繪製預測框
   for r in results:
