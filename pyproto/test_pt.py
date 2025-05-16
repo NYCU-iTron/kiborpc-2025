@@ -27,7 +27,7 @@ for image_path in image_paths:
     continue
 
   # 推論
-  results = model.predict(source=img, conf=0.8, iou=0.45, verbose=False)
+  results = model.predict(source=img, conf=0.6, iou=0.45, verbose=False)
 
   # 繪製預測框
   for r in results:
