@@ -3,3 +3,4 @@ venv/
 assets/dataset/
 assets/item_template_images/
 docs/doxygen/
+assets/test*
