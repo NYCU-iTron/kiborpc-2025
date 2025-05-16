@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
 import tflite_runtime.interpreter as tflite
 
 model = "../app/app/src/main/assets/best_clipped.tflite"
