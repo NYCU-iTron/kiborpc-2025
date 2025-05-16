@@ -10,7 +10,7 @@ test_set_dir = test_set_dir.resolve()
 test_results_dir = test_results_dir.resolve()
 
 # Load a model
-model = YOLO(base_dir / 'yolo11s.pt')
+model = YOLO(base_dir / 'best.pt')
 
 # Run batched inference on a list of images
 test_set = []
