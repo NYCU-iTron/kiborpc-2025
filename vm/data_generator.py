@@ -57,9 +57,9 @@ class DataGenerator:
     for i in range(1, total_image_count+1):
       r = random.random()
 
-      if r < 0.1:
+      if r < 0.2:
         max_overlap = 0.7
-      elif r > 0.1 and r < 0.5:
+      elif r > 0.2 and r < 0.5:
         max_overlap = 0.5
       else:
         max_overlap = 0.3
@@ -81,8 +81,7 @@ class DataGenerator:
     image_files = list(IMAGES_DIR.glob("*.*"))
     random.shuffle(image_files)
 
-    # split 80% train, 20% val
-    split_idx = int(0.9 * len(image_files))
+    split_idx = int(0.95 * len(image_files))
     train_files = image_files[:split_idx]
     val_files = image_files[split_idx:]
 
@@ -188,19 +187,54 @@ names:
     return rotated
 
   def generate_image(self, max_overlap=0.2, max_attempts=50):
-    # 1. 產生白色背景
-    background = np.ones((self.output_size[1], self.output_size[0], 3), dtype=np.uint8) * 255
+    h, w = self.output_size[1], self.output_size[0]
+    reserved_edge = {'top': 0, 'bottom': 0, 'left': 0}
 
-    # 2. 隨機選 1~4 個 item
-    available_items = len(self.items)
+    # 1. 建立白底背景
+    background = np.ones((h, w, 3), dtype=np.uint8) * 255
 
-    num_items = min(random.randint(3, 7), available_items)
-    item_pool = self.items * 5  # 提高重複 item 機率
-    selected_items = random.choices(item_pool, k=num_items)
+    # 2. 加入邊界干擾區塊
+    for side in ['top', 'bottom', 'left']:
+      if random.random() > 0.7:
+        continue
 
-    placed_objects = []  # 以順序存放成功放置的物件資訊
-    overlap_counts = np.zeros((self.output_size[1], self.output_size[0]), dtype=np.uint8)  # 追蹤重疊次數
-    final_objects = []  # 儲存最終的物件資訊（用於標籤）
+      thickness = random.randint(5, 25)
+      reserved_edge[side] = thickness
+      patch = np.full((h, w, 3), np.random.randint(160, 220), dtype=np.uint8)
+
+      for _ in range(random.randint(5, 25)):
+        rect_color = np.random.randint(40, 160)
+        color = (rect_color,) * 3
+        rh, rw = random.randint(10, 50), random.randint(10, 50)
+
+        if side == 'top':
+          rh = min(rh, thickness - 1)
+          ry = random.randint(0, thickness - rh)
+          rx = random.randint(0, w - rw)
+        elif side == 'bottom':
+          rh = min(rh, thickness - 1)
+          ry = random.randint(h - thickness, h - rh)
+          rx = random.randint(0, w - rw)
+        elif side == 'left':
+          rw = min(rw, thickness - 1)
+          ry = random.randint(0, h - rh)
+          rx = random.randint(0, thickness - rw)
+
+        patch[ry:ry+rh, rx:rx+rw] = color
+
+      if side == 'top':
+        background[:thickness] = patch[:thickness]
+      elif side == 'bottom':
+        background[-thickness:] = patch[-thickness:]
+      elif side == 'left':
+        background[:, :thickness] = patch[:, :thickness]
+
+    # 3. 放置隨機圖案物件
+    placed_objects = []
+    final_objects = []
+    overlap_counts = np.zeros((h, w), dtype=np.uint8)
+    num_items = min(random.randint(4, 7), len(self.items))
+    selected_items = random.choices(self.items * 5, k=num_items) # 提高重複 item 機率
 
     for class_name, item_img in selected_items:
       # 隨機縮放
@@ -218,180 +252,85 @@ names:
       rotated = self.rotate_image(resized, angle)
       rotated_height, rotated_width = rotated.shape[:2]
 
-      # 模糊 item
-      item_blur_kernel = random.choice([3, 5, 7, 13, 15])
-      rotated[:, :, :3] = cv2.GaussianBlur(rotated[:, :, :3], (item_blur_kernel, item_blur_kernel), 0)
+      rotated[:, :, :3] = cv2.GaussianBlur(rotated[:, :, :3], (random.choice([3, 5, 7, 13, 15]),) * 2, 0)
 
-      # 取得當前物件的實際遮罩（忽略完全透明的區域）
+      # 取得當前物件的實際遮罩（忽略完全透明的區域）   
       alpha_mask = rotated[:, :, 3] > 0
-      
+
       # 隨機位置嘗試
       attempt = 0
       while attempt < max_attempts:
-        x = random.randint(0, self.output_size[0] - rotated_width)
-        y = random.randint(0, self.output_size[1] - rotated_height)
-        
-        if (x < 0 or y < 0 or x + rotated_width > self.output_size[0] or y + rotated_height > self.output_size[1]):
-          attempt += 1
-          continue
+        x_min = reserved_edge['left']
+        y_min = reserved_edge['top']
+        x_max = w - rotated_width
+        y_max = h - reserved_edge['bottom'] - rotated_height
+        if x_max <= x_min or y_max <= y_min:
+          break  # 沒空間了
 
-        # 使用邊界框計算
+        x = random.randint(x_min, x_max)
+        y = random.randint(y_min, y_max)
         current_bbox = [x, y, x + rotated_width, y + rotated_height]
-        current_img = rotated
-        current_mask = alpha_mask
-        
-        # 檢查重疊次數限制
+
         temp_overlap = overlap_counts.copy()
         temp_overlap[y:y+rotated_height, x:x+rotated_width][alpha_mask] += 1
-        
-        if np.any(temp_overlap > 4):      
+        if np.any(temp_overlap > 4):
           attempt += 1
           continue
-        
-        # 檢查與已放置物件的邊界框重疊情況
+
         placement_valid = True
         for placed_obj in placed_objects:
-          placed_bbox = placed_obj['bbox']
-          
-          # 計算邊界框交集
-          inter_x1 = max(current_bbox[0], placed_bbox[0])
-          inter_y1 = max(current_bbox[1], placed_bbox[1])
-          inter_x2 = min(current_bbox[2], placed_bbox[2])
-          inter_y2 = min(current_bbox[3], placed_bbox[3])
-          
-          # 如果沒有交集，繼續檢查下一個物件
-          if inter_x2 <= inter_x1 or inter_y2 <= inter_y1:
-            continue
-          
-          # 計算交集面積
-          intersection_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
-          
-          # 計算兩個邊界框的面積
-          bbox1_area = (current_bbox[2] - current_bbox[0]) * (current_bbox[3] - current_bbox[1])
-          bbox2_area = (placed_bbox[2] - placed_bbox[0]) * (placed_bbox[3] - placed_bbox[1])
-          
-          # 計算重疊率
-          overlap_ratio1 = intersection_area / bbox1_area
-          overlap_ratio2 = intersection_area / bbox2_area
-          
-          # 如果任一重疊率超過閾值，且 max_overlap > 0.4，執行裁切
-          if (overlap_ratio1 > max_overlap or overlap_ratio2 > max_overlap) and max_overlap > 0.4:
-            # 裁切邏輯：縮減當前邊界框以減少重疊
-            crop_success = False
-            min_size = min(rotated_width, rotated_height) * 0.5  # 最小尺寸限制
-            
-            # 計算裁切後的邊界框（優先裁切右邊或下邊）
-            crop_x1 = inter_x1 if inter_x1 > current_bbox[0] else current_bbox[0]
-            crop_y1 = inter_y1 if inter_y1 > current_bbox[1] else current_bbox[1]
-            crop_x2 = inter_x2 if inter_x2 < current_bbox[2] else current_bbox[2]
-            crop_y2 = inter_y2 if inter_y2 < current_bbox[3] else current_bbox[3]
-            
-            # 嘗試裁切右邊或下邊
-            if (crop_x2 - current_bbox[0]) >= min_size:
-              crop_x2 = max(current_bbox[0], inter_x1 - 1)  # 裁切到交集左邊
-            elif (crop_y2 - current_bbox[1]) >= min_size:
-              crop_y2 = max(current_bbox[1], inter_y1 - 1)  # 裁切到交集上邊
-            else:
+          pb = placed_obj['bbox']
+          inter_x1 = max(current_bbox[0], pb[0])
+          inter_y1 = max(current_bbox[1], pb[1])
+          inter_x2 = min(current_bbox[2], pb[2])
+          inter_y2 = min(current_bbox[3], pb[3])
+
+          if inter_x2 > inter_x1 and inter_y2 > inter_y1:
+            intersection_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+            area1 = (current_bbox[2] - current_bbox[0]) * (current_bbox[3] - current_bbox[1])
+            area2 = (pb[2] - pb[0]) * (pb[3] - pb[1])
+            if intersection_area / area1 > max_overlap or intersection_area / area2 > max_overlap:
               placement_valid = False
               break
-            
-            # 更新裁切後的圖像和遮罩
-            crop_width = crop_x2 - current_bbox[0]
-            crop_height = crop_y2 - current_bbox[1]
 
-            if crop_width > 0 and crop_height > 0:
-              crop_x_offset = current_bbox[0] - x
-              crop_y_offset = current_bbox[1] - y
-              current_img = current_img[crop_y_offset:crop_y_offset+crop_height, crop_x_offset:crop_x_offset+crop_width]
-              current_mask = current_mask[crop_y_offset:crop_y_offset+crop_height, crop_x_offset:crop_x_offset+crop_width]
-              current_bbox = [x, y, x + crop_width, y + crop_height]
-              crop_success = True
-            
-            if not crop_success:
-              placement_valid = False
-              break
-            
-            # 重新計算重疊比例
-            bbox1_area = (current_bbox[2] - current_bbox[0]) * (current_bbox[3] - current_bbox[1])
-            overlap_ratio1 = intersection_area / bbox1_area if bbox1_area > 0 else 1.0
-            if overlap_ratio1 > max_overlap:
-              placement_valid = False
-              break
-    
-          elif overlap_ratio1 > max_overlap or overlap_ratio2 > max_overlap:
-            placement_valid = False
-            break
-      
-        if placement_valid:
-          # 更新重疊計數圖
-          overlap_counts[y:y+current_img.shape[0], x:x+current_img.shape[1]][current_mask] += 1
-          
-          # 貼 item 到背景
-          for c in range(3):
-            background[y:y+current_img.shape[0], x:x+current_img.shape[1], c][current_mask] = current_img[:, :, c][current_mask]
-          
-          # 儲存物件資訊到 placed_objects
-          placed_objects.append({
-            'class_id': self.class_to_id[class_name],
-            'bbox': tuple(current_bbox),
-            'mask': current_mask,
-            'x': x,
-            'y': y,
-            'width': current_img.shape[1],
-            'height': current_img.shape[0]
-          })
-          
-          # 將邊界框加入 final_objects 用於標籤
-          final_objects.append({
-            'class_id': self.class_to_id[class_name],
-            'bbox': tuple(current_bbox)
-          })
-          
-          break
-        
-        attempt += 1
+        if not placement_valid:
+          attempt += 1
+          continue
 
-        if attempt >= max_attempts:
-          print(f"跳過 {class_name}（嘗試超過 {max_attempts} 次）")
-          break
+        overlap_counts[y:y+rotated_height, x:x+rotated_width][alpha_mask] += 1
+        for c in range(3):
+          background[y:y+rotated_height, x:x+rotated_width, c][alpha_mask] = rotated[:, :, c][alpha_mask]
 
-    # 3. 整張圖做高斯模糊、灰階、暗角
-    blur_kernel = random.choice([9, 15, 17, 21, 25])
-    bg_blur = cv2.GaussianBlur(background, (blur_kernel, blur_kernel), 0)
+        placed_objects.append({'class_id': self.class_to_id[class_name], 'bbox': tuple(current_bbox)})
+        final_objects.append({'class_id': self.class_to_id[class_name], 'bbox': tuple(current_bbox)})
+        break
+      else:
+        print(f"跳過 {class_name}（嘗試超過 {max_attempts} 次）")
+
+    # 4. 整張背景處理：模糊、灰階、暗角
+    bg_blur = cv2.GaussianBlur(background, (random.choice([9, 15, 17, 21, 25]),) * 2, 0)
     gray = cv2.cvtColor(bg_blur, cv2.COLOR_RGB2GRAY)
     bg_gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    # vignette
-    rows, cols = bg_gray.shape[:2]
-    X_resultant_kernel = cv2.getGaussianKernel(cols, int(cols*0.8))
-    Y_resultant_kernel = cv2.getGaussianKernel(rows, int(rows*0.8))
-    vignette_mask = Y_resultant_kernel * X_resultant_kernel.T
-    vignette_mask = vignette_mask / vignette_mask.max()
-    vignette_mask = 0.5 + 0.5 * vignette_mask  # 讓中心和角落差異更小
+    X_kernel = cv2.getGaussianKernel(w, int(w * 0.8))
+    Y_kernel = cv2.getGaussianKernel(h, int(h * 0.8))
+    vignette = (Y_kernel @ X_kernel.T)
+    vignette = 0.5 + 0.5 * vignette / vignette.max()
 
     for i in range(3):
-      bg_gray[:, :, i] = bg_gray[:, :, i] * vignette_mask
+      bg_gray[:, :, i] = bg_gray[:, :, i] * vignette
 
-    # 整體降低亮度
     background = np.clip(bg_gray * 0.7, 0, 255).astype(np.uint8)
-
-    # 加入隨機燥點
     noise = np.random.normal(0, 4, background.shape).astype(np.int16)
     background = np.clip(background.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 
-    # 產生標註
+    # 5. 建立標註
     annotations = []
     for obj in final_objects:
       x1, y1, x2, y2 = obj['bbox']
-      x_center = (x1 + x2) / 2
-      y_center = (y1 + y2) / 2
-      width = x2 - x1
-      height = y2 - y1
-      x_center = x_center / self.output_size[0]
-      y_center = y_center / self.output_size[1]
-      width = width / self.output_size[0]
-      height = height / self.output_size[1]
-      annotations.append(f"{obj['class_id']} {x_center} {y_center} {width} {height}")
+      xc, yc = (x1 + x2) / 2, (y1 + y2) / 2
+      w_, h_ = x2 - x1, y2 - y1
+      annotations.append(f"{obj['class_id']} {xc/w:.6f} {yc/h:.6f} {w_/w:.6f} {h_/h:.6f}")
 
     return background, annotations
 
