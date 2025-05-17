@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import os
 from pathlib import Path
 
-epoches = 100
+epoches = 120
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 dataset_dir = os.path.join(base_dir, 'dataset')
@@ -13,7 +13,7 @@ if not DATA_YAML.exists():
   print(f"Dataset YAML file not found at {DATA_YAML.resolve()}")
   exit(1)
 
-model_path = os.path.join(base_dir, "yolo11s.pt")
+model_path = os.path.join(base_dir, "yolo11n.pt")
 
 model = YOLO(model_path)
 results = model.train(
