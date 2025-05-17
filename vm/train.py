@@ -23,5 +23,6 @@ results = model.train(
   batch=-1,
   device=0,
   plots=True,
+  patience=30,
 )
 model.save(model_path)
