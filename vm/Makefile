@@ -19,7 +19,7 @@ download-pt:
 	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/runs/detect/train/weights/best.pt $(CURDIR)/
 
 download-all:
-	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/runs/detect/ $(CURDIR)/runs/detect --recurse
+	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/runs/detect/ $(CURDIR)/ --recurse
 
 attach-tmux:
 	tmux attach -t 0
