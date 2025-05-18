@@ -1,0 +1,11 @@
+crystal
+diamond
+emerald
+coin
+compass
+coral
+fossil
+key
+letter
+shell
+treasure_box
