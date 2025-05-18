@@ -8,6 +8,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.Log;
+import android.content.res.AssetFileDescriptor;
 
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
@@ -20,7 +21,11 @@ import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.FileInputStream;
+import java.io.File;
 import java.nio.MappedByteBuffer;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -64,10 +69,10 @@ public class ItemDetector {
 
   private Map<String, Integer> labelToIdMap;
   private Map<Integer, String> idToLabelMap;
-  private Map<ModelType, Interpreter> modelMap = new HashMap<>();
+  private Map<ModelType, Interpreter> modelMap;
 
-  private static final float CONFIDENCE_THRESHOLD = 0.85F;
-  private static final float IOU_THRESHOLD = 0.4F;
+  private static final float CONFIDENCE_THRESHOLD = 0.7F;
+  private static final float IOU_THRESHOLD = 0.7F;
   private static final float INPUT_MEAN = 0.0F;
   private static final float INPUT_STANDARD_DEVIATION = 255.0F;
 
@@ -75,6 +80,7 @@ public class ItemDetector {
     CLIPPED,
     ENV,
     MANUAL,
+    s_15000_0516,
   }
 
   /**
@@ -91,12 +97,21 @@ public class ItemDetector {
     initItemMappings();  // Initialize mappings between item id and name
     rand = new Random(); // Create a random generator
 
-    // Load yolo models
-    try {
-      modelMap.put(ModelType.CLIPPED, loadInterpreter("best_clipped.tflite"));
-      modelMap.put(ModelType.ENV, loadInterpreter("best_env.tflite"));
-    } catch (IOException e) {
-      Log.e(TAG, "Failed to setup interpreter", e);
+    // Load Yolo models
+    modelMap = new HashMap<>();
+    
+    Interpreter clippedModel = loadInterpreter("best_clipped.tflite");
+    if (clippedModel != null) {
+      modelMap.put(ModelType.CLIPPED, clippedModel);
+    } else {
+      Log.e(TAG, "Failed to load CLIPPED model");
+    }
+
+    Interpreter sModel = loadInterpreter("s_15000_0516.tflite");
+    if (sModel != null) {
+      modelMap.put(ModelType.s_15000_0516, sModel);
+    } else {
+      Log.e(TAG, "Failed to load s_15000_0516 model");
     }
 
     // Load labels
@@ -332,44 +347,64 @@ public class ItemDetector {
     labelToIdMap.put("shell"       , 27);
     labelToIdMap.put("treasure_box", 28);
   }
+  
+  private Interpreter loadInterpreter(String model_path) {
+    Log.i(TAG, "Loading interpreter for " + model_path);
+    FileInputStream inputStream = null;
+    FileChannel fileChannel = null;
 
-  /**
-   * Loads the TensorFlow Lite model and label file, and initializes interpreter settings.
-   *
-   * @throws IOException if the model or label files cannot be loaded.
-   */
-  private Interpreter loadInterpreter(String model_path) throws IOException {
-    Log.i(TAG, "Load interpreter " + model_path);
+    try {
+      // Load the model file from assets
+      AssetFileDescriptor fileDescriptor = context.getAssets().openFd(model_path);
+      inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
+      fileChannel = inputStream.getChannel();
+      
+      long startOffset = fileDescriptor.getStartOffset();
+      long declaredLength = fileDescriptor.getDeclaredLength();
+      Log.i(TAG, "Model size: " + declaredLength / 1024.0 / 1024.0 + " MB");
 
-    // Load the TFLite model from assets
-    InputStream inputStream = context.getAssets().open(model_path);
-    ByteBuffer model = ByteBuffer.allocateDirect(inputStream.available());
-    byte[] buffer = new byte[inputStream.available()];
-    inputStream.read(buffer);
-    model.put(buffer);
-    model.rewind();
+      MappedByteBuffer model = fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength);
+      Interpreter.Options options = new Interpreter.Options();
+      options.setNumThreads(2);
 
-    // Create interpreter options and set number of threads
-    Interpreter.Options options = new Interpreter.Options();
-    options.setNumThreads(4);
+      Interpreter interpreter = new Interpreter(model, options);
 
-    // Initialize the TFLite interpreter with the model
-    Interpreter interpreter = new Interpreter(model, options);
+      int[] inputShape = interpreter.getInputTensor(0).shape();
+      int[] outputShape = interpreter.getOutputTensor(0).shape();
 
-    // Get input and output tensor shapes
-    int[] inputShape = interpreter.getInputTensor(0).shape();
-    int[] outputShape = interpreter.getOutputTensor(0).shape();
+      tensorWidth = inputShape[1];
+      tensorHeight = inputShape[2];
+      numChannel = outputShape[1];
+      numElements = outputShape[2];
 
-    tensorWidth = inputShape[1];
-    tensorHeight = inputShape[2];
-    numChannel = outputShape[1];
-    numElements = outputShape[2];
+      return interpreter;
+    } catch (IOException e) {
+      Log.e(TAG, "Failed to load model: " + e.getMessage(), e);
+      return null;
+    } catch (OutOfMemoryError e) {
+      Log.e(TAG, "Out of memory when loading model " + model_path, e);
+      System.gc();
+      return null;
+    } catch (Exception e) {
+      Log.e(TAG, "Unexpected error when loading model " + model_path + ": " + e.getMessage(), e);
+      return null;
+    } finally {
+      if (fileChannel != null) {
+        try {
+          fileChannel.close();
+        } catch (IOException e) {
+          Log.e(TAG, "Error closing file channel", e);
+        }
+      }
 
-    Log.i(TAG, "Input shape: " + Arrays.toString(inputShape));
-    Log.i(TAG, "Output shape: " + Arrays.toString(outputShape));
-    Log.i(TAG, "numChannel: " + numChannel + ", numElements: " + numElements);
-
-    return interpreter;
+      if (inputStream != null) {
+        try {
+          inputStream.close();
+        } catch (IOException e) {
+          Log.e(TAG, "Error closing input stream", e);
+        }
+      }
+    }
   }
 
   /**
