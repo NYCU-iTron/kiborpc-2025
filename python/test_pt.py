@@ -27,7 +27,7 @@ for image_path in image_paths:
     continue
 
   # 推論
-  results = model.predict(source=img, conf=0.4, iou=0.45, verbose=False)
+  results = model.predict(source=img, conf=0.4, iou=0.7, verbose=False)
 
   # 繪製預測框
   for r in results:
@@ -37,6 +37,8 @@ for image_path in image_paths:
       conf = float(box.conf)
       color = color_palette[cls_id]
       label = f"{model.names[cls_id]} {conf:.2f}"
+
+      print(f"檢測到：{label}, Confidence: {conf:.2f}")
 
       # 繪圖
       cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
