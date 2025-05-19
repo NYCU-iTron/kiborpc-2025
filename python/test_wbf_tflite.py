@@ -3,8 +3,17 @@ import numpy as np
 import tflite_runtime.interpreter as tflite
 from pathlib import Path
 
+class Detection:
+  def __init__(self, box, score, class_id, class_name, model_name=None, model_weight=1.0):
+    self.box = box
+    self.score = score
+    self.class_id = class_id
+    self.class_name = class_name
+    self.model_name = model_name
+    self.model_weight = model_weight
+
 class Interpreter:
-  def __init__(self, model_name):
+  def __init__(self, model_name, model_weight=1.0):
     """
     Load TFLite model and allocate tensors.
     """
@@ -14,7 +23,9 @@ class Interpreter:
     model_path = (assets_dir / model_name).resolve()
     if not model_path.exists():
       raise FileNotFoundError(f"Model file not found: {model_path}")
+    
     self.model_name = model_name
+    self.model_weight = model_weight
     
     # Load the TFLite model
     self.interpreter = tflite.Interpreter(str(model_path))
@@ -84,15 +95,14 @@ class Interpreter:
         cls_scores = scores[idx]
         
         for box, score in zip(cls_boxes, cls_scores):
-          detections.append({
-            "box": box.tolist(),
-            "score": float(score),
-            "class_id": int(cls),
-            "model_name": self.model_name,
-          })
-          class_name = self.labels[int(cls)]
-          print(f"Model {self.model_name}, Class {class_name}, Score: {score}")
-      
+          detection = Detection(box=box.tolist(),
+                                score=float(score),
+                                model_weight=self.model_weight,
+                                class_id=int(cls),
+                                class_name=self.labels[int(cls)],
+                                model_name=self.model_name)
+          detections.append(detection)
+
     return detections
 
   # ------------------------------ Tool functions ------------------------------ #
@@ -115,40 +125,12 @@ class Interpreter:
     pad = (top / img.shape[0], left / img.shape[1])
 
     return img, pad
-
-np.random.seed(42)
-color_palette = np.random.uniform(128, 255, size=(11, 3))
-
-# Configuration
-conf_threshold = 0.75
-iou_threshold = 0.7
-image_path = "../assets/test_set/13.png"
-
-# Load labels
-base_dir = Path(__file__).resolve().parent
-assets_dir = (base_dir / '../app/app/src/main/assets').resolve()
-labels_path = (assets_dir / "labels_v2.txt").resolve()
-if not labels_path.exists():
-  raise FileNotFoundError(f"Labels file not found: {labels_path}")
-with open(labels_path, "r", encoding="utf-8") as f:
-  labels = {i: line.strip() for i, line in enumerate(f.readlines())}
-
-# Interpreter
-interpreter = Interpreter("s_15000_0516.tflite")
-
-# Load image
-orig_img = cv2.imread(image_path)
-if orig_img is None:
-  raise FileNotFoundError(f"Image file not found: {image_path}")
-
-# Detect
-detections = interpreter.detect(orig_img)
-
-all_detections = []
-all_detections.extend(detections)
-
+  
+# ------------------------------ WBF functions ------------------------------ #
 def compute_iou(box1, box2):
-  """Compute IoU between two boxes: [x1, y1, x2, y2]"""
+  """
+  Compute IoU between two boxes: [x1, y1, x2, y2]
+  """
   x1 = max(box1[0], box2[0])
   y1 = max(box1[1], box2[1])
   x2 = min(box1[2], box2[2])
@@ -160,41 +142,53 @@ def compute_iou(box1, box2):
   union = area1 + area2 - inter_area
   return inter_area / union if union != 0 else 0
 
-def weighted_fusion(boxes, scores):
-  """Fuse overlapping boxes using score-weighted average"""
-  fused = []
-  used = [False] * len(boxes)
+def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
+  # Arrange detections by score in descending order
+  detections.sort(key=lambda x: x.score, reverse=True)
 
-  for i, box1 in enumerate(boxes):
+  fused = []
+  used = [False] * len(detections)
+  for i in range(len(detections)):
     if used[i]:
       continue
-    group = [(box1, scores[i])]
+
+    group = [detections[i]]
     used[i] = True
 
-    for j in range(i + 1, len(boxes)):
+    for j in range(i + 1, len(detections)):
       if used[j]:
         continue
-      iou = compute_iou(box1, boxes[j])
+
+      iou = compute_iou(detections[i].box, detections[j].box)
       if iou > iou_threshold:
-        group.append((boxes[j], scores[j]))
+        group.append(detections[j])
         used[j] = True
 
-    # Compute weighted average
-    total_score = sum(score for _, score in group)
-    x1 = sum(b[0] * s for b, s in group) / total_score
-    y1 = sum(b[1] * s for b, s in group) / total_score
-    x2 = sum(b[2] * s for b, s in group) / total_score
-    y2 = sum(b[3] * s for b, s in group) / total_score
-    w = abs(x2 - x1)
-    h = abs(y2 - y1)
-    if w > 0 and h > 0:
-      x1 = min(x1, x2)
-      y1 = min(y1, y2)
-      fused.append(([x1, y1, w, h], total_score / len(group)))
+    # Compute box
+    total_score = sum(detection.score * detection.model_weight for detection in group)
+    avg_score = sum(detection.score for detection in group) / sum(detection.model_weight for detection in group)
+    
+    if total_score < conf_threshold:
+      continue
+
+    x1 = sum(detection.box[0] * detection.score for detection in group) / total_score
+    y1 = sum(detection.box[1] * detection.score for detection in group) / total_score
+    x2 = sum(detection.box[2] * detection.score for detection in group) / total_score
+    y2 = sum(detection.box[3] * detection.score for detection in group) / total_score
+    w, h = abs(x2 - x1), abs(y2 - y1)
+    x1, y1= min(x1, x2), min(y1, y2)
+    box = [x1, y1, w, h]
+
+    # Compute class id and name
+    group.sort(key=lambda x: x.score * x.model_weight, reverse=True)
+    detection = Detection(box=box, score=avg_score, 
+                          class_id=group[0].class_id, 
+                          class_name=group[0].class_name, 
+                          model_name=group[0].model_name)
+    fused.append(detection)
 
   return fused
 
-# Draw detections
 def draw_detections(img, box, score, class_id):
   x1, y1, w, h = box
   color = color_palette[class_id]
@@ -205,25 +199,49 @@ def draw_detections(img, box, score, class_id):
   # cv2.rectangle(img, (int(label_x), int(label_y - label_height)), (int(label_x + label_width), int(label_y + label_height)), color, cv2.FILLED)
   # cv2.putText(img, label, (int(label_x), int(label_y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
-def wbf(all_detections):
-  final_results = []
-  for cls in np.unique([det["class_id"] for det in all_detections]):
-    cls_dets = [det for det in all_detections if det["class_id"] == cls]
-    boxes = [det["box"] for det in cls_dets]
-    scores = [det["score"] for det in cls_dets]
-    fused = weighted_fusion(boxes, scores)
-    final_results.extend([(box, score, cls) for box, score in fused])
-  return final_results
+np.random.seed(42)
+color_palette = np.random.uniform(128, 255, size=(11, 3))
 
-final_result = wbf(all_detections)
+# Configuration
+image_path = "../assets/test_set/7.png"
+
+# Load labels
+base_dir = Path(__file__).resolve().parent
+assets_dir = (base_dir / '../app/app/src/main/assets').resolve()
+labels_path = (assets_dir / "labels_v2.txt").resolve()
+if not labels_path.exists():
+  raise FileNotFoundError(f"Labels file not found: {labels_path}")
+with open(labels_path, "r", encoding="utf-8") as f:
+  labels = {i: line.strip() for i, line in enumerate(f.readlines())}
+
+# Interpreter
+interpreter_0516 = Interpreter("s_15000_0516.tflite")
+interpreter_0519 = Interpreter("n_20000_0519.tflite")
+
+# Load image
+orig_img = cv2.imread(image_path)
+if orig_img is None:
+  raise FileNotFoundError(f"Image file not found: {image_path}")
+
+# Detect
+detections_0516 = interpreter_0516.detect(orig_img)
+detections_0519 = interpreter_0519.detect(orig_img)
+
+# Process detections
+all_detections = []
+all_detections.extend(detections_0516)
+all_detections.extend(detections_0519)
+
+final_detections = wbf(all_detections)
+
 print("Final results after WBF:")
-for box, score, cls in final_result:
-  print(f"Class {labels[int(cls)]}, Score: {score}")
+for detection in final_detections:
+  print(f"Class {labels[int(detection.class_id)]}, Score: {detection.score}")
 
 # Debug with OpenCV
 detected_img = orig_img.copy()
-for box, score, cls in final_result:
-  draw_detections(detected_img, box, score, cls)
+for detection in final_detections:
+  draw_detections(detected_img, detection.box, detection.score, detection.class_id)
   
 cv2.imshow("Output", detected_img)
 cv2.waitKey(0)
