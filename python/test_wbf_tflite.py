@@ -142,6 +142,23 @@ def compute_iou(box1, box2):
   union = area1 + area2 - inter_area
   return inter_area / union if union != 0 else 0
 
+def is_contained(inner, outer, threshold=0.9):
+  xi, yi, wi, hi = inner
+  xo, yo, wo, ho = outer
+
+  xi2, yi2 = xi + wi, yi + hi
+  xo2, yo2 = xo + wo, yo + ho
+
+  inter_x1 = max(xi, xo)
+  inter_y1 = max(yi, yo)
+  inter_x2 = min(xi2, xo2)
+  inter_y2 = min(yi2, yo2)
+
+  inter_area = max(0, inter_x2 - inter_x1) * max(0, inter_y2 - inter_y1)
+  inner_area = wi * hi
+
+  return (inter_area / inner_area) > threshold
+
 def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
   # Arrange detections by score in descending order
   detections.sort(key=lambda x: x.score, reverse=True)
@@ -160,7 +177,8 @@ def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
         continue
 
       iou = compute_iou(detections[i].box, detections[j].box)
-      if iou > iou_threshold:
+      contained = is_contained(detections[j].box, detections[i].box)
+      if iou > iou_threshold or contained:
         group.append(detections[j])
         used[j] = True
 
@@ -181,11 +199,14 @@ def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
 
     # Compute class id and name
     group.sort(key=lambda x: x.score * x.model_weight, reverse=True)
-    detection = Detection(box=box, score=avg_score, 
-                          class_id=group[0].class_id, 
-                          class_name=group[0].class_name, 
+    detection = Detection(box=box, score=avg_score,
+                          class_id=group[0].class_id,
+                          class_name=group[0].class_name,
                           model_name=group[0].model_name)
     fused.append(detection)
+  
+  # Remove too small boxes
+  fused = [detection for detection in fused if detection.box[2] > 10 and detection.box[3] > 10]
 
   return fused
 
@@ -245,4 +266,4 @@ for detection in final_detections:
   
 cv2.imshow("Output", detected_img)
 cv2.waitKey(0)
-cv2.destroyAllWindows() 
+cv2.destroyAllWindows()
