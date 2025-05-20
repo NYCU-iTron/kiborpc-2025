@@ -9,6 +9,9 @@ import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 
 
+/**
+ * Class to handle the camera tasks of the robot.
+ */
 public class CameraHandler {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();

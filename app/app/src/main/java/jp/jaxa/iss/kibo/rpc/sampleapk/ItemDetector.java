@@ -63,6 +63,9 @@ public class ItemDetector {
   private ImageProcessor imageProcessor;
   private Random rand;
 
+  /**
+   * Enum representing the model types available for detection.
+   */
   public enum ModelType {
     s_15000_0516,
     n_20000_0519,
@@ -100,6 +103,11 @@ public class ItemDetector {
     }
   }
 
+  /**
+   * Class representing an interpreter wrapper for the TensorFlow Lite model.
+   * It contains the model, labels, and configuration parameters such as model weight and confidence threshold.
+   * The model weight is set to 1.0 by default, and the confidence threshold is set to 0.4.
+   */
   private class InterpreterWrapper {
     private final String TAG = this.getClass().getSimpleName();
     private Interpreter interpreter;
@@ -192,6 +200,9 @@ public class ItemDetector {
 
   /**
    * Detect using multiple models with revised weighted box fusion method
+   * 
+   * @param image The input image to be processed.
+   * @return A list of Detection objects.
    */
   public List<Detection> detect(Mat image) {
     List<Detection> detectionAll = new ArrayList<>();
@@ -226,6 +237,13 @@ public class ItemDetector {
     return results;
   }
 
+  /**
+   * Detect using a specific model type.
+   * 
+   * @param image The input image to be processed.
+   * @param modelType The type of model to be used for detection.
+   * @return A list of Detection objects.
+   */
   public List<Detection> detect(Mat image, ModelType modelType) {
     // Initialize wrapper
     InterpreterWrapper interpreterWrapper = new InterpreterWrapper(modelType);
@@ -254,7 +272,7 @@ public class ItemDetector {
   /**
    * Filters the detection results to identify the treasure and landmark items with the highest confidence.
    *
-   * @param detectResult A list of detection results, each containing item details and confidence.
+   * @param detectionList List of detected items.
    * @param areaId       The area identifier where the detection occurred.
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
@@ -503,6 +521,14 @@ public class ItemDetector {
     return imageBuffer;
   }
 
+  /**
+   * Resizes the input image to fit the model input size while maintaining the aspect ratio.
+   * 
+   * @param src The source Bitmap image.
+   * @param targetWidth The target width for the resized image.
+   * @param targetHeight The target height for the resized image.
+   * @return A letterboxed Bitmap image.
+   */
   private Bitmap letterbox(Bitmap src, int targetWidth, int targetHeight) {
     int srcWidth = src.getWidth();
     int srcHeight = src.getHeight();
@@ -606,6 +632,17 @@ public class ItemDetector {
     return detections;
   }
 
+  /**
+   * Applies Revised Weighted Box Fusion (WBF) to combine overlapping detections.
+   * This method is a modified version of the original WBF algorithm.
+   * Instead of merging boxes by class, it merges all boxes of different classes first,
+   * then chooses the best class based on the weighted average of the confidence scores.
+   * 
+   * @param detections List of Detection objects to be fused.
+   * @param iouThreshold IoU threshold for merging boxes.
+   * @param confThreshold Confidence threshold for filtering boxes.
+   * @return List of fused Detection objects.
+   */
   private List<Detection> wbf(List<Detection> detections, float iouThreshold, float confThreshold) {
     if (detections.isEmpty()) {
       Log.i(TAG, "No detections to process.");
@@ -623,13 +660,16 @@ public class ItemDetector {
     List<Detection> fused = new ArrayList<>();
     boolean[] used = new boolean[detections.size()];
 
+    // Iterate through the detections
     for (int i = 0; i < detections.size(); i++) {
       if (used[i]) continue;
 
+      // Create a new group for the current detection
       List<Detection> group = new ArrayList<>();
       group.add(detections.get(i));
       used[i] = true;
 
+      // Check for overlapping detections
       for (int j = i + 1; j < detections.size(); j++) {
         if (used[j]) continue;
 
@@ -703,8 +743,9 @@ public class ItemDetector {
   /**
    * Applies Non-Maximum Suppression (NMS) to remove overlapping detections.
    *
-   * @param detections List of raw detections [x1, y1, x2, y2, ..., confidence, class]
-   * @return List of filtered detections after NMS
+   * @param detections List of Detection objects to be filtered.
+   * @param iouThreshold IoU threshold for filtering.
+   * @return List of filtered detections object after NMS
    */
   private List<Detection> nms(List<Detection> detections, float iouThreshold) {
     List<Detection> results = new ArrayList<>();

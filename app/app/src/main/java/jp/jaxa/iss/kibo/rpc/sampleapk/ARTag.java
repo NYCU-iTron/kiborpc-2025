@@ -2,7 +2,9 @@ package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import org.opencv.core.Mat;
 
-
+/**
+ * Class to represent an ARTag.
+ */
 public class ARTag {
   private int markerId;
   private Mat corner;
