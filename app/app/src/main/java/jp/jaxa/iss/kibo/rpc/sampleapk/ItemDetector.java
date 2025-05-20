@@ -94,6 +94,10 @@ public class ItemDetector {
       this.className = className;
       this.modelWeight = modelWeight;
     }
+
+    public String toString() {
+      return "Detection {class=" + className + ", confidence=" + confidence + '}';
+    }
   }
 
   private class InterpreterWrapper {
@@ -143,9 +147,9 @@ public class ItemDetector {
   /**
    * Constructor for ItemDetector.
    * Sets up the model, label mappings, and image processor.
-   *
-   * @param context the application context
+   * 
    * @param apiRef  reference to the KiboRpcApi
+   * @param context the application context
    */
   public ItemDetector(KiboRpcApi apiRef, Context context) {
     this.api = apiRef;
@@ -214,6 +218,11 @@ public class ItemDetector {
     float confidenceThreshold = 0.5f;
     List<Detection> results = wbf(detectionList, iouThreshold, confidenceThreshold);
 
+    Log.i(TAG, "Detection results:");
+    for (result : results) {
+      Log.i(TAG, result.toString());
+    }
+
     return results;
   }
 
@@ -233,6 +242,11 @@ public class ItemDetector {
     // Apply Non-Maximum Suppression
     float iouThreshold = 0.7f;
     List<Detection> results = nms(detections, iouThreshold);
+
+    Log.i(TAG, "Detection results:");
+    for (Detection result : results) {
+      Log.i(TAG, result.toString());
+    }
 
     return results;
   }
@@ -258,15 +272,21 @@ public class ItemDetector {
     Map<Integer, Integer> itemCountMap = new HashMap<>();
     List<Item> itemList = new ArrayList<>();
 
-    // Handle empty detection results
     if (detectionList.isEmpty()) {
       Log.w(TAG, "No detection found, return empty list.");
       return itemList;
     }
 
     for (Detection det: detectionList) {
-      String label = det.className;
-      int itemId = det.classId;
+      String itemName = det.className;
+
+      // Map classId to itemId
+      int itemId = -1;
+      if (det.classId >= 0 && det.classId < 3) {
+        itemId = det.classId + 11;
+      } else if (det.classId >= 3 && det.classId < 11) {
+        itemId = det.classId + 18;
+      }
 
       // Update item count
       itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
@@ -276,7 +296,7 @@ public class ItemDetector {
         if (det.confidence > treasureMaxConfidence) {
           treasureMaxConfidence = det.confidence;
           treasureId = itemId;
-          treasureName = label;
+          treasureName = itemName;
         }
       }
 
@@ -285,7 +305,7 @@ public class ItemDetector {
         if (det.confidence > landmarkMaxConfidence) {
           landmarkMaxConfidence = det.confidence;
           landmarkId = itemId;
-          landmarkName = label;
+          landmarkName = itemName;
         }
       } else {
         Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
@@ -314,8 +334,8 @@ public class ItemDetector {
   /**
    * Guess the result.
    *
-   * @param areaId       The area identifier where the detection occurred.
-   * @param tagPose      The pose associated with the detection area.
+   * @param areaId   The area identifier where the detection occurred.
+   * @param tagPose  The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
   public List<Item> guessResult(int areaId, Pose tagPose) {
@@ -376,8 +396,6 @@ public class ItemDetector {
       int iy1 = Math.max(0, Math.min((int) y1, imageHeight - 1));
       int ix2 = Math.max(0, Math.min((int) x2, imageWidth - 1));
       int iy2 = Math.max(0, Math.min((int) y2, imageHeight - 1));
-
-      Log.i(TAG, "Drawing Bounding Box at (" + ix1 + "," + iy1 + "," + ix2 + "," + iy2 + ")");
 
       // Create a rectangle from the top-left and bottom-right points
       Rect rect = new Rect(new Point(ix1, iy1), new Point(ix2, iy2));
@@ -548,8 +566,6 @@ public class ItemDetector {
     int numElements = outputShape[2];
 
     // Loop through each detection
-    Log.i(TAG, "Number of detections: " + numElements);
-    Log.i(TAG, "Number of channels: " + numChannel);
     List<Detection> detections = new ArrayList<>();
     for (int i = 0; i < numElements; i++) {
       // Find the class with the highest confidence for this candidate
@@ -562,6 +578,8 @@ public class ItemDetector {
         }
       }
 
+      if (maxConf < interpreterWrapper.confThreshold) continue;
+
       // Get center coordinates and size
       float cx = outputArray[i];
       float cy = outputArray[i + numElements];
@@ -569,10 +587,10 @@ public class ItemDetector {
       float h = outputArray[i + numElements * 3];
 
       // Calculate bounding box corners, staying within [0, 1] range
-      float x1 = Math.max(Math.min(cx - w / 2.0F, 1), 0);
-      float y1 = Math.max(Math.min(cy - h / 2.0F, 1), 0);
-      float x2 = Math.max(Math.min(cx + w / 2.0F, 1), 0);
-      float y2 = Math.max(Math.min(cy + h / 2.0F, 1), 0);
+      float x1 = cx - w / 2.0F;
+      float y1 = cy - h / 2.0F;
+      float x2 = cx + w / 2.0F;
+      float y2 = cy + h / 2.0F;
 
       // Create a Detection object
       Detection detection = new Detection(
@@ -589,9 +607,6 @@ public class ItemDetector {
   }
 
   private List<Detection> wbf(List<Detection> detections, float iouThreshold, float confThreshold) {
-    Log.i(TAG, "Applying Weighted Box Fusion...");
-    Log.i(TAG, "Detection count before WBF: " + detections.size());
-
     if (detections.isEmpty()) {
       Log.i(TAG, "No detections to process.");
       return detections;
@@ -604,8 +619,6 @@ public class ItemDetector {
         return Float.compare(d2.confidence, d1.confidence); 
       }
     });
-
-    Log.i(TAG, "Detection count after sorting: " + detections.size());
 
     List<Detection> fused = new ArrayList<>();
     boolean[] used = new boolean[detections.size()];
@@ -631,8 +644,6 @@ public class ItemDetector {
         }
       }
 
-      Log.i(TAG, "Group size: " + group.size());
-
       // Compute weighted box
       float confidenceSum = 0f;
       float weightSum = 0f;
@@ -649,7 +660,6 @@ public class ItemDetector {
 
       float confidenceAvg = confidenceSum / weightSum;
       if (confidenceAvg < confThreshold) {
-        Log.i(TAG, "Confidence below threshold: " + confidenceAvg);
         continue;
       }
 
@@ -658,10 +668,15 @@ public class ItemDetector {
       x2 /= confidenceSum;
       y2 /= confidenceSum;
 
-      float w = Math.abs(x2 - x1);
-      float h = Math.abs(y2 - y1);
       float minX = Math.min(x1, x2);
       float minY = Math.min(y1, y2);
+      float maxX = Math.max(x1, x2);
+      float maxY = Math.max(y1, y2);
+
+      // Check if the bounding box is too small
+      if ((maxX - minX) < 0.05 || (maxY - minY) < 0.05) {
+        continue;
+      }
 
       // Sort into descending order of confidence
       Collections.sort(group, new Comparator<Detection>() {
@@ -673,24 +688,15 @@ public class ItemDetector {
         }
       });
 
-      Detection representative = group.get(0);
-
-      float[] fusedBox = new float[]{minX, minY, w, h};
       Detection fusedDetection = new Detection(
-        fusedBox,
+        new float[]{minX, minY, maxX, maxY},
         confidenceAvg,
-        representative.classId,
-        representative.className
+        group.get(0).classId,
+        group.get(0).className
       );
-
-      // Filter small boxes
-      if (w > 10 && h > 10) {
-        fused.add(fusedDetection);
-        Log.i(TAG, "Fused detection: " + representative.className + ", confidence: " + confidenceAvg);
-      }
+      fused.add(fusedDetection);
     }
 
-    Log.i(TAG, "Fused detection count: " + fused.size());
     return fused;
   }
 
@@ -702,8 +708,6 @@ public class ItemDetector {
    */
   private List<Detection> nms(List<Detection> detections, float iouThreshold) {
     List<Detection> results = new ArrayList<>();
-
-    Log.i(TAG, "Detection count before NMS: " + detections.size());
 
     if (detections.isEmpty()) {
       Log.i(TAG, "No detections to process.");
@@ -732,12 +736,6 @@ public class ItemDetector {
           iterator.remove();
         }
       }
-    }
-
-    Log.i(TAG, "Final detection count after NMS: " + results.size());
-    for (int i = 0; i < results.size(); i++) {
-      Detection det = results.get(i);
-      Log.i(TAG, "Detection " + i + ": class=" + det.className + ", confidence=" + det.confidence);
     }
 
     return results;
@@ -778,7 +776,7 @@ public class ItemDetector {
    * @param threshold The threshold for containment (0.0 to 1.0).
    * @return true if the inner box is contained within the outer box, false otherwise.
    */
-  public boolean isContained(float[] inner, float[] outer, float threshold) {
+  private boolean isContained(float[] inner, float[] outer, float threshold) {
     float xi = inner[0], yi = inner[1], wi = inner[2], hi = inner[3];
     float xo = outer[0], yo = outer[1], wo = outer[2], ho = outer[3];
 
