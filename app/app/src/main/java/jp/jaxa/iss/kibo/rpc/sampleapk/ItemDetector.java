@@ -56,7 +56,6 @@ public class ItemDetector {
   private final KiboRpcApi api;
   private final Context context;
   private final String TAG = this.getClass().getSimpleName();
-  private boolean DEBUG = true;
 
   private List<String> labels;
   private Map<ModelType, Interpreter> modelMap;
