@@ -36,7 +36,7 @@ class Interpreter:
     self.output_details = self.interpreter.get_output_details()[0]
 
     # Load labels
-    labels_path = (assets_dir / "labels_v2.txt").resolve()
+    labels_path = (assets_dir / "labels.txt").resolve()
     if not labels_path.exists():
       raise FileNotFoundError(f"Labels file not found: {labels_path}")
     
@@ -229,7 +229,7 @@ image_path = "../assets/test_set/7.png"
 # Load labels
 base_dir = Path(__file__).resolve().parent
 assets_dir = (base_dir / '../app/app/src/main/assets').resolve()
-labels_path = (assets_dir / "labels_v2.txt").resolve()
+labels_path = (assets_dir / "labels.txt").resolve()
 if not labels_path.exists():
   raise FileNotFoundError(f"Labels file not found: {labels_path}")
 with open(labels_path, "r", encoding="utf-8") as f:
