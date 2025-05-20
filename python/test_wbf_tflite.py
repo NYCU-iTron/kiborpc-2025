@@ -85,7 +85,6 @@ class Interpreter:
       scores = scores[keep]
       class_ids = out[keep, 4:].argmax(-1)
 
-      # Transform to x1, y1, x2, y2
       boxes[:, 2] += boxes[:, 0]
       boxes[:, 3] += boxes[:, 1]
 
@@ -142,22 +141,18 @@ def compute_iou(box1, box2):
   union = area1 + area2 - inter_area
   return inter_area / union if union != 0 else 0
 
-def is_contained(inner, outer, threshold=0.9):
-  xi, yi, wi, hi = inner
-  xo, yo, wo, ho = outer
+def is_contained(box1, box2, threshold=0.75):
+  x1 = max(box1[0], box2[0])
+  y1 = max(box1[1], box2[1])
+  x2 = min(box1[2], box2[2])
+  y2 = min(box1[3], box2[3])
+  inter_area = max(0, x2 - x1) * max(0, y2 - y1)
 
-  xi2, yi2 = xi + wi, yi + hi
-  xo2, yo2 = xo + wo, yo + ho
-
-  inter_x1 = max(xi, xo)
-  inter_y1 = max(yi, yo)
-  inter_x2 = min(xi2, xo2)
-  inter_y2 = min(yi2, yo2)
-
-  inter_area = max(0, inter_x2 - inter_x1) * max(0, inter_y2 - inter_y1)
-  inner_area = wi * hi
-
-  return (inter_area / inner_area) > threshold
+  area1 = max(1e-6, (box1[2] - box1[0]) * (box1[3] - box1[1]))
+  area2 = max(1e-6, (box2[2] - box2[0]) * (box2[3] - box2[1]))
+  smaller_area = min(area1, area2)
+  
+  return (inter_area / smaller_area) > threshold
 
 def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
   # Arrange detections by score in descending order
@@ -186,16 +181,15 @@ def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
     total_score = sum(detection.score * detection.model_weight for detection in group)
     avg_score = sum(detection.score for detection in group) / sum(detection.model_weight for detection in group)
     
-    if total_score < conf_threshold:
+    if avg_score < conf_threshold:
       continue
 
     x1 = sum(detection.box[0] * detection.score for detection in group) / total_score
     y1 = sum(detection.box[1] * detection.score for detection in group) / total_score
     x2 = sum(detection.box[2] * detection.score for detection in group) / total_score
     y2 = sum(detection.box[3] * detection.score for detection in group) / total_score
-    w, h = abs(x2 - x1), abs(y2 - y1)
-    x1, y1= min(x1, x2), min(y1, y2)
-    box = [x1, y1, w, h]
+ 
+    box = [x1, y1, x2, y2]
 
     # Compute class id and name
     group.sort(key=lambda x: x.score * x.model_weight, reverse=True)
@@ -211,7 +205,9 @@ def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
   return fused
 
 def draw_detections(img, box, score, class_id):
-  x1, y1, w, h = box
+  x1, y1, x2, y2 = box
+  w, h = abs(x2 - x1), abs(y2 - y1)
+  x1, y1= min(x1, x2), min(y1, y2)
   color = color_palette[class_id]
   cv2.rectangle(img, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), color, 1)
   label = f"{labels[class_id]}: {score:.2f}"
@@ -224,7 +220,7 @@ np.random.seed(42)
 color_palette = np.random.uniform(128, 255, size=(11, 3))
 
 # Configuration
-image_path = "../assets/test_set/7.png"
+image_path = "../assets/test_set/24.png"
 
 # Load labels
 base_dir = Path(__file__).resolve().parent
