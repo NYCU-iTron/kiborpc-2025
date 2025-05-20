@@ -90,13 +90,13 @@ public class MainControl {
             Log.w(TAG, "No landmark found, pause system for a short time then retry.");
             try {
                 Thread.sleep(200);
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 Log.w(TAG, "Fail to sleep thread" + e);
             }
         }
 
         if (areaItems == null || !containsLandmark(areaItems)) {
-            Log.w(TAG, "No landmark found, leaving to fate.");
+            Log.w(TAG, "No landmark found after retries, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
         }
 
@@ -106,7 +106,7 @@ public class MainControl {
             itemManager.storeTreasureInfo(treasureItem);
             Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
         } else {
-            Log.w(TAG, "Area " + areaId + ": Treasure not found.");
+            Log.w(TAG, "Area " + areaId + ": No treasure.");
         }
         
         // Landmark Item
@@ -115,7 +115,8 @@ public class MainControl {
             itemManager.setAreaInfo(landmarkItem);
             Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName());
         } else {
-            Log.w(TAG, "Area " + areaId + ": Landmark not found."); // Should never happen
+            // Should never end up here
+            Log.w(TAG, "Area " + areaId + ": No landmark.");
         }
     }
 
@@ -147,7 +148,7 @@ public class MainControl {
                     itemManager.storeTreasureInfo(treasureItem);
                     Log.i(TAG, "Area 2: Found treasure " + treasureItem.getItemName());
                 } else {
-                    Log.w(TAG, "Area 2: Treasure not found.");
+                    Log.w(TAG, "Area 2: No treasure.");
                 }
                 
                 // Landmark Item
@@ -156,7 +157,7 @@ public class MainControl {
                     itemManager.setAreaInfo(landmarkItem);
                     Log.i(TAG, "Area 2: Found landmark " + landmarkItem.getItemName());
                 } else {
-                    Log.w(TAG, "Area 2: Landmark not found."); // Should never happen
+                    Log.w(TAG, "Area 2: No landmark.");
                 }
 
                 success2 = true;
@@ -170,7 +171,7 @@ public class MainControl {
                     itemManager.storeTreasureInfo(treasureItem);
                     Log.i(TAG, "Area 3: Found treasure " + treasureItem.getItemName());
                 } else {
-                    Log.w(TAG, "Area 3: Treasure not found.");
+                    Log.w(TAG, "Area 3: No treasure.");
                 }
                 
                 // Landmark Item
@@ -179,7 +180,8 @@ public class MainControl {
                     itemManager.setAreaInfo(landmarkItem);
                     Log.i(TAG, "Area 3: Found landmark " + landmarkItem.getItemName());
                 } else {
-                    Log.w(TAG, "Area 3: Landmark not found."); // Should never happen
+                    // Should never end up here
+                    Log.w(TAG, "Area 3: No landmark.");
                 }
 
                 success3 = true;               
@@ -189,7 +191,7 @@ public class MainControl {
 
             try {
                 Thread.sleep(200);
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 Log.w(TAG, "Fail to sleep thread" + e);
             }
         }
