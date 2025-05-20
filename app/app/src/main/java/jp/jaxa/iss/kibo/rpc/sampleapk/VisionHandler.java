@@ -46,7 +46,7 @@ public class VisionHandler {
    */
   public VisionHandler(Context context, KiboRpcApi apiRef) {
     cameraHandler = new CameraHandler(apiRef);
-    itemDetector = new ItemDetector(context, apiRef);
+    itemDetector = new ItemDetector(apiRef, context);
     arTagDetector = new ARTagDetector(apiRef);
     api = apiRef;
 
@@ -84,7 +84,7 @@ public class VisionHandler {
 
     // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
-    if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", areaId));
+    // if (DEBUG) api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", areaId));
 
     // Get tag pose and clipped image
     List<ARTag> arResults = arTagDetector.detect(undistortedImage);
@@ -93,29 +93,24 @@ public class VisionHandler {
     
     int markerId = areaId + 100;
     Pose tagPose = tagPoses.get(markerId);
-    Mat clippedImage = clippedImages.get(markerId);
 
-    List<float[]> itemResults = new ArrayList<>();
-    List<Item> itemList = new ArrayList<>();
-    
+    // Check clipped image
+    Mat clippedImage = clippedImages.get(markerId);
     if (clippedImage == null) {
       Log.w(TAG, "No clipped image found.");
-      return itemList;
+      return new ArrayList<>();
     }
-
     if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
-    
+
     // Detect item
-    itemResults = itemDetector.detect(clippedImage, ItemDetector.ModelType.CLIPPED);
-    itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
+    List<ItemDetector.Detection> itemResults = itemDetector.detect(clippedImage);
+    List<Item> itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
     if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
 
     return itemList;
   }
 
   public Item recognizeTreasure() {
-    int areaId = 0;
-
     // Get raw image
     Mat rawImage = cameraHandler.captureImage();
     if (DEBUG) api.saveMatImage(rawImage, "treasure_raw.png");
@@ -124,12 +119,30 @@ public class VisionHandler {
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
     if (DEBUG) api.saveMatImage(rawImage, "treasure_undistorted.png");
 
-    // Detect item
-    List<float[]> itemResults = itemDetector.detect(undistortedImage, ItemDetector.ModelType.ENV);
-    List<Item> itemList = itemDetector.filterResult(itemResults, areaId, new Pose());
-    if (DEBUG) itemDetector.drawBoundingBoxes(undistortedImage, itemResults, areaId);
+    // Get tag pose and clipped image
+    List<ARTag> arResults = arTagDetector.detect(undistortedImage);
+    Map<Integer, Pose> tagPoses = arTagDetector.filterResult(arResults, currentPose);
+    Map<Integer, Mat> clippedImages = arTagDetector.getclippedImages(arResults, undistortedImage);
+    
+    int areaId = 0;
+    int markerId = 100;
+    Pose tagPose = tagPoses.get(markerId);
 
-    Item treasureItem = itemList.get(0); // This array is expected to be [treasureItem, landmarkItem]
+    // Check clipped image
+    Mat clippedImage = clippedImages.get(markerId);
+    if (clippedImage == null) {
+      Log.w(TAG, "No clipped image found.");
+      return new Item();
+    }
+    if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
+    
+    // Detect item
+    List<ItemDetector.Detection> itemResults = itemDetector.detect(clippedImage);
+    List<Item> itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
+    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
+
+    // This array is expected to be [treasureItem, landmarkItem]
+    Item treasureItem = itemList.get(0);
 
     return treasureItem;
   }
