@@ -103,9 +103,9 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
 
     // Detect item
-    List<ItemDetector.Detection> itemResults = itemDetector.detect(clippedImage);
-    List<Item> itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
-    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
+    List<ItemDetector.Detection> results = itemDetector.detect(clippedImage);
+    List<Item> itemList = itemDetector.filterResult(results, areaId, tagPose);
+    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, results, areaId);
 
     return itemList;
   }
@@ -137,9 +137,9 @@ public class VisionHandler {
     if (DEBUG) api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
     
     // Detect item
-    List<ItemDetector.Detection> itemResults = itemDetector.detect(clippedImage);
-    List<Item> itemList = itemDetector.filterResult(itemResults, areaId, tagPose);
-    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, itemResults, areaId);
+    List<ItemDetector.Detection> results = itemDetector.detect(clippedImage);
+    List<Item> itemList = itemDetector.filterResult(results, areaId, tagPose);
+    if (DEBUG) itemDetector.drawBoundingBoxes(clippedImage, results, areaId);
 
     // This array is expected to be [treasureItem, landmarkItem]
     Item treasureItem = itemList.get(0);
