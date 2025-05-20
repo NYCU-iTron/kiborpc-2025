@@ -194,7 +194,7 @@ public class ItemDetector {
    * Detect using multiple models with revised weighted box fusion method
    */
   public List<Detection> detect(Mat image) {
-    List<Detection> detectionList = new ArrayList<>();
+    List<Detection> detectionAll = new ArrayList<>();
 
     // Loop through each model
     for (ModelType modelType : modelMap.keySet()) {
@@ -210,20 +210,20 @@ public class ItemDetector {
       // Postprocess the output
       List<Detection> detections = postprocess(outputArray, interpreterWrapper);
 
-      detectionList.addAll(detections);
+      detectionAll.addAll(detections);
     }
     
     // Apply revised Weighted Box Fusion
     float iouThreshold = 0.7f;
     float confidenceThreshold = 0.5f;
-    List<Detection> results = wbf(detectionList, iouThreshold, confidenceThreshold);
+    List<Detection> detectionFused = wbf(detectionAll, iouThreshold, confidenceThreshold);
 
     Log.i(TAG, "Detection results:");
-    for (result : results) {
-      Log.i(TAG, result.toString());
+    for (Detection detection : detectionFused) {
+      Log.i(TAG, detection.toString());
     }
 
-    return results;
+    return detectionFused;
   }
 
   public List<Detection> detect(Mat image, ModelType modelType) {
