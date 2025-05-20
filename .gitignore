@@ -5,3 +5,4 @@ assets/item_template_images/
 docs/doxygen/
 assets/test*
 __pycache__/
+vm/dataset/
