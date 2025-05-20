@@ -216,14 +216,14 @@ public class ItemDetector {
     // Apply revised Weighted Box Fusion
     float iouThreshold = 0.7f;
     float confidenceThreshold = 0.5f;
-    List<Detection> detectionFused = wbf(detectionAll, iouThreshold, confidenceThreshold);
+    List<Detection> results = wbf(detectionAll, iouThreshold, confidenceThreshold);
 
     Log.i(TAG, "Detection results:");
-    for (Detection detection : detectionFused) {
-      Log.i(TAG, detection.toString());
+    for (Detection result : results) {
+      Log.i(TAG, result.toString());
     }
 
-    return detectionFused;
+    return results;
   }
 
   public List<Detection> detect(Mat image, ModelType modelType) {
