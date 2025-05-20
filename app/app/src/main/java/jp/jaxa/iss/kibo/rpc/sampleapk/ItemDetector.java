@@ -379,10 +379,10 @@ public class ItemDetector {
    * @param detectResult   List of detection results containing bounding box coordinates.
    * @param area           The area identifier used for saving the image.
    */
-  public void drawBoundingBoxes(Mat image, List<Detection> detectionList, int area) {
+  public Mat drawBoundingBoxes(Mat image, List<Detection> detectionList, int area) {
     if (detectionList == null || detectionList.isEmpty()) {
       Log.i(TAG, "No detections to draw.");
-      return;
+      return image;
     }
 
     int imageWidth = image.cols();
@@ -434,7 +434,7 @@ public class ItemDetector {
       Imgproc.putText(image, label, labelPosition, font, fontScale, textColor, thicknessText);
     }
 
-    api.saveMatImage(image, String.format("area%d_bbox.png", area));
+    return image;
   }
 
   /* ------------------------- Private Tool Functions ------------------------- */
