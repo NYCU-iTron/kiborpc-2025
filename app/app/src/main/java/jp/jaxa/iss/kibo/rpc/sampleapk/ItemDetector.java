@@ -367,10 +367,15 @@ public class ItemDetector {
   public List<Item> guessResult(int areaId, Pose tagPose) {
     List<Item> results = new ArrayList<>();
 
-    int treasureId = rand.nextInt(3);
-    int landmarkId = rand.nextInt(8) + 3; 
+    // Class IDs from yolo model
+    int treasureId = rand.nextInt(3); // 0-2
+    int landmarkId = rand.nextInt(8) + 3; // 3-10
     String treasureName = labels.get(treasureId);
     String landmarkName = labels.get(landmarkId);
+
+    // Item IDs from item manager
+    int treasureItemId = treasureId + 11; // 11-13
+    int landmarkItemId = landmarkId + 18; // 21-28
 
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
