@@ -68,6 +68,7 @@ public class ItemDetector {
   public enum ModelType {
     s_15000_0516,
     n_20000_0519,
+    n_10000_0521,
   }
 
   /**
@@ -165,20 +166,28 @@ public class ItemDetector {
     rand = new Random();
     modelMap = new HashMap<>();
 
-    // Load model
-    Interpreter nModel = loadInterpreter("n_20000_0519.tflite");
-    if (nModel != null) {
-      modelMap.put(ModelType.n_20000_0519, nModel);
+    // Load model 1
+    Interpreter modelN20000 = loadInterpreter("n_20000_0519.tflite");
+    if (modelN20000 != null) {
+      modelMap.put(ModelType.n_20000_0519, modelN20000);
     } else {
       Log.e(TAG, "Failed to load n_20000_0519 model");
     }
 
-    // Load model
-    Interpreter sModel = loadInterpreter("s_15000_0516.tflite");
-    if (sModel != null) {
-      modelMap.put(ModelType.s_15000_0516, sModel);
+    // Load model 2
+    Interpreter modelS15000 = loadInterpreter("s_15000_0516.tflite");
+    if (modelS15000 != null) {
+      modelMap.put(ModelType.s_15000_0516, modelS15000);
     } else {
       Log.e(TAG, "Failed to load s_15000_0516 model");
+    }
+
+    // Load model 3
+    Interpreter modelN10000 = loadInterpreter("n_10000_0521.tflite");
+    if (modelN10000 != null) {
+      modelMap.put(ModelType.n_10000_0521, modelN10000);
+    } else {
+      Log.e(TAG, "Failed to load n_10000_0521 model");
     }
 
     // Labels
