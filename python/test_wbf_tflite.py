@@ -234,6 +234,7 @@ with open(labels_path, "r", encoding="utf-8") as f:
 # Interpreter
 interpreter_0516 = Interpreter("s_15000_0516.tflite")
 interpreter_0519 = Interpreter("n_20000_0519.tflite")
+interpreter_0521 = Interpreter("n_10000_0521.tflite")
 
 # Load image
 orig_img = cv2.imread(image_path)
@@ -243,11 +244,13 @@ if orig_img is None:
 # Detect
 detections_0516 = interpreter_0516.detect(orig_img)
 detections_0519 = interpreter_0519.detect(orig_img)
+detections_0521 = interpreter_0521.detect(orig_img)
 
 # Process detections
 all_detections = []
 all_detections.extend(detections_0516)
 all_detections.extend(detections_0519)
+all_detections.extend(detections_0521)
 
 final_detections = wbf(all_detections)
 
