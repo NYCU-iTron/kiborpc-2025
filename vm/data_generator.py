@@ -30,24 +30,30 @@ class DataGenerator:
     os.makedirs(self.label_dir, exist_ok=True)
     os.makedirs(self.debug_dir, exist_ok=True)
 
-    self.class_to_id = {
-      'crystal': 0,
-      'diamond': 1,
-      'emerald': 2,
-      'coin': 3,
-      'compass': 4,
-      'coral': 5,
-      'fossil': 6,
-      'key': 7,
-      'letter': 8,
-      'shell': 9,
-      'treasure_box': 10
-    }
+    if not os.path.exists(f'{self.base_dir}/dataset/classes.txt'):
+      self.class_to_id = {
+        'crystal': 0,
+        'diamond': 1,
+        'emerald': 2,
+        'coin': 3,
+        'compass': 4,
+        'coral': 5,
+        'fossil': 6,
+        'key': 7,
+        'letter': 8,
+        'shell': 9,
+        'treasure_box': 10
+      }
 
-    # 生成classes.txt，使用數字ID和對應的class_name
-    with open(f'{self.base_dir}/dataset/classes.txt', 'w') as f:
-      for class_name, class_id in self.class_to_id.items():
-        f.write(f'{class_name}\n')
+      # 生成classes.txt，使用數字ID和對應的class_name
+      with open(f'{self.base_dir}/dataset/classes.txt', 'w') as f:
+        for class_name, class_id in self.class_to_id.items():
+          f.write(f'{class_name}\n')
+    else:
+      with open(f'{self.base_dir}/dataset/classes.txt', 'r') as f:
+        lines = f.readlines()
+        self.class_to_id = {line.strip(): i for i, line in enumerate(lines)}
+        print(f"Loaded classes from {self.base_dir}/dataset/classes.txt")
 
     self.items = self.load_items()
 
