@@ -98,6 +98,9 @@ public class MainControl {
         if (areaItems == null || !containsLandmark(areaItems)) {
             Log.w(TAG, "No landmark found after retries, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
+            for (Item item : areaItems) {
+                Log.i(TAG, "Item: " + item.getItemId() + ", " + item.getItemName());
+            }
         }
 
         // Treasure Item
