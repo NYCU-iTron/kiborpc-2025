@@ -8,10 +8,10 @@ import random
 
 class DataGenerator:
   def __init__(self):
-    self.output_size = (640, 640)
+    self.output_size = (320, 320)
 
     # Set the base directory to the directory of this script
-    self.base_dir = os.path.dirname(os.path.abspath(__file__))
+    self.base_dir = os.getcwd()
     print(f"Base directory: {self.base_dir}")
     
     # Check if the input directory exists
@@ -198,7 +198,7 @@ names:
       if random.random() > 0.7:
         continue
 
-      thickness = random.randint(5, 25)
+      thickness = random.randint(0, 10)
       reserved_edge[side] = thickness
       patch = np.full((h, w, 3), np.random.randint(160, 220), dtype=np.uint8)
 
@@ -233,12 +233,14 @@ names:
     placed_objects = []
     final_objects = []
     overlap_counts = np.zeros((h, w), dtype=np.uint8)
-    num_items = min(random.randint(4, 7), len(self.items))
-    selected_items = random.choices(self.items * 5, k=num_items) # 提高重複 item 機率
+    num_items = min(random.randint(4, 6), len(self.items))
+
+    # 提高重複 item 機率
+    selected_items = random.choices(self.items * 10, k=num_items)
 
     for class_name, item_img in selected_items:
       # 隨機縮放
-      scale = random.uniform(0.08, 0.4)
+      scale = random.uniform(0.05, 0.2)
       new_size = (int(item_img.shape[1] * scale), int(item_img.shape[0] * scale))
       resized = cv2.resize(item_img, new_size, interpolation=cv2.INTER_CUBIC)
 
@@ -251,8 +253,6 @@ names:
       angle = random.uniform(0, 360)
       rotated = self.rotate_image(resized, angle)
       rotated_height, rotated_width = rotated.shape[:2]
-
-      rotated[:, :, :3] = cv2.GaussianBlur(rotated[:, :, :3], (random.choice([3, 5, 7, 13, 15]),) * 2, 0)
 
       # 取得當前物件的實際遮罩（忽略完全透明的區域）   
       alpha_mask = rotated[:, :, 3] > 0
@@ -273,9 +273,6 @@ names:
 
         temp_overlap = overlap_counts.copy()
         temp_overlap[y:y+rotated_height, x:x+rotated_width][alpha_mask] += 1
-        if np.any(temp_overlap > 4):
-          attempt += 1
-          continue
 
         placement_valid = True
         for placed_obj in placed_objects:
@@ -298,8 +295,19 @@ names:
           continue
 
         overlap_counts[y:y+rotated_height, x:x+rotated_width][alpha_mask] += 1
-        for c in range(3):
-          background[y:y+rotated_height, x:x+rotated_width, c][alpha_mask] = rotated[:, :, c][alpha_mask]
+
+        # 取得對應背景貼片
+        bg_crop = background[y:y+rotated_height, x:x+rotated_width].copy()
+
+        # 使用 alpha blending 合成 item 和背景
+        alpha_float = rotated[:, :, 3:4].astype(np.float32) / 255.0
+        fg = rotated[:, :, :3].astype(np.float32)
+        bg = bg_crop.astype(np.float32)
+
+        composite = fg * alpha_float + bg * (1 - alpha_float)
+        composite = np.clip(composite, 0, 255).astype(np.uint8)
+
+        background[y:y+rotated_height, x:x+rotated_width] = composite
 
         placed_objects.append({'class_id': self.class_to_id[class_name], 'bbox': tuple(current_bbox)})
         final_objects.append({'class_id': self.class_to_id[class_name], 'bbox': tuple(current_bbox)})
@@ -308,19 +316,26 @@ names:
         print(f"跳過 {class_name}（嘗試超過 {max_attempts} 次）")
 
     # 4. 整張背景處理：模糊、灰階、暗角
-    bg_blur = cv2.GaussianBlur(background, (random.choice([9, 15, 17, 21, 25]),) * 2, 0)
+    blur_kernel = random.choice([5, 7])
+    bg_blur = cv2.GaussianBlur(background, (blur_kernel, blur_kernel), 0)
     gray = cv2.cvtColor(bg_blur, cv2.COLOR_RGB2GRAY)
     bg_gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-    X_kernel = cv2.getGaussianKernel(w, int(w * 0.8))
-    Y_kernel = cv2.getGaussianKernel(h, int(h * 0.8))
-    vignette = (Y_kernel @ X_kernel.T)
-    vignette = 0.5 + 0.5 * vignette / vignette.max()
+    # vignette
+    rows, cols = bg_gray.shape[:2]
+    X_resultant_kernel = cv2.getGaussianKernel(cols, int(cols*0.8))
+    Y_resultant_kernel = cv2.getGaussianKernel(rows, int(rows*0.8))
+    vignette_mask = Y_resultant_kernel * X_resultant_kernel.T
+    vignette_mask = vignette_mask / vignette_mask.max()
 
+    # 讓中心和角落差異更小
+    vignette_mask = 0.5 + 0.5 * vignette_mask
     for i in range(3):
-      bg_gray[:, :, i] = bg_gray[:, :, i] * vignette
+      bg_gray[:, :, i] = bg_gray[:, :, i] * vignette_mask
+    
+    # 整體降低亮度
+    background = np.clip(bg_gray * 0.9, 0, 255).astype(np.uint8)
 
-    background = np.clip(bg_gray * 0.7, 0, 255).astype(np.uint8)
     noise = np.random.normal(0, 4, background.shape).astype(np.int16)
     background = np.clip(background.astype(np.int16) + noise, 0, 255).astype(np.uint8)
 
