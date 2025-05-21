@@ -5,6 +5,7 @@ from PIL import Image
 from pathlib import Path
 import shutil
 import random
+from tqdm import tqdm
 
 class DataGenerator:
   def __init__(self):
@@ -54,7 +55,7 @@ class DataGenerator:
   def generate_data(self, total_image_count):
     count = 0
 
-    for i in range(1, total_image_count+1):
+    for i in tqdm(range(total_image_count), desc="Generating data"):
       r = random.random()
 
       if r < 0.2:
@@ -67,7 +68,7 @@ class DataGenerator:
       image, annotations = self.generate_image(max_overlap=max_overlap)
 
       # 保存圖片
-      cv2.imwrite(f'{self.image_dir}/image_{count + i:04d}.png', image)
+      cv2.imwrite(f'{self.image_dir}/image_{count + i:04d}.webp', image, [cv2.IMWRITE_WEBP_QUALITY, 75])
 
       # 保存標註
       with open(f'{self.label_dir}/image_{count + i:04d}.txt', 'w') as f:
@@ -81,7 +82,7 @@ class DataGenerator:
     image_files = list(IMAGES_DIR.glob("*.*"))
     random.shuffle(image_files)
 
-    split_idx = int(0.95 * len(image_files))
+    split_idx = int(0.8 * len(image_files))
     train_files = image_files[:split_idx]
     val_files = image_files[split_idx:]
 
@@ -127,7 +128,7 @@ names:
     items = []
 
     for item in os.listdir(self.input_dir):
-      if not item.endswith('.png'):
+      if not item.endswith('.webp'):
         return
       
       # 使用PIL讀取圖片以保持透明度
@@ -353,11 +354,11 @@ names:
     id_to_class = {v: k for k, v in self.class_to_id.items()}
 
     for filename in os.listdir(self.image_dir):
-      if not filename.endswith('.png'):
+      if not filename.endswith('.webp'):
         continue
 
       image_path = os.path.join(self.image_dir, filename)
-      label_path = os.path.join(self.label_dir, filename.replace('.png', '.txt'))
+      label_path = os.path.join(self.label_dir, filename.replace('.webp', '.txt'))
       output_path = os.path.join(self.debug_dir, filename)
 
       image = cv2.imread(image_path)
