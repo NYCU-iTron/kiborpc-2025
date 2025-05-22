@@ -1,6 +1,7 @@
 from ultralytics import YOLO
 import os
 from pathlib import Path
+import torch
 
 epoches = 120
 
@@ -16,12 +17,13 @@ if not DATA_YAML.exists():
 model_path = os.path.join(base_dir, "yolo11n.pt")
 
 model = YOLO(model_path)
+device = 0 if torch.cuda.is_available() else "cpu"
 results = model.train(
   data=DATA_YAML,
   epochs=epoches,
-  imgsz=640,
+  imgsz=320,
   batch=-1,
-  device=0,
+  device=device,
   plots=True,
   patience=30,
 )
