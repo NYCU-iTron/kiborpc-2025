@@ -224,8 +224,8 @@ public class ItemDetector {
     
     // Apply revised Weighted Box Fusion
     float iouThreshold = 0.7f;
-    float confidenceThreshold = 0.5f;
-    List<Detection> results = wbf(detectionAll, iouThreshold, confidenceThreshold);
+    float confThreshold = 0.7f;
+    List<Detection> results = wbf(detectionAll, iouThreshold, confThreshold);
 
     Log.i(TAG, "Detection results:");
     for (Detection result : results) {
@@ -684,7 +684,7 @@ public class ItemDetector {
         Detection di = detections.get(i);
         Detection dj = detections.get(j);
         float iou = calculateIoU(di.box, dj.box);
-        boolean contained = isContained(dj.box, di.box, 0.9f);
+        boolean contained = isContained(dj.box, di.box, 0.8f);
 
         if (iou > iouThreshold || contained) {
           group.add(dj);
@@ -825,23 +825,27 @@ public class ItemDetector {
    * @param threshold The threshold for containment (0.0 to 1.0).
    * @return true if the inner box is contained within the outer box, false otherwise.
    */
-  private boolean isContained(float[] inner, float[] outer, float threshold) {
-    float xi = inner[0], yi = inner[1], wi = inner[2], hi = inner[3];
-    float xo = outer[0], yo = outer[1], wo = outer[2], ho = outer[3];
+  private boolean isContained(float[] box1, float[] box2, float threshold) {
+    float x1_1 = box1[0], y1_1 = box1[1], x2_1 = box1[2], y2_1 = box1[3];
+    float x1_2 = box2[0], y1_2 = box2[1], x2_2 = box2[2], y2_2 = box2[3];
 
-    float xi2 = xi + wi, yi2 = yi + hi;
-    float xo2 = xo + wo, yo2 = yo + ho;
-
-    float interX1 = Math.max(xi, xo);
-    float interY1 = Math.max(yi, yo);
-    float interX2 = Math.min(xi2, xo2);
-    float interY2 = Math.min(yi2, yo2);
+    float interX1 = Math.max(x1_1, x1_2);
+    float interY1 = Math.max(y1_1, y1_2);
+    float interX2 = Math.min(x2_1, x2_2);
+    float interY2 = Math.min(y2_1, y2_2);
 
     float interWidth = Math.max(0, interX2 - interX1);
     float interHeight = Math.max(0, interY2 - interY1);
     float interArea = interWidth * interHeight;
-    float innerArea = wi * hi;
 
-    return interArea / innerArea > threshold;
+    float area1 = (x2_1 - x1_1) * (y2_1 - y1_1);
+    float area2 = (x2_2 - x1_2) * (y2_2 - y1_2);
+
+    float minArea = Math.min(area1, area2);
+    if (minArea <= 0) {
+      return false;
+    }
+
+    return (interArea / minArea) > threshold;
   }
 }
