@@ -204,23 +204,15 @@ def wbf(detections, iou_threshold=0.7, conf_threshold=0.5):
 
   return fused
 
+np.random.seed(42)
+color_palette = np.random.uniform(128, 255, size=(11, 3))
 def draw_detections(img, box, score, class_id):
   x1, y1, x2, y2 = box
   w, h = abs(x2 - x1), abs(y2 - y1)
   x1, y1= min(x1, x2), min(y1, y2)
   color = color_palette[class_id]
-  cv2.rectangle(img, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), color, 1)
-  label = f"{labels[class_id]}: {score:.2f}"
-  (label_width, label_height), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-  label_x, label_y = x1, y1 - 10 if y1 - 10 > label_height else y1 + 10
-  # cv2.rectangle(img, (int(label_x), int(label_y - label_height)), (int(label_x + label_width), int(label_y + label_height)), color, cv2.FILLED)
-  # cv2.putText(img, label, (int(label_x), int(label_y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+  cv2.rectangle(img, (int(x1), int(y1)), (int(x1 + w), int(y1 + h)), color, 2)
 
-np.random.seed(42)
-color_palette = np.random.uniform(128, 255, size=(11, 3))
-
-# Configuration
-image_path = "../assets/test_set/24.png"
 
 # Load labels
 base_dir = Path(__file__).resolve().parent
@@ -231,38 +223,46 @@ if not labels_path.exists():
 with open(labels_path, "r", encoding="utf-8") as f:
   labels = {i: line.strip() for i, line in enumerate(f.readlines())}
 
-# Interpreter
-interpreter_0516 = Interpreter("s_15000_0516.tflite")
-interpreter_0519 = Interpreter("n_20000_0519.tflite")
-interpreter_0521 = Interpreter("n_10000_0521.tflite")
+def detect(image_path):
+  # Interpreter
+  interpreter_m30000 = Interpreter("m_30000_0522.tflite")
+  interpreter_s20000 = Interpreter("s_20000_0522.tflite")
+  interpreter_n20000 = Interpreter("n_20000_0519.tflite")
+  interpreter_n10000 = Interpreter("n_10000_0521.tflite")
 
-# Load image
-orig_img = cv2.imread(image_path)
-if orig_img is None:
-  raise FileNotFoundError(f"Image file not found: {image_path}")
+  # Load image
+  orig_img = cv2.imread(image_path)
+  if orig_img is None:
+    raise FileNotFoundError(f"Image file not found: {image_path}")
 
-# Detect
-detections_0516 = interpreter_0516.detect(orig_img)
-detections_0519 = interpreter_0519.detect(orig_img)
-detections_0521 = interpreter_0521.detect(orig_img)
+  # Detect
+  detections_m30000 = interpreter_m30000.detect(orig_img)
+  detections_s20000 = interpreter_s20000.detect(orig_img)
+  detections_n20000 = interpreter_n20000.detect(orig_img)
+  detections_n10000 = interpreter_n10000.detect(orig_img)
 
-# Process detections
-all_detections = []
-all_detections.extend(detections_0516)
-all_detections.extend(detections_0519)
-all_detections.extend(detections_0521)
+  # Process detections
+  all_detections = []
+  all_detections.extend(detections_m30000)
+  all_detections.extend(detections_s20000)
+  all_detections.extend(detections_n20000)
+  all_detections.extend(detections_n10000)
 
-final_detections = wbf(all_detections)
+  final_detections = wbf(all_detections)
 
-print("Final results after WBF:")
-for detection in final_detections:
-  print(f"Class {labels[int(detection.class_id)]}, Score: {detection.score}")
+  print("Final results after WBF:")
+  for detection in final_detections:
+    print(f"Class {labels[int(detection.class_id)]}, Score: {detection.score}")
 
-# Debug with OpenCV
-detected_img = orig_img.copy()
-for detection in final_detections:
-  draw_detections(detected_img, detection.box, detection.score, detection.class_id)
-  
-cv2.imshow("Output", detected_img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+  # Debug with OpenCV
+  detected_img = orig_img.copy()
+  for detection in final_detections:
+    draw_detections(detected_img, detection.box, detection.score, detection.class_id)
+    
+  cv2.imshow("Output", detected_img)
+  cv2.waitKey(0)
+  cv2.destroyAllWindows()
+
+# Configuration
+image_path = "../assets/test_set/32.png"
+detect(image_path)
