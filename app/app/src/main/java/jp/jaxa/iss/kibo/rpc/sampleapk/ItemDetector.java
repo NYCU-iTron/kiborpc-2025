@@ -58,18 +58,17 @@ public class ItemDetector {
   private final String TAG = this.getClass().getSimpleName();
 
   private List<String> labels;
-  private Map<ModelType, Interpreter> modelMap;
   private ImageProcessor imageProcessor;
   private Random rand;
 
-  /**
-   * Enum representing the model types available for detection.
-   */
+  // Enum representing the model types available for detection.
   public enum ModelType {
-    s_15000_0516,
-    n_20000_0519,
-    n_10000_0521,
+    M30000,
+    S20000,
+    N20000,
+    N10000,
   }
+  private Map<ModelType, InterpreterWrapper> modelMap;
 
   /**
    * Class representing a detected item with its bounding box, confidence, class ID, and class name.
@@ -115,14 +114,13 @@ public class ItemDetector {
     private float modelWeight;
     private float confThreshold;
 
-    InterpreterWrapper(ModelType modelType) {
+    InterpreterWrapper(String modelName) {
       this.modelWeight = 1.0f;
-      this.confThreshold = 0.4f;
+      this.confThreshold = 0.5f;
 
-      // Model
-      interpreter = modelMap.get(modelType);
+      interpreter = loadInterpreter(modelName);
       if (interpreter == null) {
-        Log.e(TAG, "Failed to load model" + modelType);
+        Log.e(TAG, "Failed to load model: " + modelName);
       }
 
       // Labels
@@ -133,14 +131,14 @@ public class ItemDetector {
       }
     }
 
-    InterpreterWrapper(ModelType modelType, float modelWeight, float confThreshold) {
+    InterpreterWrapper(String modelName, float modelWeight, float confThreshold) {
       this.modelWeight = modelWeight;
       this.confThreshold = confThreshold;
 
       // Model
-      interpreter = modelMap.get(modelType);
+      interpreter = loadInterpreter(modelName);
       if (interpreter == null) {
-        Log.e(TAG, "Failed to load model" + modelType);
+        Log.e(TAG, "Failed to load model: " + modelName);
       }
 
       // Labels
@@ -163,32 +161,18 @@ public class ItemDetector {
     this.api = apiRef;
     this.context = context;
 
-    rand = new Random();
+    // Load models
+    InterpreterWrapper modelM30000 = new InterpreterWrapper("m_30000_0522.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelS20000 = new InterpreterWrapper("s_20000_0522.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelN20000 = new InterpreterWrapper("n_20000_0519.tflite", 1.0f, 0.4f);
+    InterpreterWrapper modelN10000 = new InterpreterWrapper("n_10000_0521.tflite", 1.0f, 0.4f);
+
+    // Map model types to their respective interpreters
     modelMap = new HashMap<>();
-
-    // Load model 1
-    Interpreter modelN20000 = loadInterpreter("n_20000_0519.tflite");
-    if (modelN20000 != null) {
-      modelMap.put(ModelType.n_20000_0519, modelN20000);
-    } else {
-      Log.e(TAG, "Failed to load n_20000_0519 model");
-    }
-
-    // Load model 2
-    Interpreter modelS15000 = loadInterpreter("s_15000_0516.tflite");
-    if (modelS15000 != null) {
-      modelMap.put(ModelType.s_15000_0516, modelS15000);
-    } else {
-      Log.e(TAG, "Failed to load s_15000_0516 model");
-    }
-
-    // Load model 3
-    Interpreter modelN10000 = loadInterpreter("n_10000_0521.tflite");
-    if (modelN10000 != null) {
-      modelMap.put(ModelType.n_10000_0521, modelN10000);
-    } else {
-      Log.e(TAG, "Failed to load n_10000_0521 model");
-    }
+    modelMap.put(ModelType.M30000, modelM30000);
+    modelMap.put(ModelType.S20000, modelS20000);
+    modelMap.put(ModelType.N20000, modelN20000);
+    modelMap.put(ModelType.N10000, modelN10000);
 
     // Labels
     try {
@@ -203,6 +187,8 @@ public class ItemDetector {
       .add(new CastOp(DataType.FLOAT32))
       .build();
 
+    rand = new Random();
+
     Log.i(TAG, "Initialized");
   }
 
@@ -214,11 +200,15 @@ public class ItemDetector {
    */
   public List<Detection> detect(Mat image) {
     List<Detection> detectionAll = new ArrayList<>();
+    InterpreterWrapper interpreterWrapper = null;
 
     // Loop through each model
     for (ModelType modelType : modelMap.keySet()) {
-      // Init wrapper
-      InterpreterWrapper interpreterWrapper = new InterpreterWrapper(modelType);
+      interpreterWrapper = modelMap.get(modelType);
+      if (interpreterWrapper == null) {
+        Log.e(TAG, "Model not found: " + modelType);
+        continue;
+      }
       
       // Preprocess the image
       ByteBuffer imageBuffer = preprocess(image, interpreterWrapper);
@@ -254,7 +244,11 @@ public class ItemDetector {
    */
   public List<Detection> detect(Mat image, ModelType modelType) {
     // Initialize wrapper
-    InterpreterWrapper interpreterWrapper = new InterpreterWrapper(modelType);
+    InterpreterWrapper interpreterWrapper = modelMap.get(modelType);
+    if (interpreterWrapper == null) {
+      Log.e(TAG, "Model not found: " + modelType);
+      return new ArrayList<>();
+    }
 
     // Preprocess the image
     ByteBuffer imageBuffer = preprocess(image, interpreterWrapper);
@@ -351,6 +345,7 @@ public class ItemDetector {
       itemList.add(new Item());
     } else {
       landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
+      landmarkCount = Math.min(landmarkCount, 6);
       itemList.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
     }
 
