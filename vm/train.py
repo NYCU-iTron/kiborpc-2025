@@ -26,3 +26,4 @@ results = model.train(
   patience=30,
 )
 model.save(model_path)
+model.export(format="tflite")
