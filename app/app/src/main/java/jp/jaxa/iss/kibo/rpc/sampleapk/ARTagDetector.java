@@ -34,6 +34,27 @@ public class ARTagDetector {
   private final Mat distortionCoefficients;
 
   /**
+   * Class to represent an ARTag.
+   */
+  public class ARTag {
+    private int markerId;
+    private Mat corner;
+
+    public ARTag() {
+      this.markerId = -1;
+      this.corner = null;
+    }
+
+    public ARTag(int markerId, Mat corner) {
+      this.markerId = markerId;
+      this.corner = corner;
+    }
+
+    public int getMarkerId() { return markerId; }
+    public Mat getCorner() { return corner; }
+  }
+
+  /**
    * Constructor
    * 
    * @param apiRef API reference.

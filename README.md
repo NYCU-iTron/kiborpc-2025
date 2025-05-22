@@ -50,7 +50,7 @@ For more details, see [Progress](./docs/progress/progress.md)
   - Deal with the sensor error.
 - [ItemManager](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ItemManager.java)
   - Store the items information.
-- [Main controller](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/MainControl.java)
+- [MainControl](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/MainControl.java)
   - Integrate Navigator, VisionHandler and ItemManager.
   - Determine the current state.
 

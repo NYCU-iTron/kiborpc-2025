@@ -56,92 +56,217 @@ public class ItemDetector {
   private final KiboRpcApi api;
   private final Context context;
   private final String TAG = this.getClass().getSimpleName();
-  private boolean DEBUG = true;
 
-  private ImageProcessor imageProcessor;
   private List<String> labels;
-  private Random rand; // Deal with no item detected
-  
-  private int tensorWidth;
-  private int tensorHeight;
-  private int numChannel;
-  private int numElements;
+  private ImageProcessor imageProcessor;
+  private Random rand;
 
-  private Map<String, Integer> labelToIdMap;
-  private Map<Integer, String> idToLabelMap;
-  private Map<ModelType, Interpreter> modelMap;
-
-  private static final float CONFIDENCE_THRESHOLD = 0.7F;
-  private static final float IOU_THRESHOLD = 0.7F;
-  private static final float INPUT_MEAN = 0.0F;
-  private static final float INPUT_STANDARD_DEVIATION = 255.0F;
-
+  // Enum representing the model types available for detection.
   public enum ModelType {
-    CLIPPED,
-    ENV,
-    MANUAL,
-    s_15000_0516,
+    M30000,
+    S20000,
+    N20000,
+    N10000,
+  }
+  private Map<ModelType, InterpreterWrapper> modelMap;
+
+  /**
+   * Class representing a detected item with its bounding box, confidence, class ID, and class name.
+   * The weight of the model is set to 1.0 by default.
+   */
+  public class Detection {
+    private float[] box;
+    private float confidence;
+    private int classId;
+    private String className;
+    private float modelWeight;
+
+    Detection(float[] box, float confidence, int classId, String className) {
+      this.box = box;
+      this.confidence = confidence;
+      this.classId = classId;
+      this.className = className;
+      this.modelWeight = 1.0f;
+    }
+
+    Detection(float[] box, float confidence, int classId, String className, float modelWeight) {
+      this.box = box;
+      this.confidence = confidence;
+      this.classId = classId;
+      this.className = className;
+      this.modelWeight = modelWeight;
+    }
+
+    public String toString() {
+      return "Detection {class=" + className + ", confidence=" + confidence + '}';
+    }
+  }
+
+  /**
+   * Class representing an interpreter wrapper for the TensorFlow Lite model.
+   * It contains the model, labels, and configuration parameters such as model weight and confidence threshold.
+   * The model weight is set to 1.0 by default, and the confidence threshold is set to 0.4.
+   */
+  private class InterpreterWrapper {
+    private final String TAG = this.getClass().getSimpleName();
+    private Interpreter interpreter;
+    private List<String> labels;
+    private float modelWeight;
+    private float confThreshold;
+
+    InterpreterWrapper(String modelName) {
+      this.modelWeight = 1.0f;
+      this.confThreshold = 0.5f;
+
+      interpreter = loadInterpreter(modelName);
+      if (interpreter == null) {
+        Log.e(TAG, "Failed to load model: " + modelName);
+      }
+
+      // Labels
+      try {
+        labels = FileUtil.loadLabels(context, "labels.txt");
+      } catch (IOException e) {
+        Log.e(TAG, "Failed to load label", e);
+      }
+    }
+
+    InterpreterWrapper(String modelName, float modelWeight, float confThreshold) {
+      this.modelWeight = modelWeight;
+      this.confThreshold = confThreshold;
+
+      // Model
+      interpreter = loadInterpreter(modelName);
+      if (interpreter == null) {
+        Log.e(TAG, "Failed to load model: " + modelName);
+      }
+
+      // Labels
+      try {
+        labels = FileUtil.loadLabels(context, "labels.txt");
+      } catch (IOException e) {
+        Log.e(TAG, "Failed to load label", e);
+      }
+    }
   }
 
   /**
    * Constructor for ItemDetector.
    * Sets up the model, label mappings, and image processor.
-   *
-   * @param context the application context
+   * 
    * @param apiRef  reference to the KiboRpcApi
+   * @param context the application context
    */
-  public ItemDetector(Context context, KiboRpcApi apiRef) {
+  public ItemDetector(KiboRpcApi apiRef, Context context) {
     this.api = apiRef;
     this.context = context;
 
-    initItemMappings();  // Initialize mappings between item id and name
-    rand = new Random(); // Create a random generator
+    // Load models
+    InterpreterWrapper modelM30000 = new InterpreterWrapper("m_30000_0522.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelS20000 = new InterpreterWrapper("s_20000_0522.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelN20000 = new InterpreterWrapper("n_20000_0519.tflite", 1.0f, 0.4f);
+    InterpreterWrapper modelN10000 = new InterpreterWrapper("n_10000_0521.tflite", 1.0f, 0.4f);
 
-    // Load Yolo models
+    // Map model types to their respective interpreters
     modelMap = new HashMap<>();
-    
-    Interpreter clippedModel = loadInterpreter("best_clipped.tflite");
-    if (clippedModel != null) {
-      modelMap.put(ModelType.CLIPPED, clippedModel);
-    } else {
-      Log.e(TAG, "Failed to load CLIPPED model");
-    }
+    modelMap.put(ModelType.M30000, modelM30000);
+    modelMap.put(ModelType.S20000, modelS20000);
+    modelMap.put(ModelType.N20000, modelN20000);
+    modelMap.put(ModelType.N10000, modelN10000);
 
-    Interpreter sModel = loadInterpreter("s_15000_0516.tflite");
-    if (sModel != null) {
-      modelMap.put(ModelType.s_15000_0516, sModel);
-    } else {
-      Log.e(TAG, "Failed to load s_15000_0516 model");
-    }
-
-    // Load labels
+    // Labels
     try {
       labels = FileUtil.loadLabels(context, "labels.txt");
-    } catch (IOException e) {
+    } catch (Exception e) {
       Log.e(TAG, "Failed to load label", e);
     }
 
-    // Build an image processor: normalize and cast input images
-    this.imageProcessor = new ImageProcessor.Builder()
-        .add(new NormalizeOp(INPUT_MEAN, INPUT_STANDARD_DEVIATION))
-        .add(new CastOp(DataType.FLOAT32))
-        .build();
+    // Load image processor
+    imageProcessor = new ImageProcessor.Builder()
+      .add(new NormalizeOp(0.0F, 255.0F))
+      .add(new CastOp(DataType.FLOAT32))
+      .build();
+
+    rand = new Random();
 
     Log.i(TAG, "Initialized");
   }
 
-  public List<float[]> detect(Mat image, ModelType modelType) {
-    Interpreter interpreter = modelMap.get(modelType);
+  /**
+   * Detect using multiple models with revised weighted box fusion method
+   * 
+   * @param image The input image to be processed.
+   * @return A list of Detection objects.
+   */
+  public List<Detection> detect(Mat image) {
+    List<Detection> detectionAll = new ArrayList<>();
+    InterpreterWrapper interpreterWrapper = null;
 
-    if (interpreter == null) {
-      Log.w(TAG, "TFLite model not loaded, detect operation aborted.");
+    // Loop through each model
+    for (ModelType modelType : modelMap.keySet()) {
+      interpreterWrapper = modelMap.get(modelType);
+      if (interpreterWrapper == null) {
+        Log.e(TAG, "Model not found: " + modelType);
+        continue;
+      }
+      
+      // Preprocess the image
+      ByteBuffer imageBuffer = preprocess(image, interpreterWrapper);
+
+      // Run inference
+      float[] outputArray = runReference(imageBuffer, interpreterWrapper);
+
+      // Postprocess the output
+      List<Detection> detections = postprocess(outputArray, interpreterWrapper);
+
+      detectionAll.addAll(detections);
+    }
+    
+    // Apply revised Weighted Box Fusion
+    float iouThreshold = 0.7f;
+    float confThreshold = 0.7f;
+    List<Detection> results = wbf(detectionAll, iouThreshold, confThreshold);
+
+    Log.i(TAG, "Detection results:");
+    for (Detection result : results) {
+      Log.i(TAG, result.toString());
+    }
+
+    return results;
+  }
+
+  /**
+   * Detect using a specific model type.
+   * 
+   * @param image The input image to be processed.
+   * @param modelType The type of model to be used for detection.
+   * @return A list of Detection objects.
+   */
+  public List<Detection> detect(Mat image, ModelType modelType) {
+    // Initialize wrapper
+    InterpreterWrapper interpreterWrapper = modelMap.get(modelType);
+    if (interpreterWrapper == null) {
+      Log.e(TAG, "Model not found: " + modelType);
       return new ArrayList<>();
     }
 
-    ByteBuffer imageBuffer = preprocess(image, interpreter);
-    float[] outputArray = runReference(imageBuffer, interpreter);
-    List<float[]> detections = parsePredictions(outputArray, interpreter);
-    List<float[]> results = applyNonMaximumSuppression(detections);
+    // Preprocess the image
+    ByteBuffer imageBuffer = preprocess(image, interpreterWrapper);
+
+    // Run inference
+    float[] outputArray = runReference(imageBuffer, interpreterWrapper);
+
+    // Postprocess the output
+    List<Detection> detections = postprocess(outputArray, interpreterWrapper);
+
+    // Apply Non-Maximum Suppression
+    float iouThreshold = 0.7f;
+    List<Detection> results = nms(detections, iouThreshold);
+
+    Log.i(TAG, "Detection results:");
+    for (Detection result : results) {
+      Log.i(TAG, result.toString());
+    }
 
     return results;
   }
@@ -149,12 +274,12 @@ public class ItemDetector {
   /**
    * Filters the detection results to identify the treasure and landmark items with the highest confidence.
    *
-   * @param detectResult A list of detection results, each containing item details and confidence scores.
+   * @param detectionList List of detected items.
    * @param areaId       The area identifier where the detection occurred.
    * @param tagPose      The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
-  public List<Item> filterResult(List<float[]> itemResults, int areaId, Pose tagPose) {
+  public List<Item> filterResult(List<Detection> detectionList, int areaId, Pose tagPose) {
     int treasureId = -1;
     int landmarkId = -1;
     String treasureName = null;
@@ -167,33 +292,40 @@ public class ItemDetector {
     Map<Integer, Integer> itemCountMap = new HashMap<>();
     List<Item> itemList = new ArrayList<>();
 
-    // Handle empty detection results
-    if (itemResults.isEmpty()) {
+    if (detectionList.isEmpty()) {
       Log.w(TAG, "No detection found, return empty list.");
       return itemList;
     }
 
-    for (float[] det : itemResults) {
-      String label = labels.get((int) det[9]); // Get item label from detection
-      int itemId = labelToIdMap.get(label); // Convert label to item ID
+    for (Detection det: detectionList) {
+      String itemName = det.className;
+
+      // Map classId to itemId
+      int itemId = -1;
+      if (det.classId >= 0 && det.classId < 3) {
+        itemId = det.classId + 11;
+      } else if (det.classId >= 3 && det.classId < 11) {
+        itemId = det.classId + 18;
+      }
 
       // Update item count
       itemCountMap.put(itemId, itemCountMap.getOrDefault(itemId, 0) + 1);
 
       // Record the treasure with the highest confidence
       if (itemId / 10 == 1) {
-        if (det[8] > treasureMaxConfidence) {
-          treasureMaxConfidence = det[8];
+        if (det.confidence > treasureMaxConfidence) {
+          treasureMaxConfidence = det.confidence;
           treasureId = itemId;
-          treasureName = label;
+          treasureName = itemName;
         }
       }
+
       // Record the landmark with the highest confidence
       else if (itemId / 10 == 2) {
-        if (det[8] > landmarkMaxConfidence) {
-          landmarkMaxConfidence = det[8];
+        if (det.confidence > landmarkMaxConfidence) {
+          landmarkMaxConfidence = det.confidence;
           landmarkId = itemId;
-          landmarkName = label;
+          landmarkName = itemName;
         }
       } else {
         Log.w(TAG, "Unknown item ID: " + itemId); // Log invalid IDs
@@ -213,6 +345,7 @@ public class ItemDetector {
       itemList.add(new Item());
     } else {
       landmarkCount = itemCountMap.getOrDefault(landmarkId, 1);
+      landmarkCount = Math.min(landmarkCount, 6);
       itemList.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
     }
 
@@ -222,17 +355,23 @@ public class ItemDetector {
   /**
    * Guess the result.
    *
-   * @param areaId       The area identifier where the detection occurred.
-   * @param tagPose      The pose associated with the detection area.
+   * @param areaId   The area identifier where the detection occurred.
+   * @param tagPose  The pose associated with the detection area.
    * @return An array containing the selected treasure and landmark items, in the format of [treasureItem, landmarkItem].
    */
   public List<Item> guessResult(int areaId, Pose tagPose) {
     List<Item> results = new ArrayList<>();
 
-    int treasureId = rand.nextInt(3) + 11; // Random treasure ID (11-13)
-    int landmarkId = rand.nextInt(8) + 21; // Random landmark ID (21-28)
-    String treasureName = idToLabelMap.get(treasureId);
-    String landmarkName = idToLabelMap.get(landmarkId);
+    // Class IDs from yolo model
+    int treasureId = rand.nextInt(3); // 0-2
+    int landmarkId = rand.nextInt(8) + 3; // 3-10
+    String treasureName = labels.get(treasureId);
+    String landmarkName = labels.get(landmarkId);
+
+    // Item IDs from item manager
+    int treasureItemId = treasureId + 11; // 11-13
+    int landmarkItemId = landmarkId + 18; // 21-28
+
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
 
@@ -249,10 +388,10 @@ public class ItemDetector {
    * @param detectResult   List of detection results containing bounding box coordinates.
    * @param area           The area identifier used for saving the image.
    */
-  public void drawBoundingBoxes(Mat image, List<float[]> detectResult, int area) {
-    if (detectResult == null || detectResult.isEmpty()) {
+  public Mat drawBoundingBoxes(Mat image, List<Detection> detectionList, int area) {
+    if (detectionList == null || detectionList.isEmpty()) {
       Log.i(TAG, "No detections to draw.");
-      return;
+      return image;
     }
 
     int imageWidth = image.cols();
@@ -268,12 +407,11 @@ public class ItemDetector {
     int padX = (inputWidth - newWidth) / 2;
     int padY = (inputHeight - newHeight) / 2;
 
-    for (float[] det : detectResult) {
-      // Extract bounding box coordinates
-      float x1 = det[0] * inputWidth;
-      float y1 = det[1] * inputHeight;
-      float x2 = det[2] * inputWidth;
-      float y2 = det[3] * inputHeight;
+    for (Detection det : detectionList) {
+      float x1 = det.box[0] * inputWidth;
+      float y1 = det.box[1] * inputHeight;
+      float x2 = det.box[2] * inputWidth;
+      float y2 = det.box[3] * inputHeight;
 
       x1 = (x1 - padX) / scale;
       y1 = (y1 - padY) / scale;
@@ -285,8 +423,6 @@ public class ItemDetector {
       int ix2 = Math.max(0, Math.min((int) x2, imageWidth - 1));
       int iy2 = Math.max(0, Math.min((int) y2, imageHeight - 1));
 
-      Log.i(TAG, "Drawing Bounding Box at (" + ix1 + "," + iy1 + "," + ix2 + "," + iy2 + ")");
-
       // Create a rectangle from the top-left and bottom-right points
       Rect rect = new Rect(new Point(ix1, iy1), new Point(ix2, iy2));
       
@@ -297,7 +433,7 @@ public class ItemDetector {
       // Draw the rectangle on the image
       Imgproc.rectangle(image, rect, color, thickness);
 
-      String label = labels.get((int) det[9]);
+      String label = labels.get((int) det.classId);
       Scalar textColor = new Scalar(0, 0, 0);
       int font = Imgproc.FONT_HERSHEY_SIMPLEX;
       double fontScale = 0.5;
@@ -307,47 +443,17 @@ public class ItemDetector {
       Imgproc.putText(image, label, labelPosition, font, fontScale, textColor, thicknessText);
     }
 
-    api.saveMatImage(image, String.format("area%d_bbox.png", area));
+    return image;
   }
 
-  /* ----------------------------- Tool Functions ----------------------------- */
+  /* ------------------------- Private Tool Functions ------------------------- */
 
   /**
-   * Initializes the mapping between item IDs and item names.
+   * Loads the TensorFlow Lite model from the assets folder.
+   *
+   * @param model_path The path to the model file in the assets folder.
+   * @return An Interpreter object for running inference on the model.
    */
-  private void initItemMappings() {
-    idToLabelMap = new HashMap<>();
-    labelToIdMap = new HashMap<>();
-
-    // Treasure
-    idToLabelMap.put(11, "crystal");
-    idToLabelMap.put(12, "diamond");
-    idToLabelMap.put(13, "emerald");
-
-    labelToIdMap.put("crystal", 11);
-    labelToIdMap.put("diamond", 12);
-    labelToIdMap.put("emerald", 13);
-
-    // Landmark
-    idToLabelMap.put(21, "coin");
-    idToLabelMap.put(22, "compass");
-    idToLabelMap.put(23, "coral");
-    idToLabelMap.put(24, "fossil");
-    idToLabelMap.put(25, "key");
-    idToLabelMap.put(26, "letter");
-    idToLabelMap.put(27, "shell");
-    idToLabelMap.put(28, "treasure_box");
-
-    labelToIdMap.put("coin"        , 21);
-    labelToIdMap.put("compass"     , 22);
-    labelToIdMap.put("coral"       , 23);
-    labelToIdMap.put("fossil"      , 24);
-    labelToIdMap.put("key"         , 25);
-    labelToIdMap.put("letter"      , 26);
-    labelToIdMap.put("shell"       , 27);
-    labelToIdMap.put("treasure_box", 28);
-  }
-  
   private Interpreter loadInterpreter(String model_path) {
     Log.i(TAG, "Loading interpreter for " + model_path);
     FileInputStream inputStream = null;
@@ -369,30 +475,15 @@ public class ItemDetector {
 
       Interpreter interpreter = new Interpreter(model, options);
 
-      int[] inputShape = interpreter.getInputTensor(0).shape();
-      int[] outputShape = interpreter.getOutputTensor(0).shape();
-
-      tensorWidth = inputShape[1];
-      tensorHeight = inputShape[2];
-      numChannel = outputShape[1];
-      numElements = outputShape[2];
-
       return interpreter;
-    } catch (IOException e) {
-      Log.e(TAG, "Failed to load model: " + e.getMessage(), e);
-      return null;
-    } catch (OutOfMemoryError e) {
-      Log.e(TAG, "Out of memory when loading model " + model_path, e);
-      System.gc();
-      return null;
     } catch (Exception e) {
-      Log.e(TAG, "Unexpected error when loading model " + model_path + ": " + e.getMessage(), e);
+      Log.e(TAG, "Fail to load model at " + model_path + ": " + e.getMessage(), e);
       return null;
     } finally {
       if (fileChannel != null) {
         try {
           fileChannel.close();
-        } catch (IOException e) {
+        } catch (Exception e) {
           Log.e(TAG, "Error closing file channel", e);
         }
       }
@@ -400,7 +491,7 @@ public class ItemDetector {
       if (inputStream != null) {
         try {
           inputStream.close();
-        } catch (IOException e) {
+        } catch (Exception e) {
           Log.e(TAG, "Error closing input stream", e);
         }
       }
@@ -413,10 +504,10 @@ public class ItemDetector {
    * @param image The input image as a Mat object.
    * @return A ByteBuffer ready for model input.
    */
-  private ByteBuffer preprocess(Mat image, Interpreter interpreter) {
-    int[] inputShape = interpreter.getInputTensor(0).shape();
-    tensorWidth = inputShape[1];
-    tensorHeight = inputShape[2];
+  private ByteBuffer preprocess(Mat image, InterpreterWrapper interpreterWrapper) {
+    int[] inputShape = interpreterWrapper.interpreter.getInputTensor(0).shape();
+    int tensorWidth = inputShape[1];
+    int tensorHeight = inputShape[2];
 
     // Convert Mat to Bitmap format
     Bitmap bitmap = Bitmap.createBitmap(image.cols(), image.rows(), Bitmap.Config.ARGB_8888);
@@ -424,9 +515,6 @@ public class ItemDetector {
 
     // Resize Bitmap to match the model input size
     Bitmap resizedBitmap = letterbox(bitmap, tensorWidth, tensorHeight);
-
-    Log.i(TAG, "Original image size: " + image.cols() + "x" + image.rows());
-    Log.i(TAG, "Resized to: " + tensorWidth + "x" + tensorHeight);
 
     // Load the resized Bitmap into a TensorImage
     TensorImage tensorImage = new TensorImage(DataType.FLOAT32);
@@ -441,6 +529,14 @@ public class ItemDetector {
     return imageBuffer;
   }
 
+  /**
+   * Resizes the input image to fit the model input size while maintaining the aspect ratio.
+   * 
+   * @param src The source Bitmap image.
+   * @param targetWidth The target width for the resized image.
+   * @param targetHeight The target height for the resized image.
+   * @return A letterboxed Bitmap image.
+   */
   private Bitmap letterbox(Bitmap src, int targetWidth, int targetHeight) {
     int srcWidth = src.getWidth();
     int srcHeight = src.getHeight();
@@ -473,17 +569,17 @@ public class ItemDetector {
    * @param imageBuffer The preprocessed input image as a ByteBuffer.
    * @return The model output as a float array.
    */
-  private float[] runReference(ByteBuffer imageBuffer, Interpreter interpreter) {
+  private float[] runReference(ByteBuffer imageBuffer, InterpreterWrapper interpreterWrapper) {
     // Get output tensor shapes
-    int[] outputShape = interpreter.getOutputTensor(0).shape();
-    numChannel = outputShape[1];
-    numElements = outputShape[2];
+    int[] outputShape = interpreterWrapper.interpreter.getOutputTensor(0).shape();
+    int numChannel = outputShape[1];
+    int numElements = outputShape[2];
 
     // Create an output buffer with the expected shape and type
     TensorBuffer output = TensorBuffer.createFixedSize(new int[]{1, numChannel, numElements}, DataType.FLOAT32);
 
     // Run inference with the interpreter
-    interpreter.run(imageBuffer, output.getBuffer());
+    interpreterWrapper.interpreter.run(imageBuffer, output.getBuffer());
 
     // Convert the output to a float array
     float[] outputArray = output.getFloatArray();
@@ -497,99 +593,198 @@ public class ItemDetector {
    * @param outputArray The raw output array from the model.
    * @return A list of detected bounding boxes and related information.
    */
-  private List<float[]> parsePredictions(float[] outputArray, Interpreter interpreter) {
+  private List<Detection> postprocess(float[] outputArray, InterpreterWrapper interpreterWrapper) {
     // Get output tensor shapes
-    int[] outputShape = interpreter.getOutputTensor(0).shape();
-    numChannel = outputShape[1];
-    numElements = outputShape[2];
+    int[] outputShape = interpreterWrapper.interpreter.getOutputTensor(0).shape();
+    int numChannel = outputShape[1];
+    int numElements = outputShape[2];
 
-    List<float[]> detections = new ArrayList<>();
-
-    // Loop through each element (candidate detection)
-    for (int c = 0; c < numElements; c++) {
+    // Loop through each detection
+    List<Detection> detections = new ArrayList<>();
+    for (int i = 0; i < numElements; i++) {
+      // Find the class with the highest confidence for this candidate
       float maxConf = -1.0F;
       int maxIdx = -1;
-
-      // Find the class with the highest confidence for this candidate
       for (int j = 4; j < numChannel; j++) {
-        int arrayIdx = c + numElements * j;
-        if (outputArray[arrayIdx] > maxConf) {
-          maxConf = outputArray[arrayIdx];
-          maxIdx = j - 4; // Class index adjustment
+        if (outputArray[i + numElements * j] > maxConf) {
+          maxConf = outputArray[i + numElements * j];
+          maxIdx = j - 4;
         }
       }
 
-      // If confidence is high enough, process the detection
-      if (maxConf > CONFIDENCE_THRESHOLD) {
-        // Get center coordinates and size
-        float cx = outputArray[c];
-        float cy = outputArray[c + numElements];
-        float w = outputArray[c + numElements * 2];
-        float h = outputArray[c + numElements * 3];
+      if (maxConf < interpreterWrapper.confThreshold) continue;
 
-        // Calculate bounding box corners
-        float x1 = cx - w / 2.0F;
-        float y1 = cy - h / 2.0F;
-        float x2 = cx + w / 2.0F;
-        float y2 = cy + h / 2.0F;
+      // Get center coordinates and size
+      float cx = outputArray[i];
+      float cy = outputArray[i + numElements];
+      float w = outputArray[i + numElements * 2];
+      float h = outputArray[i + numElements * 3];
 
-        // Check if the bounding box is valid (inside [0, 1] range)
-        if (x1 >= 0.0F && x1 <= 1.0F && y1 >= 0.0F && y1 <= 1.0F && x2 >= 0.0F && x2 <= 1.0F) {
-          // Add valid detection [box coords, center, size, confidence, class]
-          detections.add(new float[]{x1, y1, x2, y2, cx, cy, w, h, maxConf, maxIdx});
-        } else {
-          // Skip detections that are out of bounds
-          Log.i(TAG, "Detection out of bounds, skipping");
-        }
-      }
+      // Calculate bounding box corners, staying within [0, 1] range
+      float x1 = cx - w / 2.0F;
+      float y1 = cy - h / 2.0F;
+      float x2 = cx + w / 2.0F;
+      float y2 = cy + h / 2.0F;
+
+      // Create a Detection object
+      Detection detection = new Detection(
+        new float[]{x1, y1, x2, y2},
+        maxConf,
+        maxIdx,
+        interpreterWrapper.labels.get(maxIdx),
+        interpreterWrapper.modelWeight
+      );
+      detections.add(detection);
     }
 
     return detections;
   }
 
   /**
-   * Applies Non-Maximum Suppression (NMS) to remove overlapping detections.
-   *
-   * @param detections List of raw detections [x1, y1, x2, y2, ..., confidence, class]
-   * @return List of filtered detections after NMS
+   * Applies Revised Weighted Box Fusion (WBF) to combine overlapping detections.
+   * This method is a modified version of the original WBF algorithm.
+   * Instead of merging boxes by class, it merges all boxes of different classes first,
+   * then chooses the best class based on the weighted average of the confidence scores.
+   * 
+   * @param detections List of Detection objects to be fused.
+   * @param iouThreshold IoU threshold for merging boxes.
+   * @param confThreshold Confidence threshold for filtering boxes.
+   * @return List of fused Detection objects.
    */
-  private List<float[]> applyNonMaximumSuppression(List<float[]> detections) {
-    List<float[]> results = new ArrayList<>();
+  private List<Detection> wbf(List<Detection> detections, float iouThreshold, float confThreshold) {
+    if (detections.isEmpty()) {
+      Log.i(TAG, "No detections to process.");
+      return detections;
+    }
 
-    Log.i(TAG, "Detection count before NMS: " + detections.size());
+    // Sort the score in descending order
+    Collections.sort(detections, new Comparator<Detection>() {
+      @Override
+      public int compare(Detection d1, Detection d2) {
+        return Float.compare(d2.confidence, d1.confidence); 
+      }
+    });
 
-    if (!detections.isEmpty()) {
-      // Sort detections by confidence score (descending)
-      detections.sort(new Comparator<float[]>() {
+    List<Detection> fused = new ArrayList<>();
+    boolean[] used = new boolean[detections.size()];
+
+    // Iterate through the detections
+    for (int i = 0; i < detections.size(); i++) {
+      if (used[i]) continue;
+
+      // Create a new group for the current detection
+      List<Detection> group = new ArrayList<>();
+      group.add(detections.get(i));
+      used[i] = true;
+
+      // Check for overlapping detections
+      for (int j = i + 1; j < detections.size(); j++) {
+        if (used[j]) continue;
+
+        Detection di = detections.get(i);
+        Detection dj = detections.get(j);
+        float iou = calculateIoU(di.box, dj.box);
+        boolean contained = isContained(dj.box, di.box, 0.8f);
+
+        if (iou > iouThreshold || contained) {
+          group.add(dj);
+          used[j] = true;
+        }
+      }
+
+      // Compute weighted box
+      float confidenceSum = 0f;
+      float weightSum = 0f;
+      float x1 = 0f, y1 = 0f, x2 = 0f, y2 = 0f;
+
+      for (Detection d : group) {
+        confidenceSum += d.confidence * d.modelWeight;
+        weightSum += d.modelWeight;
+        x1 += d.box[0] * d.confidence * d.modelWeight;
+        y1 += d.box[1] * d.confidence * d.modelWeight;
+        x2 += d.box[2] * d.confidence * d.modelWeight;
+        y2 += d.box[3] * d.confidence * d.modelWeight;
+      }
+
+      float confidenceAvg = confidenceSum / weightSum;
+      if (confidenceAvg < confThreshold) {
+        continue;
+      }
+
+      x1 /= confidenceSum;
+      y1 /= confidenceSum;
+      x2 /= confidenceSum;
+      y2 /= confidenceSum;
+
+      float minX = Math.min(x1, x2);
+      float minY = Math.min(y1, y2);
+      float maxX = Math.max(x1, x2);
+      float maxY = Math.max(y1, y2);
+
+      // Check if the bounding box is too small
+      if ((maxX - minX) < 0.05 || (maxY - minY) < 0.05) {
+        continue;
+      }
+
+      // Sort into descending order of confidence
+      Collections.sort(group, new Comparator<Detection>() {
         @Override
-        public int compare(float[] o1, float[] o2) {
-          return Float.compare(o2[8], o1[8]); // Confidence is at index 8
+        public int compare(Detection a, Detection b) {
+          float weightedConfidenceA = a.confidence * a.modelWeight;
+          float weightedConfidenceB = b.confidence * b.modelWeight;
+          return Float.compare(weightedConfidenceB, weightedConfidenceA);
         }
       });
 
-      // Perform NMS
-      while (!detections.isEmpty()) {
-        // Pick the detection with highest confidence
-        float[] first = detections.remove(0);
-        results.add(first);
-
-        Iterator<float[]> iterator = detections.iterator();
-        while (iterator.hasNext()) {
-          float[] nextBox = iterator.next();
-          // Remove detections with IoU greater than threshold
-          if (calculateIoU(first, nextBox) >= IOU_THRESHOLD) {
-            iterator.remove();
-          }
-        }
-      }
+      Detection fusedDetection = new Detection(
+        new float[]{minX, minY, maxX, maxY},
+        confidenceAvg,
+        group.get(0).classId,
+        group.get(0).className
+      );
+      fused.add(fusedDetection);
     }
 
-    Log.i(TAG, "Final detection count after NMS: " + results.size());
-    for (int i = 0; i < results.size(); i++) {
-      float[] det = results.get(i);
-      Log.i(TAG, "Detection " + i + ": class=" + (int)det[9] + 
-            ", confidence=" + det[8] + 
-            ", box=(" + det[0] + "," + det[1] + "," + det[2] + "," + det[3] + ")");
+    return fused;
+  }
+
+  /**
+   * Applies Non-Maximum Suppression (NMS) to remove overlapping detections.
+   *
+   * @param detections List of Detection objects to be filtered.
+   * @param iouThreshold IoU threshold for filtering.
+   * @return List of filtered detections object after NMS
+   */
+  private List<Detection> nms(List<Detection> detections, float iouThreshold) {
+    List<Detection> results = new ArrayList<>();
+
+    if (detections.isEmpty()) {
+      Log.i(TAG, "No detections to process.");
+      return results;
+    }
+
+    // Sort detections by confidence in descending order
+    detections.sort(new Comparator<Detection>() {
+      @Override
+      public int compare(Detection det1, Detection det2) {
+        return Float.compare(det2.confidence, det1.confidence);
+      }
+    });
+
+    // Perform NMS
+    while (!detections.isEmpty()) {
+      // Pick the detection with highest confidence
+      Detection first = detections.remove(0);
+      results.add(first);
+
+      // Remove overlapping detections
+      Iterator<Detection> iterator = detections.iterator();
+      while (iterator.hasNext()) {
+        Detection next = iterator.next();
+        if (calculateIoU(first.box, next.box) >= iouThreshold) {
+          iterator.remove();
+        }
+      }
     }
 
     return results;
@@ -619,5 +814,38 @@ public class ItemDetector {
 
     // Return the IoU value: intersection area / union area
     return interArea / (box1Area + box2Area - interArea);
+  }
+
+  /**
+   * Checks if the inner bounding box is contained within the outer bounding box.
+   * The function uses a threshold to determine if the inner box is sufficiently contained.
+   * 
+   * @param inner The inner bounding box [x, y, width, height].
+   * @param outer The outer bounding box [x, y, width, height].
+   * @param threshold The threshold for containment (0.0 to 1.0).
+   * @return true if the inner box is contained within the outer box, false otherwise.
+   */
+  private boolean isContained(float[] box1, float[] box2, float threshold) {
+    float x1_1 = box1[0], y1_1 = box1[1], x2_1 = box1[2], y2_1 = box1[3];
+    float x1_2 = box2[0], y1_2 = box2[1], x2_2 = box2[2], y2_2 = box2[3];
+
+    float interX1 = Math.max(x1_1, x1_2);
+    float interY1 = Math.max(y1_1, y1_2);
+    float interX2 = Math.min(x2_1, x2_2);
+    float interY2 = Math.min(y2_1, y2_2);
+
+    float interWidth = Math.max(0, interX2 - interX1);
+    float interHeight = Math.max(0, interY2 - interY1);
+    float interArea = interWidth * interHeight;
+
+    float area1 = (x2_1 - x1_1) * (y2_1 - y1_1);
+    float area2 = (x2_2 - x1_2) * (y2_2 - y1_2);
+
+    float minArea = Math.min(area1, area2);
+    if (minArea <= 0) {
+      return false;
+    }
+
+    return (interArea / minArea) > threshold;
   }
 }

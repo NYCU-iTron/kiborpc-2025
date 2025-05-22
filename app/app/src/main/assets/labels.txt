@@ -1,9 +1,9 @@
-coin
-compass
-coral
 crystal
 diamond
 emerald
+coin
+compass
+coral
 fossil
 key
 letter
