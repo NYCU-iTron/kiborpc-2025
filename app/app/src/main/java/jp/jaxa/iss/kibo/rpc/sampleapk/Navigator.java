@@ -247,7 +247,7 @@ public class Navigator {
         finalY = Math.max(finalY, area2MinY + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
+        finalQuaternion = new Quaternion(0.707f, 0.0f, -0.707f, 0.0f);
 
         break;
 
@@ -264,7 +264,7 @@ public class Navigator {
         finalY = Math.max(finalY, area3MinY + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
+        finalQuaternion = new Quaternion(0.707f, 0.0f, -0.707f, 0.0f);
 
         break;
 
