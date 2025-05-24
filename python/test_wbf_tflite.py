@@ -141,7 +141,7 @@ def compute_iou(box1, box2):
   union = area1 + area2 - inter_area
   return inter_area / union if union != 0 else 0
 
-def is_contained(box1, box2, threshold=0.75):
+def is_contained(box1, box2, threshold=0.8):
   x1 = max(box1[0], box2[0])
   y1 = max(box1[1], box2[1])
   x2 = min(box1[2], box2[2])

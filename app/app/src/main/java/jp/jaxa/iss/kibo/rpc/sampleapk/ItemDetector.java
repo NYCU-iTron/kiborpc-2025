@@ -684,7 +684,7 @@ public class ItemDetector {
         Detection di = detections.get(i);
         Detection dj = detections.get(j);
         float iou = calculateIoU(di.box, dj.box);
-        boolean contained = isContained(dj.box, di.box, 0.8f);
+        boolean contained = isContained(dj.box, di.box, 0.85f);
 
         if (iou > iouThreshold || contained) {
           group.add(dj);
