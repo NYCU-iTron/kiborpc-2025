@@ -66,7 +66,6 @@ public class ItemDetector {
     M30000,
     S20000,
     N20000,
-    N10000,
   }
   private Map<ModelType, InterpreterWrapper> modelMap;
 
@@ -164,15 +163,13 @@ public class ItemDetector {
     // Load models
     InterpreterWrapper modelM30000 = new InterpreterWrapper("m_30000_0522.tflite", 1.0f, 0.6f);
     InterpreterWrapper modelS20000 = new InterpreterWrapper("s_20000_0522.tflite", 1.0f, 0.6f);
-    InterpreterWrapper modelN20000 = new InterpreterWrapper("n_20000_0519.tflite", 1.0f, 0.4f);
-    InterpreterWrapper modelN10000 = new InterpreterWrapper("n_10000_0521.tflite", 1.0f, 0.4f);
+    InterpreterWrapper modelN20000 = new InterpreterWrapper("n_20000_0524.tflite", 1.0f, 0.4f);
 
     // Map model types to their respective interpreters
     modelMap = new HashMap<>();
     modelMap.put(ModelType.M30000, modelM30000);
     modelMap.put(ModelType.S20000, modelS20000);
     modelMap.put(ModelType.N20000, modelN20000);
-    modelMap.put(ModelType.N10000, modelN10000);
 
     // Labels
     try {
