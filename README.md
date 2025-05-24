@@ -1,5 +1,38 @@
 # kiborpc-2025
 
+## Install
+
+This project use [Git LFS](https://git-lfs.com/) to manage the model files.
+Before cloning the repository, install Git LFS.
+
+```sh
+# Ubuntu/Debian
+sudo apt install git-lfs
+```
+
+```sh
+# Arch
+yay -S git-lfs
+```
+
+Then, run this (once per system):
+
+```sh
+git lfs install
+```
+
+After installing Git LFS, you can clone the repository, all LFS-tracked files will be fetched automatically
+
+```sh
+git clone git@github.com:NYCU-iTron/kiborpc-2025.git
+```
+
+If for any reason the large files are not downloaded, you can run:
+
+```sh
+git lfs pull
+```
+
 ## Usage
 
 To enter docker build environment.
