@@ -26,12 +26,12 @@ public class Navigator {
   // Target poses in each area
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
-    areaPoses.put(1, new Pose(new Point(10.95, -9.5, 4.945), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
+    areaPoses.put(1, new Pose(new Point(10.95, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
-    areaPoses.put(4, new Pose(new Point(11.425, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
-    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 4.85), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f))); // Combined Area 2 3
-    areaPoses.put(0, new Pose(new Point(11.425, -6.7607, 4.945), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
+    areaPoses.put(4, new Pose(new Point(11.2, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
+    areaPoses.put(5, new Pose(new Point(10.935, -8.55, 4.955), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f))); // Combined Area 2 3
+    areaPoses.put(0, new Pose(new Point(11.143, -6.7607, 4.935), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
   }
 
   // Safety factors
@@ -192,7 +192,7 @@ public class Navigator {
 
     // Wait Stable
     try{
-      Thread.sleep(1300);
+      Thread.sleep(800);
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }
