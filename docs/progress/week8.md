@@ -1,4 +1,4 @@
-# Week (05/19-05/25)
+# Week 8 (05/19-05/25)
 
 ## Meeting Record
 
@@ -13,6 +13,7 @@
 - Ask others about the simulation score on the website, one team from Tailand got 285 in normal mode.
 - Implement revised WBF algorithm.
 - Reformat `ItemDetector` class.
+- Implement python script to upload the apk to JAXA website, launch the simulation, and collect the data automatically.
 
 ## Next
 
