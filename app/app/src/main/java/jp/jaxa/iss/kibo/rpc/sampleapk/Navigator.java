@@ -30,9 +30,9 @@ public class Navigator {
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
     // areaPoses.put(4, new Pose(new Point(11.2, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
-    areaPoses.put(4, new Pose(new Point(10.965, -7.5, 5.25), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
-
-    areaPoses.put(5, new Pose(new Point(10.935, -8.55, 4.955), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f))); // Combined Area 2 3
+    areaPoses.put(4, new Pose(new Point(10.965, -7.5, 5.3), new Quaternion(0.239f, 0.950f, -0.296f, 0.049f)));     // Area 4
+    
+    areaPoses.put(5, new Pose(new Point(10.935, -8.55, 4.955), new Quaternion(0.031f, 0.706f, 0.031f, 0.706f))); // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.283, -6.7607, 4.935), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
   }
 
