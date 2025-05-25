@@ -20,7 +20,6 @@ import org.opencv.aruco.Dictionary;
 import org.opencv.core.MatOfDouble;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.Core;
 
 
 /**
@@ -30,7 +29,7 @@ public class ARTagDetector {
   private final KiboRpcApi api;
   private final String TAG = this.getClass().getSimpleName();
   private final Dictionary arucoDictionary;
-  public final float markerLength;
+  private final float markerLength;
   private final Mat cameraMatrix;
   private final Mat distortionCoefficients;
 
@@ -56,45 +55,6 @@ public class ARTagDetector {
   }
 
   /**
-   * Helper class to store results from pose estimation for a single AR tag.
-   */
-  public static class ARTagPoseEstimation {
-    public final int markerId;
-    public final Pose poseInCamera;
-    public final Pose poseInWorld;
-    public final Mat rvec;
-    public final Mat tvec;
-
-    public ARTagPoseEstimation(int markerId, Pose poseInCamera, Pose poseInWorld, Mat rvec, Mat tvec) {
-      this.markerId = markerId;
-      this.poseInCamera = poseInCamera;
-      this.poseInWorld = poseInWorld;
-      this.rvec = rvec;
-      this.tvec = tvec;
-    }
-  }
-  
-  /**
-   * Helper class to store the result of clipping an image.
-   */
-  public static class ClippedImageResult {
-    public final Mat clippedImage;
-    public final Mat transformMatrix;
-    public final Mat inverseTransformMatrix;
-
-    public ClippedImageResult(Mat clippedImage, Mat transformMatrix) {
-      this.clippedImage = clippedImage;
-      this.transformMatrix = transformMatrix;
-      Mat invMat = new Mat();
-      if (transformMatrix != null && !transformMatrix.empty()) {
-        Core.invert(transformMatrix, invMat);
-      }
-      this.inverseTransformMatrix = invMat;
-    }
-  }
-
-
-  /**
    * Constructor
    * 
    * @param apiRef API reference.
@@ -106,7 +66,7 @@ public class ARTagDetector {
     distortionCoefficients = getDistortionCoefficients();
     arucoDictionary = Aruco.getPredefinedDictionary(Aruco.DICT_5X5_250);
 
-    Log.i(TAG, "Initialized ARTagDetector");
+    Log.i(TAG, "Initialized");
   }
 
   /**
@@ -133,19 +93,12 @@ public class ARTagDetector {
       ARTag arTag = new ARTag(markerId, corner);
       results.add(arTag);
     }
-    markerIds.release();
-    for(Mat corner : corners) corner.release();
+
     return results;
   }
 
-  /**
-   * Estimates poses of AR tags.
-   * @param arResults List of detected ARTags.
-   * @param currentRobotPoseInWorld Current robot pose in world coordinates.
-   * @return Map of markerId to ARTagPoseEstimation object.
-   */
-  public Map<Integer, ARTagPoseEstimation> estimateTagPoses(List<ARTag> arResults, Pose currentRobotPoseInWorld) {
-    Map<Integer, ARTagPoseEstimation> tagEstimations = new HashMap<>();
+  public Map<Integer, Pose> filterResult(List<ARTag> arResults, Pose currentPose) {
+    Map<Integer, Pose> tagPoses = new HashMap<>();
 
     for (ARTag arTag : arResults) {
       int markerId = arTag.getMarkerId();
@@ -154,44 +107,38 @@ public class ARTagDetector {
       Mat rvec = new Mat();
       Mat tvec = new Mat();
 
-      // Estimate pose of the AR Tag in Camera Coordinates
+      // Estimate pose
       Aruco.estimatePoseSingleMarkers(Collections.singletonList(corner), markerLength, cameraMatrix, distortionCoefficients, rvec, tvec);
 
-      double[] t_cam = tvec.get(0, 0);
-      Point point_cam = new Point(t_cam[0], t_cam[1], t_cam[2]);
+      // Extract shift matrix
+      double[] t = tvec.get(0, 0);
+      Point point = new Point(t[0], t[1], t[2]);
 
-      double[] r_cam = rvec.get(0, 0);
-      Mat rotMat_cam = new Mat();
-      Calib3d.Rodrigues(new MatOfDouble(r_cam), rotMat_cam);
-      // IMPORTANT: Corrected Quaternion order for gov.nasa.arc.astrobee.types.Quaternion(x,y,z,w)
-      Quaternion quaternion_cam = rotationMatrixToQuaternion(rotMat_cam); 
+      // Extract rotation matrix
+      double[] r = rvec.get(0, 0);
+      Mat rotMat = new Mat();
+      Calib3d.Rodrigues(new MatOfDouble(r), rotMat);
+      Quaternion quaternion = new Quaternion(); // rotationMatrixToQuaternion(rotMat); this param is never used, so keep it simple.
 
-      Pose tagPoseInCamera = new Pose(point_cam, quaternion_cam);
-      Pose tagPoseInWorld = convertCameraToWorld(tagPoseInCamera, currentRobotPoseInWorld);
-      
-      tagEstimations.put(markerId, new ARTagPoseEstimation(markerId, tagPoseInCamera, tagPoseInWorld, rvec.clone(), tvec.clone()));
-      
-      // Release Mats to prevent memory leaks
-      rotMat_cam.release();
+      Pose tagPoseCamera = new Pose(point, quaternion);
+      Pose tagPoseWorld = convertCameraToWorld(tagPoseCamera, currentPose);
+      tagPoses.put(markerId, tagPoseWorld);
     }
-    // rvec and tvec are released implicitly if not cloned, or when ARTagPoseEstimation objects are GC'd if cloned.
-    // Let's ensure rvec and tvec from estimatePoseSingleMarkers are cloned if stored, or released if not.
-    // Here, cloning ensures they are independent.
-    return tagEstimations;
-  }
 
+    return tagPoses;
+  }
 
   public Pose guessResult(int areaId) {
     Pose tagPose; 
 
     if (areaId == 1) {
-      tagPose = new Pose(new Point((10.42 + 11.48) / 2, -10.58, (4.82 + 5.57) / 2), new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+      tagPose = new Pose(new Point((10.42 + 11.48) / 2, -10.58, (4.82 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
     } else if (areaId == 2) {
-      tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-9.25 + -8.5) / 2, 3.76203), new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+      tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-9.25 + -8.5) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
     } else if (areaId == 3) {
-      tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-8.4 + -7.45) / 2, 3.76203), new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+      tagPose = new Pose(new Point((10.3 + 11.55) / 2, (-8.4 + -7.45) / 2, 3.76203), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
     } else if (areaId == 4) {
-      tagPose = new Pose(new Point(9.866984, (-7.34 + -6.365) / 2, (4.32 + 5.57) / 2), new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+      tagPose = new Pose(new Point(9.866984, (-7.34 + -6.365) / 2, (4.32 + 5.57) / 2), new Quaternion(1.0f, 0.0f, 0.0f, 0.0f));
     } else if (areaId == 0) {
       tagPose = new Pose();
     } else {
@@ -204,62 +151,47 @@ public class ARTagDetector {
 
   /**
    * Get the clipped image of the detected AR tag.
-   * @param arResults List of detected ARTags.
+   * 
    * @param undistortedImage The input image.
-   * @return A map of markerId to ClippedImageResult.
+   * @return The clipped image.
    */
-  public Map<Integer, ClippedImageResult> getClippedImages(List<ARTag> arResults, Mat undistortedImage) {
-    Map<Integer, ClippedImageResult> clippedResultsMap = new HashMap<>();
+  public Map<Integer, Mat> getclippedImages(List<ARTag> arResults, Mat undistortedImage) {
+    Map<Integer, Mat> clippedImages = new HashMap<>();
     
     if (arResults.isEmpty()) {
-      return clippedResultsMap;
+      return clippedImages;
     }
 
     for(ARTag arTag : arResults) {
       int markerId = arTag.getMarkerId();
       Mat corner = arTag.getCorner();
 
-      ClippedImageResult clippedResult = clip(undistortedImage, corner);
-      if (clippedResult.clippedImage.empty()) {
-        Log.w(TAG, "Clipped image is empty for markerId: " + markerId);
-        // Release transform matrices if they were created for an empty clipped image
-        if (clippedResult.transformMatrix != null) clippedResult.transformMatrix.release();
-        if (clippedResult.inverseTransformMatrix != null) clippedResult.inverseTransformMatrix.release();
+      // Clip the image
+      Mat clippedImage = clip(undistortedImage, corner);
+      if (clippedImage.empty()) {
+        Log.w(TAG, "Clipped image is empty.");
         continue;
       }
 
-      clippedResultsMap.put(markerId, clippedResult);
+      clippedImages.put(markerId, clippedImage);
     }
-    return clippedResultsMap;
+    return clippedImages;
   }
 
   /* ----------------------------- Tool Functions ----------------------------- */
-  // Made public for access from VisionHandler if needed for coordinate transforms
-  public Mat getCameraMatrix() {
-    Mat camMatrix = new Mat(3, 3, CvType.CV_64F);
-    double[] intrinsics = api.getNavCamIntrinsics()[0]; // Assuming this is [fx, fy, cx, cy, ...]
-    camMatrix.put(0, 0, intrinsics[0]); // fx
-    camMatrix.put(0, 1, 0);
-    camMatrix.put(0, 2, intrinsics[2]); // cx
-    camMatrix.put(1, 0, 0);
-    camMatrix.put(1, 1, intrinsics[1]); // fy
-    camMatrix.put(1, 2, intrinsics[3]); // cy
-    camMatrix.put(2, 0, 0);
-    camMatrix.put(2, 1, 0);
-    camMatrix.put(2, 2, 1);
-    return camMatrix;
+
+  private Mat getCameraMatrix() {
+    Mat cameraMatrix = new Mat(3, 3, CvType.CV_64F);
+    cameraMatrix.put(0, 0, api.getNavCamIntrinsics()[0]);
+    return cameraMatrix;
   }
 
-  // Made public for access from VisionHandler
-  public Mat getDistortionCoefficients() {
-    // Assuming api.getNavCamIntrinsics()[1] is an array of distortion coefficients [k1, k2, p1, p2, k3]
-    double[] distCoeffsArray = api.getNavCamIntrinsics()[1];
-    Mat distCoeffs = new Mat(1, distCoeffsArray.length, CvType.CV_64F);
-    distCoeffs.put(0, 0, distCoeffsArray);
+  private Mat getDistortionCoefficients() {
+    Mat distCoeffs = new Mat(1, 5, CvType.CV_64F);
+    distCoeffs.put(0, 0, api.getNavCamIntrinsics()[1]);
     return distCoeffs;
   }
-  
-  // Corrected Quaternion order for gov.nasa.arc.astrobee.types.Quaternion(x,y,z,w)
+
   private Quaternion rotationMatrixToQuaternion(Mat rotMat) {
     double[][] m = new double[3][3];
     for (int i = 0; i < 3; i++) {
@@ -269,154 +201,123 @@ public class ARTagDetector {
     }
 
     double trace = m[0][0] + m[1][1] + m[2][2];
-    double w_scalar, x_vec, y_vec, z_vec;
+    double w, x, y, z;
 
     if (trace > 0) {
       double s = 0.5 / Math.sqrt(trace + 1.0);
-      w_scalar = 0.25 / s;
-      x_vec = (m[2][1] - m[1][2]) * s;
-      y_vec = (m[0][2] - m[2][0]) * s;
-      z_vec = (m[1][0] - m[0][1]) * s;
+      w = 0.25 / s;
+      x = (m[2][1] - m[1][2]) * s;
+      y = (m[0][2] - m[2][0]) * s;
+      z = (m[1][0] - m[0][1]) * s;
     } else {
       if (m[0][0] > m[1][1] && m[0][0] > m[2][2]) {
         double s = 2.0 * Math.sqrt(1.0 + m[0][0] - m[1][1] - m[2][2]);
-        w_scalar = (m[2][1] - m[1][2]) / s;
-        x_vec = 0.25 * s;
-        y_vec = (m[0][1] + m[1][0]) / s;
-        z_vec = (m[0][2] + m[2][0]) / s;
+        w = (m[2][1] - m[1][2]) / s;
+        x = 0.25 * s;
+        y = (m[0][1] + m[1][0]) / s;
+        z = (m[0][2] + m[2][0]) / s;
       } else if (m[1][1] > m[2][2]) {
         double s = 2.0 * Math.sqrt(1.0 + m[1][1] - m[0][0] - m[2][2]);
-        w_scalar = (m[0][2] - m[2][0]) / s;
-        x_vec = (m[0][1] + m[1][0]) / s;
-        y_vec = 0.25 * s;
-        z_vec = (m[1][2] + m[2][1]) / s;
+        w = (m[0][2] - m[2][0]) / s;
+        x = (m[0][1] + m[1][0]) / s;
+        y = 0.25 * s;
+        z = (m[1][2] + m[2][1]) / s;
       } else {
         double s = 2.0 * Math.sqrt(1.0 + m[2][2] - m[0][0] - m[1][1]);
-        w_scalar = (m[1][0] - m[0][1]) / s;
-        x_vec = (m[0][2] + m[2][0]) / s;
-        y_vec = (m[1][2] + m[2][1]) / s;
-        z_vec = 0.25 * s;
+        w = (m[1][0] - m[0][1]) / s;
+        x = (m[0][2] + m[2][0]) / s;
+        y = (m[1][2] + m[2][1]) / s;
+        z = 0.25 * s;
       }
     }
     
     // Normalize
-    double norm = Math.sqrt(w_scalar * w_scalar + x_vec * x_vec + y_vec * y_vec + z_vec * z_vec);
-    if (norm > 1e-9) {
-      w_scalar /= norm;
-      x_vec /= norm;
-      y_vec /= norm;
-      z_vec /= norm;
+    float norm = (float) Math.sqrt(w * w + x * x + y * y + z * z);
+    if (norm > 1e-6) { // Avoid division by zero
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
     } else {
-      // Fallback to identity if norm is too small (e.g. zero rotation matrix)
-      return new Quaternion(0f, 0f, 0f, 1f); 
+      return new Quaternion(0, 0, 0, 1); // Fallback to identity
     }
-    // AstroBee's Quaternion is (x, y, z, w)
-    return new Quaternion((float) x_vec, (float) y_vec, (float) z_vec, (float) w_scalar);
+
+    return new Quaternion((float) w, (float) x, (float) y, (float) z);
   }
 
   /**
    * Convert the pose in NavCam frame to World frame
    * Tag_Camera → Camera_Body → Body_World = Tag_World
    * 
-   * @param tagInCVcam The tag pose in NavCam frame.
+   * @param tagInCamera The tag pose in NavCam frame.
    * @return The pose in world frame. 
    */
   private Pose convertCameraToWorld(Pose tagInCVcam, Pose bodyInWorld) {
-    // OpenCV camera pose in NavCam frame (Z forward, Y down, X right for OpenCV camera)
-    // NavCam frame (X forward, Y left, Z up for Astrobee NavCam)
-    // This transform rotates OpenCV's Z-forward to NavCam's X-forward, etc.
-    // A common transform: (OpenCV X to NavCam Y, OpenCV Y to NavCam -Z, OpenCV Z to NavCam -X)
-    // Or from NavCam to OpenCV: (NavCam X to OpenCV -Z, NavCam Y to OpenCV X, NavCam Z to OpenCV -Y)
-    // The Quaternion (0.5, -0.5, 0.5, 0.5) corresponds to such a rotation (NavCam to OpenCV)
-    // The Quaternion for CVcamInNavcam (OpenCV to NavCam) would be its inverse.
-    // Inverse of (x,y,z,w) is (-x,-y,-z,w). So (-0.5, 0.5, -0.5, 0.5)
-    // Let's re-verify the given quaternion: (0.5f, 0.5f, 0.5f, 0.5f) is not standard for this.
-    // Standard OpenCV to ROS right-handed Z-up: (sqrt(0.5), -sqrt(0.5), 0, 0) then (0, sqrt(0.5), sqrt(0.5),0) etc.
-    // The Kibo RPC documentation should specify this transform T_NavCam_CV<y_bin_456>.
-    // Given: new Quaternion(0.5f, 0.5f, 0.5f, 0.5f) in the original code.
-    // This is (x=0.5, y=0.5, z=0.5, w=0.5). Angle = 2*acos(0.5) = 120 deg. Axis = (1,1,1)/sqrt(3).
-    // This corresponds to a rotation from (X Y Z) to (Y Z X).
-    // If NavCam is (X_n, Y_n, Z_n) and CV Cam is (X_c, Y_c, Z_c)
-    // This means X_c -> Y_n, Y_c -> Z_n, Z_c -> X_n. This is a common optical to body frame transform.
+    // OpenCV camera pose in NavCam frame
     Pose CVcamInNavcam = new Pose(
-      new Point(0, 0, 0), // No translation
-      new Quaternion(0.5f, 0.5f, 0.5f, 0.5f) // (X_cv, Y_cv, Z_cv) -> (Y_navcam, Z_navcam, X_navcam)
+      new Point(0, 0, 0),
+      new Quaternion(0.5f, 0.5f, 0.5f, 0.5f)
     );
 
     // Step 1: Convert tag pose from OpenCV camera frame to NavCam frame
-    // tagInCVcam is (tag relative to CVcam_origin) expressed in CVcam_axes
-    // We want (tag relative to NavCam_origin) expressed in NavCam_axes
-    // This is T_NavCam_CVcam * P_tag_CVcam
     Pose tagInNavcam = composePoses(CVcamInNavcam, tagInCVcam);
 
     // NavCam pose in body frame (fixed offset and orientation)
-    // This is T_Body_NavCam
     Pose navcamInBody = new Pose(
-      new Point(0.1177, -0.0422, -0.0826), // NavCam origin in Body frame
-      new Quaternion(0.0f, 0.0f, 0.0f, 1.0f)  // NavCam axes aligned with Body axes (identity rotation)
+      new Point(0.1177, -0.0422, -0.0826),
+      new Quaternion(0.0f, 0.0f, 0.0f, 1.0f)
     );
 
     // Step 2: Convert tag pose from NavCam frame to body frame
-    // This is T_Body_NavCam * P_tag_NavCam
     Pose tagInBody = composePoses(navcamInBody, tagInNavcam);
 
     // Step 3: Convert tag pose from body frame to world frame
-    // bodyInWorld is T_World_Body
-    // This is T_World_Body * P_tag_Body
     Pose tagInWorld = composePoses(bodyInWorld, tagInBody);
 
     return tagInWorld;
   }
 
-  // Public static for use in other classes like VisionHandler
-  public static Pose composePoses(Pose poseA, Pose poseB) {
-    // poseA: Transform from frame C to frame A (T_AC)
-    // poseB: Pose of point P in frame C (P_C)
-    // Returns: Pose of point P in frame A (P_A)
-    // P_A = T_AC * P_C
-    Quaternion qa = poseA.getQuaternion(); // Orientation of C in A (q_AC)
-    Point pa = poseA.getPoint();       // Origin of C in A (p_AC)
+  private Pose composePoses(Pose poseA, Pose poseB) {
+    // poseA followed by poseB
+    Quaternion qa = poseA.getQuaternion();
+    Point pa = poseA.getPoint();
 
-    Quaternion qb = poseB.getQuaternion(); // Orientation of P's frame in C (q_CP') (if P has its own frame) or P's orientation in C
-    Point pb = poseB.getPoint();       // Position of P in C (p_CP)
+    Quaternion qb = poseB.getQuaternion();
+    Point pb = poseB.getPoint();
 
-    // 1. Rotate B's position vector (pb) by A's orientation (qa)
-    //    pb_rotated_in_A = rotateByQuaternion(pb, qa)
-    double[] rotated_pb_in_A = rotatePointByQuaternion(pb.getX(), pb.getY(), pb.getZ(), qa);
-    
-    // 2. Add A's position vector (pa)
-    //    p_AP = p_AC + pb_rotated_in_A
-    double final_x = pa.getX() + rotated_pb_in_A[0];
-    double final_y = pa.getY() + rotated_pb_in_A[1];
-    double final_z = pa.getZ() + rotated_pb_in_A[2];
+    // 1. Rotate B's position by A's orientation
+    double[] rotated = rotatePointByQuaternion(pb.getX(), pb.getY(), pb.getZ(), qa);
+    double x = pa.getX() + rotated[0];
+    double y = pa.getY() + rotated[1];
+    double z = pa.getZ() + rotated[2];
 
-    // 3. Combine orientations: q_AP' = q_AC * q_CP'
-    Quaternion final_q = multiplyQuaternions(qa, qb);
+    // 2. Combine orientation: qa * qb
+    Quaternion q = multiplyQuaternions(qa, qb);
 
-    return new Pose(new Point(final_x, final_y, final_z), final_q);
+    return new Pose(new Point(x, y, z), q);
   }
 
-  // Public static for use
-  public static double[] rotatePointByQuaternion(double x, double y, double z, Quaternion q) {
-    // p' = q * p * q^-1
-    // For a pure vector p=(0,x,y,z), this simplifies.
-    // Using rotation matrix method for clarity here as it's common.
-    float qx = q.getX();
-    float qy = q.getY();
-    float qz = q.getZ();
-    float qw = q.getW();
+  private double[] rotatePointByQuaternion(double x, double y, double z, Quaternion q) {
+    // Quaternion -> rotation matrix
+    double x2 = q.getX() * q.getX();
+    double y2 = q.getY() * q.getY();
+    double z2 = q.getZ() * q.getZ();
+    double xy = q.getX() * q.getY();
+    double xz = q.getX() * q.getZ();
+    double yz = q.getY() * q.getZ();
+    double wx = q.getW() * q.getX();
+    double wy = q.getW() * q.getY();
+    double wz = q.getW() * q.getZ();
 
-    // Create rotation matrix from quaternion q
-    // Ref: http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
-    double r11 = 1 - 2*qy*qy - 2*qz*qz;
-    double r12 = 2*qx*qy - 2*qz*qw;
-    double r13 = 2*qx*qz + 2*qy*qw;
-    double r21 = 2*qx*qy + 2*qz*qw;
-    double r22 = 1 - 2*qx*qx - 2*qz*qz;
-    double r23 = 2*qy*qz - 2*qx*qw;
-    double r31 = 2*qx*qz - 2*qy*qw;
-    double r32 = 2*qy*qz + 2*qx*qw;
-    double r33 = 1 - 2*qx*qx - 2*qy*qy;
+    double r11 = 1 - 2 * (y2 + z2);
+    double r12 = 2 * (xy - wz);
+    double r13 = 2 * (xz + wy);
+    double r21 = 2 * (xy + wz);
+    double r22 = 1 - 2 * (x2 + z2);
+    double r23 = 2 * (yz - wx);
+    double r31 = 2 * (xz - wy);
+    double r32 = 2 * (yz + wx);
+    double r33 = 1 - 2 * (x2 + y2);
 
     double rx = r11 * x + r12 * y + r13 * z;
     double ry = r21 * x + r22 * y + r23 * z;
@@ -425,117 +326,90 @@ public class ARTagDetector {
     return new double[]{rx, ry, rz};
   }
 
-  // Public static for use
-  public static Quaternion multiplyQuaternions(Quaternion q1, Quaternion q2) {
-    // q_result = q1 * q2
-    // q1 = (x1, y1, z1, w1), q2 = (x2, y2, z2, w2)
-    float x1 = q1.getX(), y1 = q1.getY(), z1 = q1.getZ(), w1 = q1.getW();
-    float x2 = q2.getX(), y2 = q2.getY(), z2 = q2.getZ(), w2 = q2.getW();
+  private Quaternion multiplyQuaternions(Quaternion q1, Quaternion q2) {
+    float w1 = q1.getW(), x1 = q1.getX(), y1 = q1.getY(), z1 = q1.getZ();
+    float w2 = q2.getW(), x2 = q2.getX(), y2 = q2.getY(), z2 = q2.getZ();
 
-    // Hamilton product
-    float rw = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
-    float rx = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
-    float ry = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
-    float rz = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
-    
-    // AstroBee's Quaternion is (x, y, z, w)
-    // The result here is (rx, ry, rz, rw)
-    // No need to normalize here if inputs are unit quaternions, result will be unit.
-    // However, to be safe from floating point errors, normalization is good.
-    double norm = Math.sqrt(rw * rw + rx * rx + ry * ry + rz * rz);
-    if (norm > 1e-9) {
-        rw /= norm;
-        rx /= norm;
-        ry /= norm;
-        rz /= norm;
+    float w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
+    float x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
+    float y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
+    float z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
+
+    // Normalize
+    float norm = (float) Math.sqrt(w * w + x * x + y * y + z * z);
+    if (norm > 1e-6) { // Avoid division by zero
+      w /= norm;
+      x /= norm;
+      y /= norm;
+      z /= norm;
     } else {
-        return new Quaternion(0f, 0f, 0f, 1f); // Fallback
+      return new Quaternion(0, 0, 0, 1); // Fallback to identity
     }
-    return new Quaternion(rx, ry, rz, rw);
+
+    return new Quaternion(x, y, z, w);
   }
 
 
   /**
    * Clip the image to the area of interest.
+   * 
    * @param image The input image.
-   * @param corner The corners of the area of interest in the input image.
-   * @return ClippedImageResult containing the clipped image and transformation matrix.
+   * @param corner The corners of the area of interest.
+   * @return The clipped image.
    */
-  private ClippedImageResult clip(Mat image, Mat corner) {
-    // `corner` contains the 4 corner points of the AR tag in the `image` (undistortedImage).
-    // Each point is (x,y)
-    // corner.get(0,0) -> top-left
-    // corner.get(0,1) -> top-right
-    // corner.get(0,2) -> bottom-right
-    // corner.get(0,3) -> bottom-left
+  private Mat clip(Mat image, Mat corner) {
+    final org.opencv.core.Point[] points = new org.opencv.core.Point[4];
 
-    // The h0,h1,v0,v1 parameters define a larger rectangle AROUND the AR tag.
-    // These define the source quadrilateral in `image` that will be warped.
-    org.opencv.core.Point[] srcQuadPoints = new org.opencv.core.Point[4];
-    double[] c0 = corner.get(0, 0); // top-left of AR tag
-    double[] c1 = corner.get(0, 1); // top-right of AR tag
-    // double[] c2 = corner.get(0, 2); // bottom-right of AR tag (not directly used for h/v definition)
-    double[] c3 = corner.get(0, 3); // bottom-left of AR tag
+    // point[0] left top
+    // point[1] right top
+    // point[2] right bottom
+    // point[3] left bottom
+    for (int i = 0; i < 4; i++) {
+      points[i] = new org.opencv.core.Point(corner.get(0, i));
+    }
+    double[] corner0 = corner.get(0, 0);
+    double[] corner1 = corner.get(0, 1);
+    double[] corner2 = corner.get(0, 2);
+    double[] corner3 = corner.get(0, 3);
 
-    // Vector from c0 to c1 (along top edge of AR tag)
-    double dx_h = c1[0] - c0[0]; // delta x for horizontal-like edge
-    double dy_h = c1[1] - c0[1]; // delta y for horizontal-like edge
+    double h0 = -4.4;
+    double h1 = 0.0;
+    double v0 = -0.5;
+    double v1 = 3.0;
 
-    // Vector from c0 to c3 (along left edge of AR tag)
-    double dx_v = c3[0] - c0[0]; // delta x for vertical-like edge
-    double dy_v = c3[1] - c0[1]; // delta y for vertical-like edge
+    // Calculate the width and height of the rectangle
+    points[0] = new org.opencv.core.Point(h0 * (corner1[0] - corner0[0]) + v0 * (corner3[0] - corner0[0]) + corner0[0], h0 * (corner1[1] - corner0[1]) + v0 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[1] = new org.opencv.core.Point(h1 * (corner1[0] - corner0[0]) + v0 * (corner3[0] - corner0[0]) + corner0[0], h1 * (corner1[1] - corner0[1]) + v0 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[2] = new org.opencv.core.Point(h1 * (corner1[0] - corner0[0]) + v1 * (corner3[0] - corner0[0]) + corner0[0], h1 * (corner1[1] - corner0[1]) + v1 * (corner3[1] - corner0[1]) + corner0[1]);
+    points[3] = new org.opencv.core.Point(h0 * (corner1[0] - corner0[0]) + v1 * (corner3[0] - corner0[0]) + corner0[0], h0 * (corner1[1] - corner0[1]) + v1 * (corner3[1] - corner0[1]) + corner0[1]);
 
-    // Parameters for extending the clipping box beyond the AR tag
-    // h relates to horizontal-like direction, v to vertical-like
-    double h0_factor = -4.4; // Extends "left" from c0 along c0-c1 direction
-    double h1_factor = 0.0;  // Ends at c0 if v_factor is 0, or c3 if v_factor is 1, along c0-c1
-                             // Correction: original h1 was for the "right" side of the clip area
-                             // The original code implies h1_factor for points[1] and points[2]
-                             // Let's rename to avoid confusion with AR tag corners.
-                             // h_factor_p0 = -4.4 (for srcQuadPoints[0] and srcQuadPoints[3])
-                             // h_factor_p1 = 0.0  (for srcQuadPoints[1] and srcQuadPoints[2])
-                             // This is not right. Let's re-evaluate the original calculation.
-                             // points[0] = new org.opencv.core.Point(h0 * (corner1[0] - corner0[0]) + v0 * (corner3[0] - corner0[0]) + corner0[0], h0 * (corner1[1] - corner0[1]) + v0 * (corner3[1] - corner0[1]) + corner0[1]);
-                             // This means: src_top_left = c0 + h0*(c1-c0) + v0*(c3-c0)
+    double width = Math.sqrt(Math.pow(points[0].x - points[1].x, 2) + Math.pow(points[0].y - points[1].y, 2));
+    double height = Math.sqrt(Math.pow(points[0].x - points[3].x, 2) + Math.pow(points[0].y - points[3].y, 2));
 
-    srcQuadPoints[0] = new org.opencv.core.Point(c0[0] + h0_factor * dx_h + (-0.5) * dx_v, c0[1] + h0_factor * dy_h + (-0.5) * dy_v); // Top-left of src quadrilateral
-    srcQuadPoints[1] = new org.opencv.core.Point(c0[0] + (0.0) * dx_h + (-0.5) * dx_v, c0[1] + (0.0) * dy_h + (-0.5) * dy_v);   // Top-right
-    srcQuadPoints[2] = new org.opencv.core.Point(c0[0] + (0.0) * dx_h + (3.0) * dx_v, c0[1] + (0.0) * dy_h + (3.0) * dy_v);    // Bottom-right
-    srcQuadPoints[3] = new org.opencv.core.Point(c0[0] + h0_factor * dx_h + (3.0) * dx_v, c0[1] + h0_factor * dy_h + (3.0) * dy_v);   // Bottom-left
+    // Create a transformation matrix
+    Mat transformMatrix;
+    {
+      MatOfPoint2f srcPoints = new MatOfPoint2f(points);
+      srcPoints.convertTo(srcPoints, CvType.CV_32F);
 
+      MatOfPoint2f dstPoints = new MatOfPoint2f(
+        new org.opencv.core.Point(0, 0),
+        new org.opencv.core.Point(width - 1, 0),
+        new org.opencv.core.Point(width - 1, height - 1),
+        new org.opencv.core.Point(0, height - 1)
+      );
 
-    // Calculate the width and height of the DESTINATION rectangle for the clipped image
-    // This width/height will be the dimensions of the output `clippedImage` Mat
-    // The original code calculates width/height from these srcQuadPoints, which might be skewed.
-    // It should define a target rectangle size.
-    // Let's make the destination rectangle have width and height based on the AR tag's markerLength, scaled.
-    // For example, if we want the clipped image to represent an area 5x markerLength wide.
-    // The original code calculates width/height based on the transformed points, this is fine.
-    double warped_width = Math.sqrt(Math.pow(srcQuadPoints[0].x - srcQuadPoints[1].x, 2) + Math.pow(srcQuadPoints[0].y - srcQuadPoints[1].y, 2));
-    double warped_height = Math.sqrt(Math.pow(srcQuadPoints[0].x - srcQuadPoints[3].x, 2) + Math.pow(srcQuadPoints[0].y - srcQuadPoints[3].y, 2));
-    
-    if (warped_width < 1 || warped_height < 1) {
-        Log.w(TAG, "Calculated warped width or height is too small. Skipping clip.");
-        return new ClippedImageResult(new Mat(), new Mat()); // Return empty if dimensions are invalid
+      // Convert to float
+      dstPoints.convertTo(dstPoints, CvType.CV_32F);
+
+      // Get the perspective transform matrix
+      transformMatrix = Imgproc.getPerspectiveTransform(srcPoints, dstPoints);
     }
 
-    MatOfPoint2f srcMatOfPoint2f = new MatOfPoint2f(srcQuadPoints);
+    // Apply the perspective transformation
+    Mat clippedImage = Mat.zeros((int) height, (int) width, image.type());
+    Imgproc.warpPerspective(image, clippedImage, transformMatrix, clippedImage.size());
 
-    MatOfPoint2f dstMatOfPoint2f = new MatOfPoint2f(
-        new org.opencv.core.Point(0, 0),                               // Top-left
-        new org.opencv.core.Point(warped_width - 1, 0),                // Top-right
-        new org.opencv.core.Point(warped_width - 1, warped_height - 1),// Bottom-right
-        new org.opencv.core.Point(0, warped_height - 1)                // Bottom-left
-    );
-
-    Mat transformMatrix = Imgproc.getPerspectiveTransform(srcMatOfPoint2f, dstMatOfPoint2f);
-
-    Mat clippedImageMat = Mat.zeros((int) warped_height, (int) warped_width, image.type());
-    Imgproc.warpPerspective(image, clippedImageMat, transformMatrix, clippedImageMat.size());
-
-    srcMatOfPoint2f.release();
-    dstMatOfPoint2f.release();
-    
-    return new ClippedImageResult(clippedImageMat, transformMatrix);
+    return clippedImage;
   }
 }
