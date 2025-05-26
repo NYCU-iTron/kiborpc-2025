@@ -106,13 +106,16 @@ public class MainControl {
 
     private void handleSingleArea(int areaId) {
         navigator.navigateToArea(areaId);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
+        Pose currentCameraPose = navigator.getCurrentPose(); // Get camera pose in world coordinates
+        visionHandler.getCurrentPose(currentCameraPose); // Inform visionHandler if it needs it
         List<Item> areaItems = null;
 
         int retryMax = 5;
         for (int retry = 1; retry <= retryMax; retry++) {
             Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
+            // Assuming inspectArea returns items with poses relative to the current camera view
             areaItems = visionHandler.inspectArea(areaId);
+            currentCameraPose = navigator.getCurrentPose(); // Potentially update pose if robot moved slightly or for accuracy
 
             if (containsLandmark(areaItems)) break;
 
@@ -124,31 +127,68 @@ public class MainControl {
             }
         }
 
-        if (areaItems == null || !containsLandmark(areaItems)) {
-            Log.w(TAG, "No landmark found after retries, leaving to fate.");
+        if (areaItems == null || areaItems.isEmpty()) { // Added isEmpty check
+            Log.w(TAG, "No items found after retries or initial attempt, guessing result.");
             areaItems = visionHandler.guessResult(areaId);
-            for (Item item : areaItems) {
-                Log.i(TAG, "Item: " + item.getItemId() + ", " + item.getItemName());
+            // Guessed items might already be in world coordinates or need a default pose.
+            // For now, we assume guessResult provides items with usable poses for the manager.
+        } else {
+            // Process items to convert poses to world coordinates if they are from vision
+            List<Item> worldPoseItems = new java.util.ArrayList<>();
+            for (Item detectedItem : areaItems) {
+                // Assuming detectedItem.getItemPose() is relative to the camera at the moment of detection.
+                // And currentCameraPose is the pose of the camera in the world at that moment.
+                Pose itemPoseInWorld = convertPoseFromCameraToWorld(detectedItem.getItemPose(), currentCameraPose);
+                // Create a new Item object with the updated pose in world coordinates
+                Item itemInWorld = new Item(
+                    detectedItem.getAreaId(),
+                    detectedItem.getItemId(),
+                    detectedItem.getItemName(),
+                    detectedItem.getItemCount(),
+                    itemPoseInWorld
+                );
+                worldPoseItems.add(itemInWorld);
+            }
+            areaItems = worldPoseItems; // Replace with items having world poses
+        }
+        
+        // Ensure areaItems is not null and not empty before proceeding
+        if (areaItems == null || areaItems.isEmpty()) {
+            Log.e(TAG, "Area " + areaId + ": No items (detected or guessed) to process. This should not happen.");
+            return; // Cannot proceed without items
+        }
+
+        // Treasure Item handling
+        Item treasureItem = null;
+        for (Item item : areaItems) {
+            if (item.getItemId() / 10 == 1) {
+                treasureItem = item;
+                break;
             }
         }
 
-        // Treasure Item
-        Item treasureItem = areaItems.get(0); 
-        if (treasureItem.getItemId() / 10 == 1) {
-            itemManager.storeTreasureInfo(treasureItem);
-            Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
+        if (treasureItem != null) {
+            itemManager.storeTreasureInfo(treasureItem); // treasureItem now has its pose in world coordinates
+            Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName() + " at world pose: " + treasureItem.getItemPose().toString());
         } else {
-            Log.w(TAG, "Area " + areaId + ": No treasure.");
+            Log.w(TAG, "Area " + areaId + ": No treasure found in processed items.");
         }
         
-        // Landmark Item
-        Item landmarkItem = areaItems.get(1);
-        if (landmarkItem.getItemId() / 10 == 2) {
-            itemManager.setAreaInfo(landmarkItem);
-            Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName());
+        // Landmark Item handling
+        Item landmarkItem = null;
+        for (Item item : areaItems) {
+            if (item.getItemId() / 10 == 2) {
+                landmarkItem = item;
+                break;
+            }
+        }
+
+        if (landmarkItem != null) {
+            itemManager.setAreaInfo(landmarkItem); // landmarkItem now has its pose in world coordinates
+            Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName() + " at world pose: " + landmarkItem.getItemPose().toString());
         } else {
-            // Should never end up here
-            Log.w(TAG, "Area " + areaId + ": No landmark.");
+            // It's possible an area doesn't have a landmark if only guessed items are processed
+            Log.w(TAG, "Area " + areaId + ": No landmark found in processed items.");
         }
     }
 
@@ -381,6 +421,42 @@ public class MainControl {
         );
 
         return new Pose(robotPositionInWorld, robotOrientationInWorld);
+    }
+
+    /**
+     * Converts a pose from the camera's reference frame to the world reference frame.
+     *
+     * @param poseInCamera The pose of an object as seen by the camera.
+     * @param cameraPoseInWorld The pose of the camera in the world frame.
+     * @return The pose of the object in the world frame.
+     */
+    public Pose convertPoseFromCameraToWorld(Pose poseInCamera, Pose cameraPoseInWorld) {
+        Point pointInCamera = poseInCamera.getPoint();
+        Quaternion orientationInCamera = poseInCamera.getQuaternion();
+
+        Point cameraPositionInWorld = cameraPoseInWorld.getPoint();
+        Quaternion cameraOrientationInWorld = cameraPoseInWorld.getQuaternion();
+
+        // Step 1: Rotate the point from camera frame to world frame
+        double[] rotatedPoint = rotatePointByQuaternion(
+            pointInCamera.getX(),
+            pointInCamera.getY(),
+            pointInCamera.getZ(),
+            cameraOrientationInWorld
+        );
+
+        // Step 2: Translate the point by the camera's world position
+        Point pointInWorld = new Point(
+            rotatedPoint[0] + cameraPositionInWorld.getX(),
+            rotatedPoint[1] + cameraPositionInWorld.getY(),
+            rotatedPoint[2] + cameraPositionInWorld.getZ()
+        );
+
+        // Step 3: Combine the orientations
+        // Object_Orientation_World = Camera_Orientation_World * Object_Orientation_Camera
+        Quaternion orientationInWorld = multiplyQuaternions(cameraOrientationInWorld, orientationInCamera);
+
+        return new Pose(pointInWorld, orientationInWorld);
     }
 
     private double[] rotatePointByQuaternion(double px, double py, double pz, Quaternion q_rotation) {
