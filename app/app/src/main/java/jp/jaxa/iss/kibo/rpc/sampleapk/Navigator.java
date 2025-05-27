@@ -1,3 +1,5 @@
+
+
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
@@ -26,11 +28,12 @@ public class Navigator {
   // Target poses in each area
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
+
     areaPoses.put(1, new Pose(new Point(10.95, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
     // areaPoses.put(4, new Pose(new Point(11.2, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
-    areaPoses.put(4, new Pose(new Point(10.6, -7.5, 5.36), new Quaternion(0.239f, 0.950f, -0.296f, 0.049f)));     // Area 4
+    areaPoses.put(4, new Pose(new Point(10.6, -7.5, 5.36), new Quaternion(-0.026f, 0.003f, 0.992f,  0.125f)));     // Area 4
     
     areaPoses.put(5, new Pose(new Point(10.935, -8.55, 4.955), new Quaternion(0.031f, 0.706f, 0.031f, 0.706f))); // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.283, -6.7607, 4.935), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
@@ -194,7 +197,7 @@ public class Navigator {
 
     // Wait Stable
     try{
-      Thread.sleep(600);
+      Thread.sleep(1300);
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }

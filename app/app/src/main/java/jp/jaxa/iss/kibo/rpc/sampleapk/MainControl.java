@@ -4,7 +4,6 @@ import jp.jaxa.iss.kibo.rpc.api.KiboRpcApi;
 
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;
-import gov.nasa.arc.astrobee.types.Pose;
 
 import java.util.List;
 
@@ -33,34 +32,6 @@ public class MainControl {
     private Navigator navigator;
     private VisionHandler visionHandler;
     private ItemManager itemManager;
-
-    // Assuming CAMERA_TO_ROBOT_TRANSLATION is the vector from robot_center to camera_center in robot_body_frame
-    // Assuming CAMERA_TO_ROBOT_ROTATION is the rotation from robot_body_frame to camera_frame (Q_camera_robotbody)
-    // For NavCam on Astrobee: (values from Astrobee documentation or calibration)
-    // Translation: [0.1102, -0.0421, -0.0826] (X, Y, Z in meters in robot body frame)
-    // Rotation: (roll, pitch, yaw) -> (0, -90deg, -90deg) -> Quaternion
-    // X_cam = -Z_robot, Y_cam = -X_robot, Z_cam = -Y_robot
-    // If robot body frame is (X->fwd, Y->left, Z->up)
-    // And NavCam frame is (Z->fwd, X->right, Y->down)
-    // Rotation Q_navcam_body : maps vector from body to navcam
-    // Body to NavCam: R_z(-90) * R_y(-90)
-    // q_body_to_navcam = from_euler(0, -pi/2, -pi/2) = (w:0, x: -0.7071, y: 0, z: -0.7071)
-    // We need Q_robotbody_camera (rotation that transforms points from camera frame to robot body frame)
-    // Or, Q_camera_robotbody (rotation that transforms points from robot body frame to camera frame)
-
-    // Let's define CAMERA_TO_ROBOT_ROTATION as Q_robot_camera (transforms camera coordinates to robot body coordinates)
-    // If NavCam has Z forward, X right, Y down
-    // And Robot body has X forward, Y left, Z up
-    // To transform a point from NavCam frame to Robot Body frame:
-    // P_robot.x =  P_navcam.y
-    // P_robot.y = -P_navcam.x
-    // P_robot.z = -P_navcam.z
-    // This corresponds to a rotation. Let's use a common Astrobee convention if available.
-    // For now, using the example values as placeholders.
-    // This quaternion transforms a vector from the camera frame to the robot body frame.
-    private final Quaternion CAMERA_FRAME_TO_ROBOT_BODY_FRAME_ROTATION = new Quaternion(0f, 0f, -0.7071068f, 0.7071068f); // Example: q_body_navcam.inverse() or q_navcam_body
-    // This vector is from the robot's origin (body center) to the camera's origin, expressed in the robot body frame.
-    private final Point CAMERA_TRANSLATION_IN_ROBOT_BODY_FRAME = new Point(0.1102, -0.0421, -0.0826);
 
     public MainControl(Context context, KiboRpcApi api) {
         this.context = context;
@@ -106,16 +77,13 @@ public class MainControl {
 
     private void handleSingleArea(int areaId) {
         navigator.navigateToArea(areaId);
-        Pose currentCameraPose = navigator.getCurrentPose(); // Get camera pose in world coordinates
-        visionHandler.getCurrentPose(currentCameraPose); // Inform visionHandler if it needs it
+        visionHandler.getCurrentPose(navigator.getCurrentPose());
         List<Item> areaItems = null;
 
         int retryMax = 5;
         for (int retry = 1; retry <= retryMax; retry++) {
             Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
-            // Assuming inspectArea returns items with poses relative to the current camera view
             areaItems = visionHandler.inspectArea(areaId);
-            currentCameraPose = navigator.getCurrentPose(); // Potentially update pose if robot moved slightly or for accuracy
 
             if (containsLandmark(areaItems)) break;
 
@@ -127,68 +95,31 @@ public class MainControl {
             }
         }
 
-        if (areaItems == null || areaItems.isEmpty()) { // Added isEmpty check
-            Log.w(TAG, "No items found after retries or initial attempt, guessing result.");
+        if (areaItems == null || !containsLandmark(areaItems)) {
+            Log.w(TAG, "No landmark found after retries, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
-            // Guessed items might already be in world coordinates or need a default pose.
-            // For now, we assume guessResult provides items with usable poses for the manager.
-        } else {
-            // Process items to convert poses to world coordinates if they are from vision
-            List<Item> worldPoseItems = new java.util.ArrayList<>();
-            for (Item detectedItem : areaItems) {
-                // Assuming detectedItem.getItemPose() is relative to the camera at the moment of detection.
-                // And currentCameraPose is the pose of the camera in the world at that moment.
-                Pose itemPoseInWorld = convertPoseFromCameraToWorld(detectedItem.getItemPose(), currentCameraPose);
-                // Create a new Item object with the updated pose in world coordinates
-                Item itemInWorld = new Item(
-                    detectedItem.getAreaId(),
-                    detectedItem.getItemId(),
-                    detectedItem.getItemName(),
-                    detectedItem.getItemCount(),
-                    itemPoseInWorld
-                );
-                worldPoseItems.add(itemInWorld);
+            for (Item item : areaItems) {
+                Log.i(TAG, "Item: " + item.getItemId() + ", " + item.getItemName());
             }
-            areaItems = worldPoseItems; // Replace with items having world poses
+        }
+
+        // Treasure Item
+        Item treasureItem = areaItems.get(0); 
+        if (treasureItem.getItemId() / 10 == 1) {
+            itemManager.storeTreasureInfo(treasureItem);
+            Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
+        } else {
+            Log.w(TAG, "Area " + areaId + ": No treasure.");
         }
         
-        // Ensure areaItems is not null and not empty before proceeding
-        if (areaItems == null || areaItems.isEmpty()) {
-            Log.e(TAG, "Area " + areaId + ": No items (detected or guessed) to process. This should not happen.");
-            return; // Cannot proceed without items
-        }
-
-        // Treasure Item handling
-        Item treasureItem = null;
-        for (Item item : areaItems) {
-            if (item.getItemId() / 10 == 1) {
-                treasureItem = item;
-                break;
-            }
-        }
-
-        if (treasureItem != null) {
-            itemManager.storeTreasureInfo(treasureItem); // treasureItem now has its pose in world coordinates
-            Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName() + " at world pose: " + treasureItem.getItemPose().toString());
+        // Landmark Item
+        Item landmarkItem = areaItems.get(1);
+        if (landmarkItem.getItemId() / 10 == 2) {
+            itemManager.setAreaInfo(landmarkItem);
+            Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName());
         } else {
-            Log.w(TAG, "Area " + areaId + ": No treasure found in processed items.");
-        }
-        
-        // Landmark Item handling
-        Item landmarkItem = null;
-        for (Item item : areaItems) {
-            if (item.getItemId() / 10 == 2) {
-                landmarkItem = item;
-                break;
-            }
-        }
-
-        if (landmarkItem != null) {
-            itemManager.setAreaInfo(landmarkItem); // landmarkItem now has its pose in world coordinates
-            Log.i(TAG, "Area " + areaId + ": Found landmark " + landmarkItem.getItemName() + " at world pose: " + landmarkItem.getItemPose().toString());
-        } else {
-            // It's possible an area doesn't have a landmark if only guessed items are processed
-            Log.w(TAG, "Area " + areaId + ": No landmark found in processed items.");
+            // Should never end up here
+            Log.w(TAG, "Area " + areaId + ": No landmark.");
         }
     }
 
@@ -348,141 +279,5 @@ public class MainControl {
             if (item.getItemId() / 10 == 1) return true;
         }
         return false;
-    }
-
-    /**
-     * Converts AR Tag pose (relative to camera) to map center point (world coordinates).
-     *
-     * @param arTagPoseInCamera AR Tag pose relative to the camera frame.
-     * @param cameraPoseInWorld Camera pose in world coordinates (camera_origin_in_world, Q_world_camera).
-     * @return Point representing the AR Tag's center in world coordinates.
-     */
-    public Point convertARTagToMapCenter(Pose arTagPoseInCamera, Pose cameraPoseInWorld) {
-        Point arTagPointInCamera = arTagPoseInCamera.getPoint(); // P_artag_in_camera
-        Quaternion cameraOrientationInWorld = cameraPoseInWorld.getQuaternion(); // Q_world_camera
-        Point cameraPositionInWorld = cameraPoseInWorld.getPoint();     // C_world (Camera origin in world)
-
-        // Rotate AR tag's point from camera frame to world frame
-        // P_artag_in_world_relative_to_camera_origin = Q_world_camera * P_artag_in_camera * Q_world_camera_conj
-        double[] rotatedTagPointInWorldFrame = rotatePointByQuaternion(
-                arTagPointInCamera.getX(),
-                arTagPointInCamera.getY(),
-                arTagPointInCamera.getZ(),
-                cameraOrientationInWorld
-        );
-
-        // Translate AR tag's point by camera's world position
-        // P_artag_world = C_world + P_artag_in_world_relative_to_camera_origin
-        double worldX = rotatedTagPointInWorldFrame[0] + cameraPositionInWorld.getX();
-        double worldY = rotatedTagPointInWorldFrame[1] + cameraPositionInWorld.getY();
-        double worldZ = rotatedTagPointInWorldFrame[2] + cameraPositionInWorld.getZ();
-
-        return new Point(worldX, worldY, worldZ);
-    }
-
-    /**
-     * Converts camera pose in world coordinates to robot center pose in world coordinates.
-     *
-     * @param cameraPoseInWorld Camera pose in world (camera_origin_in_world, Q_world_camera).
-     * @return Robot center pose in world coordinates (robot_origin_in_world, Q_world_robotbody).
-     */
-    public Pose convertCameraToRobotCenter(Pose cameraPoseInWorld) {
-        Point cameraPositionInWorld = cameraPoseInWorld.getPoint();         // C_world
-        Quaternion cameraOrientationInWorld = cameraPoseInWorld.getQuaternion(); // Q_world_camera
-
-        // The translation from robot center to camera center, expressed in robot body frame: T_camera_in_robotbody
-        Point t_camera_in_robotbody = CAMERA_TRANSLATION_IN_ROBOT_BODY_FRAME;
-
-        // The robot's orientation in the world is Q_world_robotbody.
-        // We have Q_world_camera and Q_robotbody_camera (CAMERA_FRAME_TO_ROBOT_BODY_FRAME_ROTATION.conjugate() because we defined it as camera to robot body).
-        // Q_world_robotbody = Q_world_camera * Q_camera_robotbody
-        // Q_camera_robotbody is the inverse of CAMERA_FRAME_TO_ROBOT_BODY_FRAME_ROTATION if that one is Q_robotbody_camera
-        // Let's assume CAMERA_FRAME_TO_ROBOT_BODY_FRAME_ROTATION is Q_robotbody_camera (rotates from camera frame to robot body frame)
-
-        Quaternion q_robotbody_camera = CAMERA_FRAME_TO_ROBOT_BODY_FRAME_ROTATION; // Transforms points from Camera to Robot Body
-        Quaternion robotOrientationInWorld = multiplyQuaternions(cameraOrientationInWorld, q_robotbody_camera.conjugate()); // Q_world_robotbody = Q_world_camera * Q_camera_robotbody
-                                                                                                                          // Q_camera_robotbody = (Q_robotbody_camera)^-1
-
-        // To find the robot's center position in the world:
-        // RobotCenter_world = CameraCenter_world - (Q_world_robotbody * T_camera_in_robotbody * Q_world_robotbody_conj)
-        // This is subtracting the camera offset (which is in robot body frame) but rotated to the world frame.
-
-        double[] t_camera_in_world = rotatePointByQuaternion(
-            t_camera_in_robotbody.getX(),
-            t_camera_in_robotbody.getY(),
-            t_camera_in_robotbody.getZ(),
-            robotOrientationInWorld // Rotate the T_camera_in_robotbody by the robot's world orientation
-        );
-
-        Point robotPositionInWorld = new Point(
-            cameraPositionInWorld.getX() - t_camera_in_world[0],
-            cameraPositionInWorld.getY() - t_camera_in_world[1],
-            cameraPositionInWorld.getZ() - t_camera_in_world[2]
-        );
-
-        return new Pose(robotPositionInWorld, robotOrientationInWorld);
-    }
-
-    /**
-     * Converts a pose from the camera's reference frame to the world reference frame.
-     *
-     * @param poseInCamera The pose of an object as seen by the camera.
-     * @param cameraPoseInWorld The pose of the camera in the world frame.
-     * @return The pose of the object in the world frame.
-     */
-    public Pose convertPoseFromCameraToWorld(Pose poseInCamera, Pose cameraPoseInWorld) {
-        Point pointInCamera = poseInCamera.getPoint();
-        Quaternion orientationInCamera = poseInCamera.getQuaternion();
-
-        Point cameraPositionInWorld = cameraPoseInWorld.getPoint();
-        Quaternion cameraOrientationInWorld = cameraPoseInWorld.getQuaternion();
-
-        // Step 1: Rotate the point from camera frame to world frame
-        double[] rotatedPoint = rotatePointByQuaternion(
-            pointInCamera.getX(),
-            pointInCamera.getY(),
-            pointInCamera.getZ(),
-            cameraOrientationInWorld
-        );
-
-        // Step 2: Translate the point by the camera's world position
-        Point pointInWorld = new Point(
-            rotatedPoint[0] + cameraPositionInWorld.getX(),
-            rotatedPoint[1] + cameraPositionInWorld.getY(),
-            rotatedPoint[2] + cameraPositionInWorld.getZ()
-        );
-
-        // Step 3: Combine the orientations
-        // Object_Orientation_World = Camera_Orientation_World * Object_Orientation_Camera
-        Quaternion orientationInWorld = multiplyQuaternions(cameraOrientationInWorld, orientationInCamera);
-
-        return new Pose(pointInWorld, orientationInWorld);
-    }
-
-    private double[] rotatePointByQuaternion(double px, double py, double pz, Quaternion q_rotation) {
-        // P_rotated = q_rotation * P_original * q_rotation_conjugate
-        // P_original is (0, px, py, pz)
-        Quaternion p_quat = new Quaternion((float)px, (float)py, (float)pz, 0f); // x, y, z, w - Astrobee convention for point quaternion is w=0
-        Quaternion q_conj = q_rotation.conjugate();
-
-        // temp = q_rotation * p_quat
-        Quaternion temp = multiplyQuaternions(q_rotation, p_quat);
-        // P_rotated_quat = temp * q_conj
-        Quaternion rotated_p_quat = multiplyQuaternions(temp, q_conj);
-
-        return new double[]{rotated_p_quat.getX(), rotated_p_quat.getY(), rotated_p_quat.getZ()};
-    }
-
-    private Quaternion multiplyQuaternions(Quaternion q1, Quaternion q2) {
-        // (x1, y1, z1, w1) * (x2, y2, z2, w2)
-        float x1 = q1.getX(); float y1 = q1.getY(); float z1 = q1.getZ(); float w1 = q1.getW();
-        float x2 = q2.getX(); float y2 = q2.getY(); float z2 = q2.getZ(); float w2 = q2.getW();
-
-        float res_x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2;
-        float res_y = w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2;
-        float res_z = w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2;
-        float res_w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2;
-
-        return new Quaternion(res_x, res_y, res_z, res_w);
     }
 }
