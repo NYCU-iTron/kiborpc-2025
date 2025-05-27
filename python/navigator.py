@@ -28,7 +28,7 @@ class Navigator:
 
   poses = {
     "dock": (9.815, -9.806, 4.293, 0, 0, 0, 1),
-    "patrol1":(10.95, -9.88, 5.2, 0.0, 0.0, -0.707, 0.707),
+    "patrol1":(10.95, -9.49, 5.435, 0.0, 0.0, -0.707, 0.707),
     "patrol2":(10.925, -8.875, 4.462, 0.5, 0.5, -0.5, 0.5),
     # "patrol2":(10.925, -8.875, 4.462, 0.707, 0, -0.707, 0), // final pose
     "patrol3":(10.925, -7.925, 4.462, 0.5, 0.5, -0.5, 0.5),
@@ -204,15 +204,17 @@ ax = fig.add_subplot(111, projection='3d')
 
 navigator = Navigator(ax)
 
-x1, y1, z1, x2, y2, z2 = navigator.areas["Area 4"]
-x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol4"]
+x1, y1, z1, x2, y2, z2 = navigator.areas["Area 1"]
+x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol1"]
 target_x = (x1 + x2) / 2
 target_y = (y1 + y2) / 2
 target_z = (z1 + z2) / 2
 current_x = x_pose
 current_y = y_pose
 current_z = z_pose
-print(navigator.getQuaternionToFacePointWithUp(current_x, current_y, current_z, target_x, target_y, target_z, (0, 1, 0)))
+d = np.sqrt((target_x - current_x)**2 + (target_y - current_y)**2 + (target_z - current_z)**2)
+print(d)
+# print(navigator.getQuaternionToFacePointWithUp(current_x, current_y, current_z, target_x, target_y, target_z, (0, 1, 0)))
 
 navigator.plot()
 
