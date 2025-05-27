@@ -1,5 +1,3 @@
-
-
 package jp.jaxa.iss.kibo.rpc.sampleapk;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
@@ -34,7 +32,7 @@ public class Navigator {
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
     // areaPoses.put(4, new Pose(new Point(11.2, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
     areaPoses.put(4, new Pose(new Point(10.72, -7.5, 5.3), new Quaternion(-0.030f, 0.003f, 0.996f,  0.087f)));     // Area 4
-    
+
     areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.2), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f))); // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.283, -6.7607, 4.935), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
   }

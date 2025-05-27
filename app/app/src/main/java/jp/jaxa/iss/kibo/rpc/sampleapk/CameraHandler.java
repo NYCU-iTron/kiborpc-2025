@@ -52,7 +52,7 @@ public class CameraHandler {
         api.flashlightControlFront(0.35f);
         break;
     }
-    
+
     // api.flashlightControlFront(0.35f);
     Mat image = api.getMatNavCam();
     api.flashlightControlFront(0.00f);
