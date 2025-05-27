@@ -26,7 +26,7 @@ public class Navigator {
   // Target poses in each area
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
-    areaPoses.put(1, new Pose(new Point(10.95, -9.88, 5.2), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
+    areaPoses.put(1, new Pose(new Point(10.95, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
     areaPoses.put(4, new Pose(new Point(10.7, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
