@@ -1,3 +1,2 @@
 *.pt filter=lfs diff=lfs merge=lfs -text
 *.tflite filter=lfs diff=lfs merge=lfs -text
-app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/*.java text eol=lf
