@@ -29,13 +29,13 @@ public class Navigator {
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
 
-    areaPoses.put(1, new Pose(new Point(10.95, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
+    areaPoses.put(1, new Pose(new Point(11.11, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
     // areaPoses.put(4, new Pose(new Point(11.2, -6.853, 4.945), new Quaternion(0.0f, -0.707f, 0.707f, 0.0f)));     // Area 4
-    areaPoses.put(4, new Pose(new Point(10.6, -7.5, 5.36), new Quaternion(-0.026f, 0.003f, 0.992f,  0.125f)));     // Area 4
+    areaPoses.put(4, new Pose(new Point(10.72, -7.5, 5.3), new Quaternion(-0.030f, 0.003f, 0.996f,  0.087f)));     // Area 4
     
-    areaPoses.put(5, new Pose(new Point(10.935, -8.55, 4.955), new Quaternion(0.031f, 0.706f, 0.031f, 0.706f))); // Combined Area 2 3
+    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.2), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f))); // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.283, -6.7607, 4.935), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
   }
 
@@ -84,7 +84,7 @@ public class Navigator {
    * @return current pose.
    */
   public Pose getCurrentPose() {
-    int numAttempts = 10;
+    int numAttempts = 8;
     double accPosX = 0, accPosY = 0, accPosZ = 0;
     double accOriX = 0, accOriY = 0, accOriZ = 0, accOriW = 0;
     double weight = 0, totalWeight = 0;
@@ -97,7 +97,7 @@ public class Navigator {
       if (confidence == Kinematics.Confidence.GOOD) {
         weight = 1.0;
       } else if (confidence == Kinematics.Confidence.POOR) {
-        weight = 0.5;
+        weight = 0.6;
       } else { // confidence == Confidence.LOST
         Log.w(TAG, "Get current pose with low confidence");
         continue;      
@@ -197,7 +197,7 @@ public class Navigator {
 
     // Wait Stable
     try{
-      Thread.sleep(1300);
+      Thread.sleep(800);
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }
