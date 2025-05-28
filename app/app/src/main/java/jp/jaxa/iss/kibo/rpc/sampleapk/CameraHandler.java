@@ -31,8 +31,29 @@ public class CameraHandler {
     Log.i(TAG, "Initialized");
   }
 
-  public Mat captureImage() {
-    api.flashlightControlFront(0.05f);
+  public Mat captureImage(int areaId) {
+    switch (areaId) {
+      case 1:
+        api.flashlightControlFront(0.30f);
+        break;
+      case 2:
+        api.flashlightControlFront(0.45f);
+        break;
+      case 3:
+        api.flashlightControlFront(0.45f);
+        break;
+      case 4:
+        api.flashlightControlFront(0.6f);
+        break;
+      case 5:
+        api.flashlightControlFront(0.45f);
+        break;
+      default:
+        api.flashlightControlFront(0.3f);
+        break;
+    }
+
+    // api.flashlightControlFront(0.35f);
     Mat image = api.getMatNavCam();
     api.flashlightControlFront(0.00f);
     return image;

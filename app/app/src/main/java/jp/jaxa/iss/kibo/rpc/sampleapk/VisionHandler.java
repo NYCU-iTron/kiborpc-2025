@@ -78,7 +78,7 @@ public class VisionHandler {
    */
   public List<Item> inspectArea(int areaId) {
     // Get raw image
-    Mat rawImage = cameraHandler.captureImage();
+    Mat rawImage = cameraHandler.captureImage(areaId);
 
     // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
@@ -111,7 +111,7 @@ public class VisionHandler {
 
   public Item recognizeTreasure() {
     // Get raw image
-    Mat rawImage = cameraHandler.captureImage();
+    Mat rawImage = cameraHandler.captureImage(0);
     
     // Get undistorted image
     Mat undistortedImage = cameraHandler.getUndistortedImage(rawImage);
