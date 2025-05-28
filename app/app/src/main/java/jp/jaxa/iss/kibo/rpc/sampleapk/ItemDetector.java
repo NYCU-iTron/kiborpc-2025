@@ -818,10 +818,9 @@ public class ItemDetector {
    * Checks if the inner bounding box is contained within the outer bounding box.
    * The function uses a threshold to determine if the inner box is sufficiently contained.
    * 
-   * @param inner The inner bounding box [x, y, width, height].
-   * @param outer The outer bounding box [x, y, width, height].
-   * @param threshold The threshold for containment (0.0 to 1.0).
-   * @return true if the inner box is contained within the outer box, false otherwise.
+   * @param box1 The first bounding box in the form [x1, y1, x2, y2].
+   * @param box2 The second bounding box in the form [x1, y1, x2, y2].
+   * @return the highest percentage of the box be covered. 
    */
   private float calculateContainment(float[] box1, float[] box2) {
     float x1_1 = box1[0], y1_1 = box1[1], x2_1 = box1[2], y2_1 = box1[3];
