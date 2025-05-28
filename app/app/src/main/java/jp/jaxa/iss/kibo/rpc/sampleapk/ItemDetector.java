@@ -221,8 +221,9 @@ public class ItemDetector {
     
     // Apply revised Weighted Box Fusion
     float iouThreshold = 0.7f;
-    float confThreshold = 0.7f;
-    List<Detection> results = wbf(detectionAll, iouThreshold, confThreshold);
+    float confThreshold = 0.5f;
+    float containmentThreshould = 0.85f;
+    List<Detection> results = wbf(detectionAll, iouThreshold, containmentThreshould, confThreshold);
 
     Log.i(TAG, "Detection results:");
     for (Detection result : results) {
@@ -648,7 +649,7 @@ public class ItemDetector {
    * @param confThreshold Confidence threshold for filtering boxes.
    * @return List of fused Detection objects.
    */
-  private List<Detection> wbf(List<Detection> detections, float iouThreshold, float confThreshold) {
+  private List<Detection> wbf(List<Detection> detections, float iouThreshold, float containmentThreshould, float confThreshold) {
     if (detections.isEmpty()) {
       Log.i(TAG, "No detections to process.");
       return detections;
@@ -681,9 +682,9 @@ public class ItemDetector {
         Detection di = detections.get(i);
         Detection dj = detections.get(j);
         float iou = calculateIoU(di.box, dj.box);
-        boolean contained = isContained(dj.box, di.box, 0.85f);
+        float containment = calculateContainment(dj.box, di.box);
 
-        if (iou > iouThreshold || contained) {
+        if (iou > iouThreshold || containment > containmentThreshould) {
           group.add(dj);
           used[j] = true;
         }
@@ -822,7 +823,7 @@ public class ItemDetector {
    * @param threshold The threshold for containment (0.0 to 1.0).
    * @return true if the inner box is contained within the outer box, false otherwise.
    */
-  private boolean isContained(float[] box1, float[] box2, float threshold) {
+  private float calculateContainment(float[] box1, float[] box2) {
     float x1_1 = box1[0], y1_1 = box1[1], x2_1 = box1[2], y2_1 = box1[3];
     float x1_2 = box2[0], y1_2 = box2[1], x2_2 = box2[2], y2_2 = box2[3];
 
@@ -839,10 +840,8 @@ public class ItemDetector {
     float area2 = (x2_2 - x1_2) * (y2_2 - y1_2);
 
     float minArea = Math.min(area1, area2);
-    if (minArea <= 0) {
-      return false;
-    }
+    minArea = Math.min(minArea, 0.01f);
 
-    return (interArea / minArea) > threshold;
+    return interArea / minArea;
   }
 }
