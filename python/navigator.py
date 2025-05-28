@@ -202,15 +202,17 @@ ax = fig.add_subplot(111, projection='3d')
 
 navigator = Navigator(ax)
 
-x1, y1, z1, x2, y2, z2 = navigator.areas["Area 4"]
-x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol4"]
+x1, y1, z1, x2, y2, z2 = navigator.areas["Area 1"]
+x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol1"]
 target_x = (x1 + x2) / 2
 target_y = (y1 + y2) / 2
 target_z = (z1 + z2) / 2
 current_x = x_pose
 current_y = y_pose
 current_z = z_pose
-print(navigator.getQuaternionToFacePointWithUp(current_x, current_y, current_z, target_x, target_y, target_z, (0, 1, 0)))
+d = np.sqrt((target_x - current_x)**2 + (target_y - current_y)**2 + (target_z - current_z)**2)
+print(d)
+# print(navigator.getQuaternionToFacePointWithUp(current_x, current_y, current_z, target_x, target_y, target_z, (0, 1, 0)))
 
 navigator.plot()
 
