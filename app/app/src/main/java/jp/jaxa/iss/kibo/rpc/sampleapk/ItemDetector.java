@@ -373,8 +373,8 @@ public class ItemDetector {
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
 
-    results.add(new Item(areaId, treasureId, treasureName, treasureCount, tagPose));
-    results.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
+    results.add(new Item(areaId, treasureItemId, treasureName, treasureCount, tagPose));
+    results.add(new Item(areaId, landmarkItemId, landmarkName, landmarkCount, tagPose));
 
     return results;
   }
