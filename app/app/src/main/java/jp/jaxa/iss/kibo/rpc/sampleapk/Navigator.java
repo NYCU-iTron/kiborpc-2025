@@ -80,48 +80,35 @@ public class Navigator {
    * @return current pose.
    */
   public Pose getCurrentPose() {
-    int numAttempts = 8;
+    int numAttempts = 5;
     double accPosX = 0, accPosY = 0, accPosZ = 0;
     double accOriX = 0, accOriY = 0, accOriZ = 0, accOriW = 0;
-    double weight = 0, totalWeight = 0;
 
     // Collect kinematics data from API
     for (int i = 0; i < numAttempts; i++) {
       Kinematics kinematics = api.getRobotKinematics();
-      Kinematics.Confidence confidence = kinematics.getConfidence();
-
-      if (confidence == Kinematics.Confidence.GOOD) {
-        weight = 1.0;
-      } else if (confidence == Kinematics.Confidence.POOR) {
-        weight = 0.6;
-      } else { // confidence == Confidence.LOST
-        Log.w(TAG, "Get current pose with low confidence");
-        continue;      
-      }
-
-      totalWeight += weight;
 
       Point position = kinematics.getPosition();
-      accPosX += position.getX() * weight;
-      accPosY += position.getY() * weight;
-      accPosZ += position.getZ() * weight;
+      accPosX += position.getX();
+      accPosY += position.getY();
+      accPosZ += position.getZ();
 
       Quaternion orientation = kinematics.getOrientation();
-      accOriX += (double) orientation.getX() * weight;
-      accOriY += (double) orientation.getY() * weight;
-      accOriZ += (double) orientation.getZ() * weight;
-      accOriW += (double) orientation.getW() * weight;
+      accOriX += (double) orientation.getX();
+      accOriY += (double) orientation.getY();
+      accOriZ += (double) orientation.getZ();
+      accOriW += (double) orientation.getW();
     }
     
     // Compute avergae
-    double avgPosX = accPosX / totalWeight;
-    double avgPosY = accPosY / totalWeight;
-    double avgPosZ = accPosZ / totalWeight;
+    double avgPosX = accPosX / numAttempts;
+    double avgPosY = accPosY / numAttempts;
+    double avgPosZ = accPosZ / numAttempts;
     
-    float avgOriX = (float) (accOriX / totalWeight);
-    float avgOriY = (float) (accOriY / totalWeight);
-    float avgOriZ = (float) (accOriZ / totalWeight);
-    float avgOriW = (float) (accOriW / totalWeight);
+    float avgOriX = (float) accOriX / numAttempts;
+    float avgOriY = (float) accOriY / numAttempts;
+    float avgOriZ = (float) accOriZ / numAttempts;
+    float avgOriW = (float) accOriW / numAttempts;
 
     // Normalize
     float norm = (float) Math.sqrt(avgOriX * avgOriX + avgOriY * avgOriY + avgOriZ * avgOriZ + avgOriW * avgOriW);
