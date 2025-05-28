@@ -227,7 +227,7 @@ def detect(image_path):
   # Interpreter
   interpreter_m30000 = Interpreter("m_30000_0522.tflite")
   interpreter_s20000 = Interpreter("s_20000_0522.tflite")
-  interpreter_n20000 = Interpreter("n_20000_0524.tflite")
+  interpreter_n20000 = Interpreter("s_18750_0528.tflite")
 
   # Load image
   orig_img = cv2.imread(image_path)
