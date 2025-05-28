@@ -837,9 +837,7 @@ public class ItemDetector {
 
     float area1 = (x2_1 - x1_1) * (y2_1 - y1_1);
     float area2 = (x2_2 - x1_2) * (y2_2 - y1_2);
-
     float minArea = Math.min(area1, area2);
-    minArea = Math.min(minArea, 0.01f);
 
     return interArea / minArea;
   }
