@@ -131,19 +131,25 @@ public class Navigator {
    * @return The result of the last move command.
    */
   public Result moveTo(Pose targetPose) {
-    int maxRetries = 5;
     Result result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
-    
+    if (result.hasSucceeded()) {
+      return result;
+    }
+
     // Enter retry loop if failed
-    while (!result.hasSucceeded() && maxRetries > 0) {
-      Log.i(TAG, "Retrying move to: " + targetPose.toString());
+    int retryMax = 5;
+    for (int retry = 1; retry <= retryMax; retry++) {
+      Log.i(TAG, "Moving to targetPose " + targetPose.toString() + " (retry " + retry + ")");
       result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
-      maxRetries--;
+      
+      if (result.hasSucceeded()) {
+        return result;
+      }
     }
 
     // If still not successful after retries, log the error.
     if (!result.hasSucceeded()) {
-      Log.w(TAG, "Failed to move to " + targetPose.toString() + "because " + result.getMessage());
+      Log.w(TAG, "Failed to move to " + targetPose.toString() + " because " + result.getMessage());
     }
     
     return result;
