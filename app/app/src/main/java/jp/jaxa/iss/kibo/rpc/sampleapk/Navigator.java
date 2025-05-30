@@ -185,7 +185,11 @@ public class Navigator {
 
     // Wait Stable
     try{
-      Thread.sleep(800);
+      if(area == 5) {
+        Thread.sleep(1300);
+      } else {
+        Thread.sleep(800);
+      }
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }
