@@ -141,7 +141,7 @@ def compute_iou(box1, box2):
   union = area1 + area2 - inter_area
   return inter_area / union if union != 0 else 0
 
-def is_contained(box1, box2, threshold=0.8):
+def is_contained(box1, box2, threshold=0.85):
   x1 = max(box1[0], box2[0])
   y1 = max(box1[1], box2[1])
   x2 = min(box1[2], box2[2])
@@ -225,9 +225,8 @@ with open(labels_path, "r", encoding="utf-8") as f:
 
 def detect(image_path):
   # Interpreter
-  interpreter_m30000 = Interpreter("m_30000_0522.tflite")
-  interpreter_s20000 = Interpreter("s_20000_0522.tflite")
-  interpreter_n20000 = Interpreter("s_18750_0528.tflite")
+  interpreter_s25000 = Interpreter("s_25000_0531.tflite")
+  interpreter_s18750 = Interpreter("s_18750_0528.tflite")
 
   # Load image
   orig_img = cv2.imread(image_path)
@@ -235,15 +234,13 @@ def detect(image_path):
     raise FileNotFoundError(f"Image file not found: {image_path}")
 
   # Detect
-  detections_m30000 = interpreter_m30000.detect(orig_img)
-  detections_s20000 = interpreter_s20000.detect(orig_img)
-  detections_n20000 = interpreter_n20000.detect(orig_img)
+  detections_s25000 = interpreter_s25000.detect(orig_img)
+  detections_s18750 = interpreter_s18750.detect(orig_img)
 
   # Process detections
   all_detections = []
-  all_detections.extend(detections_m30000)
-  all_detections.extend(detections_s20000)
-  all_detections.extend(detections_n20000)
+  all_detections.extend(detections_s25000)
+  all_detections.extend(detections_s18750)
 
   final_detections = wbf(all_detections)
 
@@ -261,5 +258,5 @@ def detect(image_path):
   cv2.destroyAllWindows()
 
 # Configuration
-image_path = "../assets/test_set/23.png"
+image_path = "../assets/test_set/35.png"
 detect(image_path)
