@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 class DataGenerator:
   def __init__(self):
-    self.output_size = (320, 320)
+    self.output_size = (200, 200)
 
     # Set the base directory to the directory of this script
     self.base_dir = os.getcwd()
@@ -64,9 +64,9 @@ class DataGenerator:
     for i in tqdm(range(total_image_count), desc="Generating data"):
       r = random.random()
 
-      if r < 0.2:
+      if r < 0.3:
         max_overlap = 0.7
-      elif r > 0.2 and r < 0.5:
+      elif r > 0.3 and r < 0.5:
         max_overlap = 0.5
       else:
         max_overlap = 0.3
@@ -240,14 +240,14 @@ names:
     placed_objects = []
     final_objects = []
     overlap_counts = np.zeros((h, w), dtype=np.uint8)
-    num_items = min(random.randint(4, 6), len(self.items))
+    num_items = min(random.randint(2, 6), len(self.items))
 
     # 提高重複 item 機率
     selected_items = random.choices(self.items * 10, k=num_items)
 
     for class_name, item_img in selected_items:
       # 隨機縮放
-      scale = random.uniform(0.05, 0.2)
+      scale = random.uniform(0.04, 0.12)
       new_size = (int(item_img.shape[1] * scale), int(item_img.shape[0] * scale))
       resized = cv2.resize(item_img, new_size, interpolation=cv2.INTER_CUBIC)
 
