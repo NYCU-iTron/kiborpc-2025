@@ -29,8 +29,8 @@ public class Navigator {
     areaPoses.put(1, new Pose(new Point(11.11, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));          // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));               // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));            // Area 3
-    areaPoses.put(4, new Pose(new Point(11.35, -6.7607, 4.935), new Quaternion(0.0f, -1.0f, 0.0f, 0.0f)));            // Area 4
-    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.2), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)));            // Combined Area 2 3
+    areaPoses.put(4, new Pose(new Point(11.35, -6.7607, 4.935), new Quaternion(0.0f, 0.707f, -0.707f, 0.0f)));        // Area 4
+    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.2), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));               // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.35, -6.7607, 4.935), new Quaternion(0.633f, 0.754f, -0.133f, 0.112f)));    // Report
   }
 
@@ -185,11 +185,7 @@ public class Navigator {
 
     // Wait Stable
     try{
-      if(area == 5) {
-        Thread.sleep(1300);
-      } else {
-        Thread.sleep(800);
-      }
+      Thread.sleep(800);
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }
