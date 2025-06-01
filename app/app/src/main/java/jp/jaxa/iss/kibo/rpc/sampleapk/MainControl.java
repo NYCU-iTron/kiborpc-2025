@@ -64,15 +64,45 @@ public class MainControl {
     }
 
     public void method2() {
+        long startTime = System.currentTimeMillis();
+        String time0 =  getElapsedTimeString(startTime);
+        
         api.startMission();
 
-        // Explore all areas
+        // Explore Area 1
         handleSingleArea(1);
-        handleCombinedArea();
-        handleSingleArea(4);
+        String time1 = getElapsedTimeString(startTime);
 
+        // Explore Area 2, 3
+        handleCombinedArea();
+        String time23 = getElapsedTimeString(startTime);
+
+        // Explore Area 4
+        handleSingleArea(4);
+        String time4 = getElapsedTimeString(startTime);
+
+        // Meet asrronaut
         Item treasureItem = meetAstronaut();
+        String time5 = getElapsedTimeString(startTime);
+
+        // Move to treasure
         findAndCaptureTreasure(treasureItem);
+        String time6 = getElapsedTimeString(startTime);
+
+        Log.i(TAG, "Mission started - " + time0);
+        Log.i(TAG, "Explored Area 1 - " + time1);
+        Log.i(TAG, "Explored Area 2 and 3 - " + time23);
+        Log.i(TAG, "Explored Area 4 - " + time4);
+        Log.i(TAG, "Met Astronaut - " + time5);
+        Log.i(TAG, "Captured Treasure - " + time6);
+    }
+
+    private String getElapsedTimeString(long startTime) {
+        long elapsed = System.currentTimeMillis() - startTime;
+        long minutes = elapsed / 60000;
+        long seconds = (elapsed % 60000) / 1000;
+        return minutes + " minute" + (minutes == 1 ? "" : "s") + " " +
+            seconds + " second" + (seconds == 1 ? "" : "s");
     }
 
     private void handleSingleArea(int areaId) {
@@ -95,6 +125,7 @@ public class MainControl {
             }
         }
 
+        // Guess the result if no valid result
         if (areaItems == null || !containsLandmark(areaItems)) {
             Log.w(TAG, "No landmark found after retries, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
@@ -103,7 +134,7 @@ public class MainControl {
             }
         }
 
-        // Treasure Item
+        // Set treasure item
         Item treasureItem = areaItems.get(0); 
         if (treasureItem.getItemId() / 10 == 1) {
             itemManager.storeTreasureInfo(treasureItem);
@@ -112,7 +143,7 @@ public class MainControl {
             Log.w(TAG, "Area " + areaId + ": No treasure.");
         }
         
-        // Landmark Item
+        // Set landmark item
         Item landmarkItem = areaItems.get(1);
         if (landmarkItem.getItemId() / 10 == 2) {
             itemManager.setAreaInfo(landmarkItem);
@@ -224,6 +255,7 @@ public class MainControl {
         int retryMax = 20;
         for (int retry = 1; retry <= retryMax; retry++) {
             areaItems = visionHandler.inspectArea(areaId);
+
             if (containsTreasure(areaItems)) {
                 treasureItem = areaItems.get(0);
                 break;
@@ -235,10 +267,7 @@ public class MainControl {
                 } catch (InterruptedException e) {
                     Log.w(TAG, "Fail to sleep thread" + e);
                 }
-
-                areaItems = visionHandler.inspectArea(areaId);
             }
-            
         }
 
         if (treasureItem == null) {

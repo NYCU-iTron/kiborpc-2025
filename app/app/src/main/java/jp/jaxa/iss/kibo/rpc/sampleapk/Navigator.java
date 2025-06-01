@@ -26,13 +26,12 @@ public class Navigator {
   // Target poses in each area
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
-    areaPoses.put(1, new Pose(new Point(11.11, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));      // Area 1
-
-    areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 2
-    areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));      // Area 3
-    areaPoses.put(4, new Pose(new Point(10.72, -7.5, 5.3), new Quaternion(-0.030f, 0.003f, 0.996f,  0.087f)));     // Area 4
-    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.2), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f))); // Combined Area 2 3
-    areaPoses.put(0, new Pose(new Point(11.283, -6.7607, 4.935), new Quaternion(-0.5f, -0.5f, 0.5f, 0.5f))); // Report
+    areaPoses.put(1, new Pose(new Point(11.11, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));          // Area 1
+    areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));               // Area 2
+    areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));            // Area 3
+    areaPoses.put(4, new Pose(new Point(11.35, -6.76, 4.935), new Quaternion(0.0f, -1.0f, 0.0f, 0.0f)));              // Area 4
+    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.33), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)));            // Combined Area 2 3
+    areaPoses.put(0, new Pose(new Point(11.35, -6.76, 4.935), new Quaternion(0.633f, 0.754f, -0.133f, 0.112f)));      // Report
   }
 
   // Safety factors
@@ -80,48 +79,35 @@ public class Navigator {
    * @return current pose.
    */
   public Pose getCurrentPose() {
-    int numAttempts = 8;
+    int numAttempts = 5;
     double accPosX = 0, accPosY = 0, accPosZ = 0;
     double accOriX = 0, accOriY = 0, accOriZ = 0, accOriW = 0;
-    double weight = 0, totalWeight = 0;
 
     // Collect kinematics data from API
     for (int i = 0; i < numAttempts; i++) {
       Kinematics kinematics = api.getRobotKinematics();
-      Kinematics.Confidence confidence = kinematics.getConfidence();
-
-      if (confidence == Kinematics.Confidence.GOOD) {
-        weight = 1.0;
-      } else if (confidence == Kinematics.Confidence.POOR) {
-        weight = 0.6;
-      } else { // confidence == Confidence.LOST
-        Log.w(TAG, "Get current pose with low confidence");
-        continue;      
-      }
-
-      totalWeight += weight;
 
       Point position = kinematics.getPosition();
-      accPosX += position.getX() * weight;
-      accPosY += position.getY() * weight;
-      accPosZ += position.getZ() * weight;
+      accPosX += position.getX();
+      accPosY += position.getY();
+      accPosZ += position.getZ();
 
       Quaternion orientation = kinematics.getOrientation();
-      accOriX += (double) orientation.getX() * weight;
-      accOriY += (double) orientation.getY() * weight;
-      accOriZ += (double) orientation.getZ() * weight;
-      accOriW += (double) orientation.getW() * weight;
+      accOriX += (double) orientation.getX();
+      accOriY += (double) orientation.getY();
+      accOriZ += (double) orientation.getZ();
+      accOriW += (double) orientation.getW();
     }
     
     // Compute avergae
-    double avgPosX = accPosX / totalWeight;
-    double avgPosY = accPosY / totalWeight;
-    double avgPosZ = accPosZ / totalWeight;
+    double avgPosX = accPosX / numAttempts;
+    double avgPosY = accPosY / numAttempts;
+    double avgPosZ = accPosZ / numAttempts;
     
-    float avgOriX = (float) (accOriX / totalWeight);
-    float avgOriY = (float) (accOriY / totalWeight);
-    float avgOriZ = (float) (accOriZ / totalWeight);
-    float avgOriW = (float) (accOriW / totalWeight);
+    float avgOriX = (float) accOriX / numAttempts;
+    float avgOriY = (float) accOriY / numAttempts;
+    float avgOriZ = (float) accOriZ / numAttempts;
+    float avgOriW = (float) accOriW / numAttempts;
 
     // Normalize
     float norm = (float) Math.sqrt(avgOriX * avgOriX + avgOriY * avgOriY + avgOriZ * avgOriZ + avgOriW * avgOriW);
@@ -145,19 +131,25 @@ public class Navigator {
    * @return The result of the last move command.
    */
   public Result moveTo(Pose targetPose) {
-    int maxRetries = 5;
     Result result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
-    
+    if (result.hasSucceeded()) {
+      return result;
+    }
+
     // Enter retry loop if failed
-    while (!result.hasSucceeded() && maxRetries > 0) {
-      Log.i(TAG, "Retrying move to: " + targetPose.toString());
+    int retryMax = 5;
+    for (int retry = 1; retry <= retryMax; retry++) {
+      Log.i(TAG, "Moving to targetPose " + targetPose.toString() + " (retry " + retry + ")");
       result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
-      maxRetries--;
+      
+      if (result.hasSucceeded()) {
+        return result;
+      }
     }
 
     // If still not successful after retries, log the error.
     if (!result.hasSucceeded()) {
-      Log.w(TAG, "Failed to move to " + targetPose.toString() + "because " + result.getMessage());
+      Log.w(TAG, "Failed to move to " + targetPose.toString() + " because " + result.getMessage());
     }
     
     return result;
@@ -189,16 +181,35 @@ public class Navigator {
       return null;
     }
 
+    Log.i(TAG, "Start moving to area " + area);
     Result result = moveTo(targetPose);
+
+    int stableTime = 0;
+    switch (area) {
+      case 0:
+        stableTime = 700;
+        break;
+      case 1:
+        stableTime = 1000;
+        break;
+      case 4:
+        stableTime = 1500;
+        break;
+      case 5:
+        stableTime = 2400;
+        break;
+      default:
+        stableTime = 700;
+        break;
+    }
 
     // Wait Stable
     try{
-      Thread.sleep(800);
+      Thread.sleep(stableTime);
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }
     
-    Log.i(TAG, "Move to area " + area);
     return result;
   }
 
@@ -248,7 +259,7 @@ public class Navigator {
         finalY = Math.max(finalY, area2MinY + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.707f, 0.0f, -0.707f, 0.0f);
+        finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
 
         break;
 
@@ -265,7 +276,7 @@ public class Navigator {
         finalY = Math.max(finalY, area3MinY + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.707f, 0.0f, -0.707f, 0.0f);
+        finalQuaternion = new Quaternion(0.5f, 0.5f, -0.5f, 0.5f);
 
         break;
 
@@ -282,7 +293,7 @@ public class Navigator {
         finalZ = Math.max(finalZ, area4MinZ + subSafeDistance);
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.0f, -0.707f, 0.707f, 0.0f);
+        finalQuaternion = new Quaternion(0.0f, -1.0f, 0.0f, 0.0f);
 
         break;
 
@@ -297,7 +308,7 @@ public class Navigator {
         finalZ = (4.32 + 5.57) / 2;
 
         finalPoint = new Point(finalX, finalY, finalZ);
-        finalQuaternion = new Quaternion(0.0f, -0.707f, 0.707f, 0.0f);
+        finalQuaternion = new Quaternion(0.0f, -1.0f, 0.0f, 0.0f);
 
         break;
     }

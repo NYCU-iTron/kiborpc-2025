@@ -63,8 +63,7 @@ public class ItemDetector {
 
   // Enum representing the model types available for detection.
   public enum ModelType {
-    M30000,
-    S20000,
+    S25000,
     S18750,
   }
   private Map<ModelType, InterpreterWrapper> modelMap;
@@ -161,14 +160,12 @@ public class ItemDetector {
     this.context = context;
 
     // Load models
-    InterpreterWrapper modelM30000 = new InterpreterWrapper("m_30000_0522.tflite", 1.0f, 0.6f);
-    InterpreterWrapper modelS20000 = new InterpreterWrapper("s_20000_0522.tflite", 1.0f, 0.6f);
-    InterpreterWrapper modelS18750 = new InterpreterWrapper("s_18750_0528.tflite", 1.0f, 0.85f);
+    InterpreterWrapper modelS25000 = new InterpreterWrapper("s_25000_0531.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelS18750 = new InterpreterWrapper("s_18750_0528.tflite", 1.0f, 0.6f);
 
     // Map model types to their respective interpreters
     modelMap = new HashMap<>();
-    modelMap.put(ModelType.M30000, modelM30000);
-    modelMap.put(ModelType.S20000, modelS20000);
+    modelMap.put(ModelType.S25000, modelS25000);
     modelMap.put(ModelType.S18750, modelS18750);
 
     // Labels
@@ -373,8 +370,8 @@ public class ItemDetector {
     int treasureCount = 1;
     int landmarkCount = rand.nextInt(4) + 1; // Random count (1-3)
 
-    results.add(new Item(areaId, treasureId, treasureName, treasureCount, tagPose));
-    results.add(new Item(areaId, landmarkId, landmarkName, landmarkCount, tagPose));
+    results.add(new Item(areaId, treasureItemId, treasureName, treasureCount, tagPose));
+    results.add(new Item(areaId, landmarkItemId, landmarkName, landmarkCount, tagPose));
 
     return results;
   }
@@ -818,10 +815,9 @@ public class ItemDetector {
    * Checks if the inner bounding box is contained within the outer bounding box.
    * The function uses a threshold to determine if the inner box is sufficiently contained.
    * 
-   * @param inner The inner bounding box [x, y, width, height].
-   * @param outer The outer bounding box [x, y, width, height].
-   * @param threshold The threshold for containment (0.0 to 1.0).
-   * @return true if the inner box is contained within the outer box, false otherwise.
+   * @param box1 The first bounding box in the form [x1, y1, x2, y2].
+   * @param box2 The second bounding box in the form [x1, y1, x2, y2].
+   * @return the highest percentage of the box be covered. 
    */
   private float calculateContainment(float[] box1, float[] box2) {
     float x1_1 = box1[0], y1_1 = box1[1], x2_1 = box1[2], y2_1 = box1[3];
@@ -838,9 +834,7 @@ public class ItemDetector {
 
     float area1 = (x2_1 - x1_1) * (y2_1 - y1_1);
     float area2 = (x2_2 - x1_2) * (y2_2 - y1_2);
-
     float minArea = Math.min(area1, area2);
-    minArea = Math.min(minArea, 0.01f);
 
     return interArea / minArea;
   }

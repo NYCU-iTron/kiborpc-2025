@@ -4,6 +4,7 @@ import math
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.animation import FuncAnimation
+from scipy.spatial.transform import Rotation as R
 
 class Navigator:
   colors = {
@@ -30,102 +31,15 @@ class Navigator:
     "dock": (9.815, -9.806, 4.293, 0, 0, 0, 1),
     "patrol1":(11.11, -9.49, 5.435, 0.0, 0.0, -0.707, 0.707),
     "patrol2":(10.925, -8.875, 4.462, 0.5, 0.5, -0.5, 0.5),
-    "patrol3":(10.925, -8.35, 5,2, 0, 0.707, 0, 0.707), # Combined Area 2 3
-    "patrol4":(10.72, -7.5, 5.35, -0.030, 0.003, 0.996, 0.087),
-    "report": (11.283, -6.7607, 4.935, -0.5, -0.5, 0.5, 0.5),
+    "patrol3":(10.925, -7.925, 4.462, 0.5, 0.5, -0.5, 0.5),
+    "patrol4":(11.35, -6.7607, 4.935, 0.0, -1.0, 0.0, 0.0),
+    "patrol5":(10.925, -8.35, 5.3, 0.0, 0.707, 0.0, 0.707), # Combined Area 2 3
+    "report": (11.35, -6.7607, 4.935, 0.633, 0.754, -0.133, 0.112),
   }
 
   def __init__(self, ax):
     self.ax = ax
 
-  def getQuaternionToFacePointWithUp(self, x1, y1, z1, x2, y2, z2, up=(0, 0, 1)):
-    # Direction to target
-    forward = [x2 - x1, y2 - y1, z2 - z1]
-    magnitude = math.sqrt(forward[0]**2 + forward[1]**2 + forward[2]**2)
-    if magnitude == 0:
-        return [0, 0, 0, 1]
-    forward = [f / magnitude for f in forward]
-
-    # Right vector
-    right = [
-        up[1] * forward[2] - up[2] * forward[1],
-        up[2] * forward[0] - up[0] * forward[2],
-        up[0] * forward[1] - up[1] * forward[0]
-    ]
-    right_mag = math.sqrt(right[0]**2 + right[1]**2 + right[2]**2)
-    if right_mag < 1e-6:
-        # forward 和 up 太接近，無法產生穩定的 right
-        # 可以隨便選一個新的 up 試試
-        up = (0, 1, 0)
-        right = [
-          up[1] * forward[2] - up[2] * forward[1],
-          up[2] * forward[0] - up[0] * forward[2],
-          up[0] * forward[1] - up[1] * forward[0]
-        ]
-        right_mag = math.sqrt(right[0]**2 + right[1]**2 + right[2]**2)
-    
-    right = [r / right_mag for r in right]
-
-    # Recompute true up
-    true_up = [
-      forward[1] * right[2] - forward[2] * right[1],
-      forward[2] * right[0] - forward[0] * right[2],
-      forward[0] * right[1] - forward[1] * right[0]
-    ]
-
-    # 旋轉矩陣
-    rot = [
-      [forward[0], right[0], true_up[0]],
-      [forward[1], right[1], true_up[1]],
-      [forward[2], right[2], true_up[2]],
-    ]
-
-    # 把旋轉矩陣轉成四元數
-    trace = rot[0][0] + rot[1][1] + rot[2][2]
-    if trace > 0:
-      s = 0.5 / math.sqrt(trace + 1.0)
-      qw = 0.25 / s
-      qx = (rot[2][1] - rot[1][2]) * s
-      qy = (rot[0][2] - rot[2][0]) * s
-      qz = (rot[1][0] - rot[0][1]) * s
-    elif (rot[0][0] > rot[1][1]) and (rot[0][0] > rot[2][2]):
-      s = 2.0 * math.sqrt(1.0 + rot[0][0] - rot[1][1] - rot[2][2])
-      qw = (rot[2][1] - rot[1][2]) / s
-      qx = 0.25 * s
-      qy = (rot[0][1] + rot[1][0]) / s
-      qz = (rot[0][2] + rot[2][0]) / s
-    elif rot[1][1] > rot[2][2]:
-      s = 2.0 * math.sqrt(1.0 + rot[1][1] - rot[0][0] - rot[2][2])
-      qw = (rot[0][2] - rot[2][0]) / s
-      qx = (rot[0][1] + rot[1][0]) / s
-      qy = 0.25 * s
-      qz = (rot[1][2] + rot[2][1]) / s
-    else:
-      s = 2.0 * math.sqrt(1.0 + rot[2][2] - rot[0][0] - rot[1][1])
-      qw = (rot[1][0] - rot[0][1]) / s
-      qx = (rot[0][2] + rot[2][0]) / s
-      qy = (rot[1][2] + rot[2][1]) / s
-      qz = 0.25 * s
-
-    return [qx, qy, qz, qw]
-  
-  def interplate(self, start: List[float], end: List[float]) -> List[List[float]]:
-    linearUnit = 0.08
-
-    totalDistance = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2 + (end[2] - start[2])**2)
-    numSteps = int(totalDistance / linearUnit)
-    unitStep = np.array([(end[0] - start[0]) / numSteps, (end[1] - start[1]) / numSteps, (end[2] - start[2]) / numSteps])
-
-    trajectory = []
-    current = np.array([start[0], start[1], start[2]])
-    start = np.array([start[0], start[1], start[2], start[3], start[4], start[5], start[6]])
-    while numSteps > 0:
-      current = current + unitStep
-      newPose = np.concatenate((current, start[3:]))
-      trajectory.append(newPose)
-      numSteps -= 1
-    return trajectory
-  
   def plot(self):
     # Plot areas
     for label, area in self.areas.items():
@@ -155,25 +69,121 @@ class Navigator:
     self.ax.add_collection3d(Poly3DCollection(verts5, color=color, alpha=self.alpha))
     self.ax.add_collection3d(Poly3DCollection(verts6, color=color, alpha=self.alpha))
 
+  def calculate_target_quaternion(self, current_pos, target_pos, local_axis='z', keep_horizontal_axis='auto'):
+    """
+    計算從當前位置面向目標位置的四元數
+    
+    Args:
+        current_pos: 當前位置 [x, y, z]
+        target_pos: 目標位置 [x, y, z]  
+        local_axis: 指定哪個local軸要朝向目標 ('x', 'y', 'z')
+        keep_horizontal_axis: 指定哪個軸要保持水平 ('x', 'y', 'z', 'auto')
+                            'auto' 會自動選擇最接近xy平面的軸
+    
+    Returns:
+        quaternion: [qx, qy, qz, qw] (scipy格式)
+    """
+    
+    current_pos = np.array(current_pos)
+    target_pos = np.array(target_pos)
+    
+    # 計算朝向目標的方向向量
+    direction = target_pos - current_pos
+    direction_norm = np.linalg.norm(direction)
+    
+    if direction_norm < 1e-10:
+      # 如果距離太近，返回單位四元數
+      return np.array([0, 0, 0, 1])
+    
+    direction = direction / direction_norm
+    
+    # 定義local軸的標準向量
+    local_axes = {
+      'x': np.array([1, 0, 0]),
+      'y': np.array([0, 1, 0]), 
+      'z': np.array([0, 0, 1])
+    }
+    
+    target_local_axis = local_axes[local_axis]
+    
+    # 如果目標方向和local軸已經對齊，則不需要旋轉主軸
+    if np.abs(np.dot(direction, target_local_axis)) > 0.99999:
+      primary_rotation = R.identity()
+    else:
+      # 計算將指定local軸對齊到目標方向的旋轉
+      primary_rotation = R.align_vectors([direction], [target_local_axis])[0]
+    
+    # 應用主要旋轉後的軸
+    rotated_axes = {
+      'x': primary_rotation.apply(local_axes['x']),
+      'y': primary_rotation.apply(local_axes['y']),
+      'z': primary_rotation.apply(local_axes['z'])
+    }
+    
+    # 決定哪個軸要保持水平
+    if keep_horizontal_axis == 'auto':
+      # 自動選擇最接近xy平面的軸（z分量最小的軸）
+      other_axes = [k for k in local_axes.keys() if k != local_axis]
+      z_components = [abs(rotated_axes[axis][2]) for axis in other_axes]
+      horizontal_axis = other_axes[np.argmin(z_components)]
+    else:
+      horizontal_axis = keep_horizontal_axis
+    
+    # 如果要保持水平的軸就是朝向目標的軸，選擇另一個軸
+    if horizontal_axis == local_axis:
+      other_axes = [k for k in local_axes.keys() if k != local_axis]
+      z_components = [abs(rotated_axes[axis][2]) for axis in other_axes]
+      horizontal_axis = other_axes[np.argmin(z_components)]
+    
+    # 將選定的軸投影到xy平面並標準化
+    horizontal_vector = rotated_axes[horizontal_axis].copy()
+    horizontal_vector[2] = 0  # 投影到xy平面
+    horizontal_norm = np.linalg.norm(horizontal_vector)
+    
+    if horizontal_norm > 1e-10:
+      horizontal_vector = horizontal_vector / horizontal_norm
+        
+      # 計算需要的額外旋轉來保持軸水平
+      current_horizontal = rotated_axes[horizontal_axis]
+      
+      # 計算繞目標方向軸的旋轉角度
+      # 使用叉積和點積計算角度
+      cross_product = np.cross(current_horizontal, horizontal_vector)
+      dot_product = np.dot(current_horizontal, horizontal_vector)
+      
+      # 計算旋轉角度（繞direction軸）
+      rotation_angle = np.arctan2(np.dot(cross_product, direction), dot_product)
+      
+      # 創建繞direction軸的旋轉
+      if abs(rotation_angle) > 1e-10:
+        secondary_rotation = R.from_rotvec(rotation_angle * direction)
+        final_rotation = secondary_rotation * primary_rotation
+      else:
+        final_rotation = primary_rotation
+    else:
+      final_rotation = primary_rotation
+    
+    return final_rotation.as_quat()  # 返回 [qx, qy, qz, qw] 格式
+  
 def draw_point(ax, point, label):
   x, y, z, qx, qy, qz, qw = point[0], point[1], point[2], point[3], point[4], point[5], point[6]
   ax.scatter(x, y, z, label=f"{label}", s=50)
 
-  # Quaternion to Rotation Matrix
-  R = np.array([
-    [1 - 2 * (qy**2 + qz**2),     2 * (qx*qy - qz*qw),     2 * (qx*qz + qy*qw)],
-    [    2 * (qx*qy + qz*qw), 1 - 2 * (qx**2 + qz**2),     2 * (qy*qz - qx*qw)],
-    [    2 * (qx*qz - qy*qw),     2 * (qy*qz + qx*qw), 1 - 2 * (qx**2 + qy**2)]
-  ])
-
-  # Local axes: x, y, z directions
-  x_axis = R[:, 0] # 第一列是 local x軸
-  y_axis = R[:, 1] # 第二列是 local y軸
-  z_axis = R[:, 2] # 第三列是 local z軸
+  quat_norm = np.sqrt(qx**2 + qy**2 + qz**2 + qw**2)
+  qx, qy, qz, qw = qx/quat_norm, qy/quat_norm, qz/quat_norm, qw/quat_norm
+  
+  # Create rotation from quaternion (scipy handles normalization)
+  rot = R.from_quat([qx, qy, qz, qw])  # Note: scipy uses [x,y,z,w] order
+  rotation_matrix = rot.as_matrix()
+    
+  # Extract axes
+  x_axis = rotation_matrix[:, 0]
+  y_axis = rotation_matrix[:, 1] 
+  z_axis = rotation_matrix[:, 2]
 
   length = 0.5 # Arrow length
 
-  # 畫三個方向的小箭頭
+  # Draw local axis
   ax.quiver(x, y, z, x_axis[0], x_axis[1], x_axis[2], color='r', length=length, normalize=True, linewidth=2, label=label+"_x")
   ax.quiver(x, y, z, y_axis[0], y_axis[1], y_axis[2], color='g', length=length, normalize=True, linewidth=2, label=label+"_y")
   ax.quiver(x, y, z, z_axis[0], z_axis[1], z_axis[2], color='b', length=length, normalize=True, linewidth=2, label=label+"_z")
@@ -202,17 +212,18 @@ ax = fig.add_subplot(111, projection='3d')
 
 navigator = Navigator(ax)
 
-x1, y1, z1, x2, y2, z2 = navigator.areas["Area 1"]
-x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol1"]
+x1, y1, z1, x2, y2, z2 = navigator.areas["Area 4"]
+x_pose, y_pose, z_pose, x_q, y_q, z_q, w_q = navigator.poses["patrol4"]
 target_x = (x1 + x2) / 2
 target_y = (y1 + y2) / 2
 target_z = (z1 + z2) / 2
 current_x = x_pose
 current_y = y_pose
 current_z = z_pose
-d = np.sqrt((target_x - current_x)**2 + (target_y - current_y)**2 + (target_z - current_z)**2)
-print(d)
-# print(navigator.getQuaternionToFacePointWithUp(current_x, current_y, current_z, target_x, target_y, target_z, (0, 1, 0)))
+quat1 = navigator.calculate_target_quaternion([current_x, current_y, current_z], [target_x, target_y, target_z], local_axis='x', keep_horizontal_axis='y')
+print(quat1)
+# d = np.sqrt((target_x - current_x)**2 + (target_y - current_y)**2 + (target_z - current_z)**2)
+# print(d)
 
 navigator.plot()
 
