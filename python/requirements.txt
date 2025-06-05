@@ -2,3 +2,5 @@ tflite-runtime==2.14.0
 opencv-python
 numpy==1.24.3
 ultralytics
+selenium
+openpyxl
