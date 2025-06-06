@@ -37,16 +37,16 @@ public class CameraHandler {
         api.flashlightControlFront(0.30f);
         break;
       case 2:
-        api.flashlightControlFront(0.45f);
+        api.flashlightControlFront(0.3f);
         break;
       case 3:
-        api.flashlightControlFront(0.45f);
+        api.flashlightControlFront(0.3f);
         break;
       case 4:
         api.flashlightControlFront(0.35f);
         break;
       case 5:
-        api.flashlightControlFront(0.45f);
+        api.flashlightControlFront(0.3f);
         break;
       default:
         api.flashlightControlFront(0.01f);
