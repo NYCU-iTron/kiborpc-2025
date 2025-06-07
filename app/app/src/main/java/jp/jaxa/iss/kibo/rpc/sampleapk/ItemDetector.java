@@ -63,8 +63,9 @@ public class ItemDetector {
 
   // Enum representing the model types available for detection.
   public enum ModelType {
+    M50000,
+    S30000,
     S25000,
-    S18750,
   }
   private Map<ModelType, InterpreterWrapper> modelMap;
 
@@ -160,13 +161,15 @@ public class ItemDetector {
     this.context = context;
 
     // Load models
+    InterpreterWrapper modelM50000 = new InterpreterWrapper("m_50000_0603.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelS30000 = new InterpreterWrapper("s_30000_0607.tflite", 1.0f, 0.6f);
     InterpreterWrapper modelS25000 = new InterpreterWrapper("s_25000_0531.tflite", 1.0f, 0.6f);
-    InterpreterWrapper modelS18750 = new InterpreterWrapper("s_18750_0528.tflite", 1.0f, 0.6f);
 
     // Map model types to their respective interpreters
     modelMap = new HashMap<>();
+    modelMap.put(ModelType.M50000, modelM50000);
+    modelMap.put(ModelType.S30000, modelS30000);
     modelMap.put(ModelType.S25000, modelS25000);
-    modelMap.put(ModelType.S18750, modelS18750);
 
     // Labels
     try {

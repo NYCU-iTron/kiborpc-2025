@@ -225,8 +225,9 @@ with open(labels_path, "r", encoding="utf-8") as f:
 
 def detect(image_path):
   # Interpreter
+  interpreter_m50000 = Interpreter("m_50000_0603.tflite")
+  interpreter_s30000 = Interpreter("s_30000_0607.tflite")
   interpreter_s25000 = Interpreter("s_25000_0531.tflite")
-  interpreter_s18750 = Interpreter("s_18750_0528.tflite")
 
   # Load image
   orig_img = cv2.imread(image_path)
@@ -234,13 +235,15 @@ def detect(image_path):
     raise FileNotFoundError(f"Image file not found: {image_path}")
 
   # Detect
+  detections_m50000 = interpreter_m50000.detect(orig_img)
+  detections_s30000 = interpreter_s30000.detect(orig_img)
   detections_s25000 = interpreter_s25000.detect(orig_img)
-  detections_s18750 = interpreter_s18750.detect(orig_img)
 
   # Process detections
   all_detections = []
+  all_detections.extend(detections_m50000)
+  all_detections.extend(detections_s30000)
   all_detections.extend(detections_s25000)
-  all_detections.extend(detections_s18750)
 
   final_detections = wbf(all_detections)
 
@@ -258,5 +261,5 @@ def detect(image_path):
   cv2.destroyAllWindows()
 
 # Configuration
-image_path = "../assets/test_set/35.png"
+image_path = "../assets/test_set/47.png"
 detect(image_path)
