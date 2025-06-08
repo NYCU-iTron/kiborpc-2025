@@ -187,7 +187,7 @@ public class Navigator {
     int stableTime = 0;
     switch (area) {
       case 0:
-        stableTime = 700;
+        stableTime = 1000;
         break;
       case 1:
         stableTime = 1000;
