@@ -1,0 +1,55 @@
+item {
+  name: "crystal",
+  id: 11,
+  display_name: "crystal"
+}
+item {
+  name: "diamond",
+  id: 12,
+  display_name: "diamond"
+}
+item {
+  name: "emerald",
+  id: 13,
+  display_name: "emerald"
+}
+item {
+  name: "coin",
+  id: 21,
+  display_name: "coin"
+}
+item {
+  name: "compass",
+  id: 22,
+  display_name: "compass"
+}
+item {
+  name: "coral",
+  id: 23,
+  display_name: "coral"
+}
+item {
+  name: "fossil",
+  id: 24,
+  display_name: "fossil"
+}
+item {
+  name: "key",
+  id: 25,
+  display_name: "key"
+}
+item {
+  name: "letter",
+  id: 26,
+  display_name: "letter"
+}
+item {
+  name: "shell",
+  id: 27,
+  display_name: "shell"
+}
+item {
+  name: "treasure_box",
+  id: 28,
+  display_name: "treasure_box"
+}
