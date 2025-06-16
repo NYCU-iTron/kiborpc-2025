@@ -66,6 +66,8 @@ public class ItemDetector {
     M50000,
     S30000,
     S18750,
+    M40800,
+    M61500
   }
   private Map<ModelType, InterpreterWrapper> modelMap;
 
@@ -161,15 +163,19 @@ public class ItemDetector {
     this.context = context;
 
     // Load models
-    InterpreterWrapper modelM50000 = new InterpreterWrapper("m_50000_0603.tflite", 1.0f, 0.6f);
+    // InterpreterWrapper modelM50000 = new InterpreterWrapper("m_50000_0603.tflite", 1.0f, 0.6f);
     InterpreterWrapper modelS30000 = new InterpreterWrapper("s_30000_0607.tflite", 1.0f, 0.6f);
-    InterpreterWrapper modelS18750 = new InterpreterWrapper("s_18750_0528.tflite", 1.0f, 0.6f);
+    // InterpreterWrapper modelS18750 = new InterpreterWrapper("s_18750_0528.tflite", 1.0f, 0.6f);
+    InterpreterWrapper modelM40800 = new InterpreterWrapper("m_40800_0611.tflite", 1.0f, 0.75f);
+    InterpreterWrapper modelM61500 = new InterpreterWrapper("m_61500_0613.tflite", 1.0f, 0.75f);
 
     // Map model types to their respective interpreters
     modelMap = new HashMap<>();
-    modelMap.put(ModelType.M50000, modelM50000);
+    // modelMap.put(ModelType.M50000, modelM50000);
     modelMap.put(ModelType.S30000, modelS30000);
-    modelMap.put(ModelType.S18750, modelS18750);
+    // modelMap.put(ModelType.S18750, modelS18750);
+    modelMap.put(ModelType.M40800, modelM40800);
+    modelMap.put(ModelType.M61500, modelM61500);
 
     // Labels
     try {
