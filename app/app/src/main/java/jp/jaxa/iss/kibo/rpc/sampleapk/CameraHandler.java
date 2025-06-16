@@ -34,7 +34,7 @@ public class CameraHandler {
   public Mat captureImage(int areaId) {
     switch (areaId) {
       case 1:
-        api.flashlightControlFront(0.30f);
+        api.flashlightControlFront(0.15f);
         break;
       case 2:
         api.flashlightControlFront(0.3f);
