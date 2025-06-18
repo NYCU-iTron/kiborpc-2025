@@ -225,9 +225,7 @@ with open(labels_path, "r", encoding="utf-8") as f:
 
 def detect(image_path):
   # Interpreter
-  interpreter_m50000 = Interpreter("m_50000_0603.tflite")
-  interpreter_s30000 = Interpreter("s_30000_0607.tflite")
-  interpreter_s18750 = Interpreter("s_18750_0528.tflite")
+  interpreter_m61500 = Interpreter("m_61500_0613.tflite")
 
   # Load image
   orig_img = cv2.imread(image_path)
@@ -235,15 +233,11 @@ def detect(image_path):
     raise FileNotFoundError(f"Image file not found: {image_path}")
 
   # Detect
-  detections_m50000 = interpreter_m50000.detect(orig_img)
-  detections_s30000 = interpreter_s30000.detect(orig_img)
-  detections_s18750 = interpreter_s18750.detect(orig_img)
-  
+  detections_m61500 = interpreter_m61500.detect(orig_img)
+
   # Process detections
   all_detections = []
-  all_detections.extend(detections_m50000)
-  all_detections.extend(detections_s30000)
-  all_detections.extend(detections_s18750)
+  all_detections.extend(detections_m61500)
 
   final_detections = wbf(all_detections)
 
