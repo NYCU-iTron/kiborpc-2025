@@ -88,7 +88,7 @@ K34-iTron
 | --- | --- |
 | Programming Mannual has no detail about class `KiboRpcService` | Decompile code using android studio |
 | Fail simulation doesn't provide log | Test and record reasons of failure for future reference |
-| Training is slow on laptop | Ask Professor for a GPU instance on Google Cloud Platform
+| Training is slow on laptop | Ask Professor for a GPU instance on Google Cloud Platform |
 
 <!-- Append and adjust font size if there is more -->
 
