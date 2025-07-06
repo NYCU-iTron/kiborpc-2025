@@ -3,57 +3,51 @@
 ## Introduction (25 sec)
 
 Hello everyone, thank you for being here today.
-I’m 林穎沛 from the Itron Robotics Team at National Chiao Tung University.
+I’m 林穎沛 from Itron Robotics Team at Chiao Tung University.
 
-Today, I’ll walk you through how we built our system for the competition, including code structure, image pipeline, major challenges we faced and finally, the results we achieved in simulation.
+Today, I’ll walk you through how we built our program for the competition, including code structure, image pipeline, the challenges we faced and finally, the results we achieved in the simulation.
 
 ## Code structure (50 sec)
 
-Our program is modular, with each component handling a specific task.
+Our program is modular and organized into two layers, making each component focused and easy to maintain.
 
-ItemManager is responsible for storing detected item data.
+In the top layer, we have YourService, which is the default entry point of the framework, and MainControl, where the main task logic is executed.
 
-VisionHandler manages image processing and includes
-ArTagDetector, for reading AR tag data from images,
-CameraHandler, to interface with the camera and manage calibration,
-and ItemDetector, which applies our YOLO model.
+In the lower layer, we have ItemManager, which stores the detected items, and VisionHandler, which processes camera input and applies yolo models.  
 
-Navigator is in charge of planning and executing movements.
+I’ll go over the pipeline details here in the next slide.
 
-This structure makes it easier to debug, and also allows for flexibility in testing different models or detection strategies.
+We also have Navigator, which handles localization and navigates the robot to the target pose.
+
+In addition, we defined custom data structures like Pose and Item to store information in a consistent format.
 
 ## Image pipeline (60 sec)
 
 Here’s how our image pipeline works.
 
-First, we use camera handler to get the raw image, then distort the image based on the camera calibration parameters.
+The camera handler first captures a raw image and undistort it using calibration parameters.
 
-After, the undistorted image is passed to the artag detector to extract the AR tag information and use that to crop the image to the area of interest.
+Then, the artag detector extracts the tag information and crops the image.
 
-Next, the cropped image is passed to the item detector, which uses a yolo model to detect items. Preprocessing steps such as resizing and normalization make sure the image is in the correct format to the model.
-After the reference, the model returns a list of detected items with their bounding boxes and confidence scores.
+Next, the cropped image goes through preprocessing, such as resizing and normalization, to make sure the image is in the correct format to the model.
 
-Then, in postprocess, we filter out low confidence detections to ensure only reliable items are considered by setting a threshold.
+After, we feed it to the yolo model. The model will return a list of detected items with their bounding boxes and confidence scores.
 
-Finally, we apply weighted box fusion instead of non-maximum suppression to merge overlapping bounding boxes for more accurate results.
+In postprocessing, we filter out low confidence result using a threshold.
+
+Finally, we apply weighted box fusion instead of non-maximum suppression to merge overlapping boxes for more accurate results when items are close together.
 
 ## Challenge and Solution (60 sec)
 
-Of course, the process wasn't without obstacles.
+We faced some challenges along the way.
 
-First, Programming Mannual has no detail about KiboRpcService class, we couldn’t import service api properly at first. We ended up decompiling the sample APK using Android Studio, which helped us understand how the class worked and integrate it into our project.
+First, Programming Mannual has no detail about KiboRpcService class, we couldn’t import the api properly at first. We eventually decompiled the sample APK using Android Studio to understand it and make it work.
 
-Second, the online simulator sometimes fail without any log, or any error message, which make us extremely hard to find the bug. We had to test repeatedly, narrowing down the error line by line through try and error.
+Second, the online simulator sometimes failed without any error messages. We had to test line by line to find the bug, which was super slow and frustrating.
 
-Third, training yolo models on local laptop is extremely slow. We reached out to professors and some institutes for help and eventually gained access to some fancy gpu, allowing us to train larger models in reasonable time.
+Third, training yolo models on laptop is very slow. We reached out to professors and some institutes for help and eventually gained access to some fancy gpu, allowing us to train larger models in a reasonable time.
 
 ## Test result (60 sec)
-
-For the test result, we observe there’s a drop at version 1.2.0 when we modified the scanning strategy to combine areas 2 and 3 and also increased the camera's distance from the area surface.
-
-The idea was good, but the model at that point couldn’t handle the blur target well enough.
-
-So we expanded the dataset and upgraded the model to better handle the new conditions. Our average score increased again in later versions.
 
 In our final version 1.3.5, we achieved an average score of 286.8 points, with 99% detection precision across 30 simulation runs.
 
