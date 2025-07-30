@@ -106,3 +106,13 @@ For more details, see [Progress](./docs/progress/progress.md)
 - [kiborpc-2023](https://github.com/Team-Cartographer/kiborpc-2023)
 - [3rd-Kibo-RPC_won-spaceYPublic](https://github.com/M-TRCH/3rd-Kibo-RPC_won-spaceY)
 - [2ndKIbo-RPC_Indentation-Error](https://github.com/wtarit/2nd-Kibo-RPC_Indentation-Error?tab=readme-ov-file)
+
+## Preliminary Round
+
+- We achieved the 1st place in the preliminary round.
+- The [slide](./docs/slides/slides.pdf) and [presentation script](./docs/notes/presentation_script.md) we used.
+- [Live Record on Youtube](https://www.youtube.com/live/56YUyxNEy1s?t=5424s)
+- ![Preliminary photo 1](./assets/preliminary-1.jpg)
+- ![Preliminary photo 2](./assets/preliminary-2.jpg)
+
+## Final Round
