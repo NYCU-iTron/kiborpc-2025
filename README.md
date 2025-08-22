@@ -1,6 +1,6 @@
 # kiborpc-2025
 
-A reproducible, competition-proven Astrobee autonomy system that pairs high-precision vision (YOLOv11 + WBF + distortion correction) with reliable navigation to maximize Kibo-RPC scores.
+A reproducible, competition-proven Astrobee autonomy system that pairs high-precision vision (YOLOv11 + WBF + distortion correction) with reliable navigation to maximize Kibo-RPC (Kibo Robot Programming Challenge) scores.
 
 - [kiborpc-2025](#kiborpc-2025)
   - [Watch](#watch)
@@ -25,9 +25,14 @@ A reproducible, competition-proven Astrobee autonomy system that pairs high-prec
 
 ## Overview
 
+[![Preliminary — 1st place](https://img.shields.io/badge/Preliminary-1st%20place-orange)]()
+[![Avg Score — 286.8](https://img.shields.io/badge/Avg%20Score-286.8-blue)]()
+[![Image Detection Success Rate — 99%](https://img.shields.io/badge/Detection%20Success%20Rate-99%25-success)]()
+
 -	Designed modular control system for ISS Astrobee robot
 -	Implemented YOLOv11-based object detection with custom synthetic dataset, image distortion correction, and revised Weighted Box Fusion algorithm
 -	Achieved 99% detection accuracy and an average simulation score of 286.8 points
+- Won 1st place on preliminary round
 
 ## Technical Highlights
 
@@ -152,8 +157,10 @@ Preliminary Round:
 - We achieved the 1st place in the preliminary round.
 - The [slide](./docs/slides/slides.pdf) and [presentation script](./docs/notes/presentation_script.md) we used.
 - [Live Record on Youtube](https://www.youtube.com/live/56YUyxNEy1s?t=5424s)
-- ![Preliminary photo 1](./assets/preliminary-1.jpg)
-- ![Preliminary photo 2](./assets/preliminary-2.jpg)
+<p align="center">
+  <img src="./assets/preliminary-1.jpg" alt="Preliminary photo 1" width="45%">
+  <img src="./assets/preliminary-2.jpg" alt="Preliminary photo 2" width="45%">
+</p>
 
 Final Round: Not finished yet, date TBD
 
