@@ -1,6 +1,63 @@
 # kiborpc-2025
 
-## Install
+A reproducible, competition-proven Astrobee autonomy system that pairs high-precision vision (YOLOv11 + WBF + distortion correction) with reliable navigation to maximize Kibo-RPC scores.
+
+- [kiborpc-2025](#kiborpc-2025)
+  - [Watch](#watch)
+  - [Overview](#overview)
+  - [Technical Highlights](#technical-highlights)
+  - [Repository Layout](#repository-layout)
+  - [Prerequisites and Installation](#prerequisites-and-installation)
+  - [Build (Makefile)](#build-makefile)
+  - [Documentation](#documentation)
+  - [Architecture](#architecture)
+  - [Timeline](#timeline)
+  - [Results and Media](#results-and-media)
+  - [Related Work](#related-work)
+  - [Useful links](#useful-links)
+
+## Watch
+
+<img src="assets/demo-screen.png" alt="Cover" width="50%">
+
+- **Quick Demo (1 min)**: https://www.youtube.com/live/56YUyxNEy1s?si=wy63iy8F2a4zJ0mo&t=5686
+- **Full Report Livestream (4 - 5 min)**: https://www.youtube.com/live/56YUyxNEy1s?si=bcGWKDyTscnZprXh&t=5424
+
+## Overview
+
+-	Designed modular control system for ISS Astrobee robot
+-	Implemented YOLOv11-based object detection with custom synthetic dataset, image distortion correction, and revised Weighted Box Fusion algorithm
+-	Achieved 99% detection accuracy and an average simulation score of 286.8 points
+
+## Technical Highlights
+
+- **YOLOv11** object detection, **ARTag** detection, and **Weighted Box Fusion**.
+- **Dockerized build environment** to compile on any computer.
+- **Doxygen** for documents about APIs to speed up developement.
+
+## Repository Layout
+
+```
+.
+├─ app/                     # Android app sources
+│ └─ app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/
+│ ├─ CameraHandler.java     # camera capture + undistortion
+│ ├─ ARTagDetector.java     # ARTag detection + image clipping
+│ ├─ ItemDetector.java      # YOLOv11 wrapper + Image and Result Processing
+│ ├─ VisionHandler.java     # integrates Camera/ARTag/YOLO
+│ ├─ Navigator.java         # motion, planning, sensor handling
+│ ├─ ItemManager.java       # item state store
+│ └─ MainControl.java       # top-level state machine
+├─ assets/                  # screenshots, photos, sample data
+├─ docker/                  # dev container / compose files
+├─ docs/                    # slides, notes, progress, Doxygen cfg
+├─ python/                  # scripts or helpers
+├─ vm/                      # model artifacts / training/export
+├─ Makefile
+└─ README.md
+```
+
+## Prerequisites and Installation
 
 This project use [Git LFS](https://git-lfs.com/) to manage the model files.
 Before cloning the repository, install Git LFS.
@@ -8,22 +65,13 @@ Before cloning the repository, install Git LFS.
 ```sh
 # Ubuntu/Debian
 sudo apt install git-lfs
-```
-
-```sh
 # Arch
 yay -S git-lfs
-```
 
-Then, run this (once per system):
-
-```sh
+# One-time setup per machine
 git lfs install
-```
 
-After installing Git LFS, you can clone the repository, all LFS-tracked files will be fetched automatically
-
-```sh
+# Clone (LFS files will download automatically)
 git clone git@github.com:NYCU-iTron/kiborpc-2025.git
 ```
 
@@ -33,41 +81,43 @@ If for any reason the large files are not downloaded, you can run:
 git lfs pull
 ```
 
-## Usage
+> Windows tip: if you hit path-length issues, enable long paths: `git config --global core.longpaths true`.
 
-To enter docker build environment.
+Also, install docker following this [guide](https://docs.docker.com/engine/install/).
+
+## Build (Makefile)
+
+There are four targets, each with a different function:
 
 ```sh
+# 1) Enter dockerized build environment
 make
-```
 
-To compile apk in docker environment (The compiled apk will be generated in `app/app/build/outputs/apk/debug/`).
-
-```sh
+# 2) Compile APK inside Docker
 make build
-```
+# → outputs to app/app/build/outputs/apk/debug/
 
-To open this project in Android Studio.
-
-```sh
+# 3) Open the project in Android Studio
 make studio
-```
 
-To use doxygen to generate documentation
-
-```sh
+# 4) Generate Doxygen documentation and open the homepage
 make doxygen
 ```
 
-## Schedule
+## Documentation
 
-- 4/1: Simulator release
-- 6/19: First round apk submit
-- 7/13: Presentation
+- Download a pdf report: [Kibo 競賽報告書.pdf](docs/Kibo%20競賽報告書.pdf)
+- To see generated API docs with doxygen, use the command specified in [Build \(Makefile\)](#build-makefile)
 
-For more details, see [Progress](./docs/progress/progress.md)
+## Architecture
 
-## Task Distribution
+Code structure:
+
+<img src="docs/slides/code-structure.svg" alt="Cover" width="75%">
+
+Image pipeline:
+
+<img src="docs/slides/image-pipeline.svg" alt="Cover" width="75%">
 
 - [CameraHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/CameraHandler.java)
   - Take pictures and process the image.
@@ -87,16 +137,27 @@ For more details, see [Progress](./docs/progress/progress.md)
   - Integrate Navigator, VisionHandler and ItemManager.
   - Determine the current state.
 
-## Useful links
+## Timeline
 
-- [2025競賽內容](https://2025kiborpc.ncku.edu.tw/%E7%AB%B6%E8%B3%BD%E5%85%A7%E5%AE%B9)
-- [Astrobee Command API](https://nasa.github.io/astrobee/v/develop/command_dictionary.html)
-- [Kibo Robot Programming Challenge official website](https://jaxa.krpc.jp/)
-  - [6th Kibo-RPC Tutorial Video: 01 How to Login to My Page](https://youtu.be/PPwQDeAJsqg?si=ljjorvINLsrGOTF3)
-  - [6th Kibo-RPC Tutorial Video: 02 How to Set up Android Studio](https://youtu.be/bN47LxLWkbU?si=dVKal4-G-o9Y2tIs)
-  - [6th Kibo-RPC Tutorial Video: 03 How to Build APK and Simulator](https://youtu.be/LeC3sIL1sWE?si=6Vczm36ZKfC2GNsv)
+- 4/1: Simulator release
+- 6/19: First round apk submit
+- 7/13: Presentation
 
-## Repo of past competition
+For more details, see [Progress](./docs/progress/progress.md)
+
+## Results and Media
+
+Preliminary Round:
+
+- We achieved the 1st place in the preliminary round.
+- The [slide](./docs/slides/slides.pdf) and [presentation script](./docs/notes/presentation_script.md) we used.
+- [Live Record on Youtube](https://www.youtube.com/live/56YUyxNEy1s?t=5424s)
+- ![Preliminary photo 1](./assets/preliminary-1.jpg)
+- ![Preliminary photo 2](./assets/preliminary-2.jpg)
+
+Final Round: Not finished yet, date TBD
+
+## Related Work
 
 - [5th-KIBO](https://github.com/KIBO-Astronut/5th-KIBO)
   - The team from Tailand, winning the 1st place in 5th.
@@ -107,12 +168,11 @@ For more details, see [Progress](./docs/progress/progress.md)
 - [3rd-Kibo-RPC_won-spaceYPublic](https://github.com/M-TRCH/3rd-Kibo-RPC_won-spaceY)
 - [2ndKIbo-RPC_Indentation-Error](https://github.com/wtarit/2nd-Kibo-RPC_Indentation-Error?tab=readme-ov-file)
 
-## Preliminary Round
+## Useful links
 
-- We achieved the 1st place in the preliminary round.
-- The [slide](./docs/slides/slides.pdf) and [presentation script](./docs/notes/presentation_script.md) we used.
-- [Live Record on Youtube](https://www.youtube.com/live/56YUyxNEy1s?t=5424s)
-- ![Preliminary photo 1](./assets/preliminary-1.jpg)
-- ![Preliminary photo 2](./assets/preliminary-2.jpg)
-
-## Final Round
+- [2025競賽內容](https://2025kiborpc.ncku.edu.tw/%E7%AB%B6%E8%B3%BD%E5%85%A7%E5%AE%B9)
+- [Astrobee Command API](https://nasa.github.io/astrobee/v/develop/command_dictionary.html)
+- [Kibo Robot Programming Challenge official website](https://jaxa.krpc.jp/)
+  - [6th Kibo-RPC Tutorial Video: 01 How to Login to My Page](https://youtu.be/PPwQDeAJsqg?si=ljjorvINLsrGOTF3)
+  - [6th Kibo-RPC Tutorial Video: 02 How to Set up Android Studio](https://youtu.be/bN47LxLWkbU?si=dVKal4-G-o9Y2tIs)
+  - [6th Kibo-RPC Tutorial Video: 03 How to Build APK and Simulator](https://youtu.be/LeC3sIL1sWE?si=6Vczm36ZKfC2GNsv)
