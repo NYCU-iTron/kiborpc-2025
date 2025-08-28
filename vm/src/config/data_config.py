@@ -30,7 +30,7 @@ class DataConfig:
     # Item control
     item_scale_range: tuple[float, float] = (0.05, 0.15)
     item_rotate_range: tuple[int, int] = (0, 360)
-    item_blur_kernel_range: list[int] = (1, 3, 5)
+    item_blur_kernel_range: tuple[int] = (1, 3, 5)
     max_random_placement_trials: int = 50
 
     # Position control
