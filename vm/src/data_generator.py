@@ -4,10 +4,9 @@ from PIL import Image
 from tqdm import tqdm
 import cv2
 import numpy as np
-import shutil
 import random
-from config.data_config import Data, ItemType
-from config.data_config import DataConfig
+from config.data_config import Data, DataConfig, ItemType, DatasetSplit
+from config.generator_config import GeneratorConfig
 
 class DataGenerator:
     def __init__(self):
@@ -43,10 +42,8 @@ class DataGenerator:
         with open(classes_file, "w") as f:
             for item_type in ItemType:
                 f.write(f"{item_type.value} {item_type.name}\n")
-
-    def random_config(self) -> DataConfig:
-        pass
     
+    # ------------------------------ Main Functions ------------------------------ #
     def generate_single_data(self, config: DataConfig) -> Data:
         # Generate plane image
         image_size = config.image_size
@@ -214,7 +211,62 @@ class DataGenerator:
         )
 
         return data
-                
+    
+    def generate_dataset(self, config: GeneratorConfig) -> None:
+        data_config_list = []
+
+        # Generate data configs for single item images
+        for item in ItemType:
+            for i in range(config.single_item_images_num):
+                data_config = DataConfig(
+                    item_list=[item] * random.randint(config.single_item_num_range[0], config.single_item_num_range[1]),
+                    image_size=(160, 160),
+                    force_overlap=True if random.random() < config.single_force_overlap_ratio else False,
+                    max_overlap=config.single_force_overlap_ratio,
+                )
+                data_config_list.append(data_config)
+
+        single_item_count = len(data_config_list)
+        self.logger.info(f"Generated {single_item_count} single item image configs.")
+        
+        # Generate data configs for multi item images
+        item_pool = list(ItemType) * 5
+        for i in range(config.multi_item_images_num):
+            data_config = DataConfig(
+                item_list=random.choices(item_pool, k=random.randint(config.multi_item_num_range[0], config.multi_item_num_range[1])),
+                image_size=(160, 160),
+                force_overlap=True if random.random() < config.multi_force_overlap_ratio else False,
+                max_overlap=config.multi_force_overlap_ratio,
+            )
+            data_config_list.append(data_config)
+        
+        multi_item_count = len(data_config_list) - single_item_count
+        self.logger.info(f"Generated {multi_item_count} multi item image configs.")
+        
+        # Shuffle data configs
+        random.shuffle(data_config_list)
+        total_images = len(data_config_list)
+        valid_count = min(round(total_images * config.valid_ratio), config.max_valid)
+        train_count = total_images - valid_count
+        self.logger.info(f"Generating dataset with {total_images} images: {train_count} train, {valid_count} valid")
+
+        # Generate valid images
+        for config in tqdm(data_config_list, desc="Generating dataset"):
+            data = self.generate_single_data(config)
+            if data is None:
+                self.logger.warning("Skipping image generation due to no items placed.")
+                continue
+
+            # Determine dataset split
+            if valid_count > 0:
+                data.split = DatasetSplit.VALID
+                valid_count -= 1
+            else:
+                data.split = DatasetSplit.TRAIN
+
+            # Save image
+            data.save()
+
     # ------------------------------ Tool Functions ------------------------------ #
     def scale_image(self, image: np.ndarray, scale: float) -> np.ndarray:
         new_size = (int(image.shape[1] * scale), int(image.shape[0] * scale))
