@@ -58,6 +58,8 @@ class DataGenerator:
             # Randomly scale item image
             scale = random.uniform(config.item_scale_range[0], config.item_scale_range[1])
             item_image = self.item_dict[item].copy()
+            target_width = int(config.image_size[0] * scale)
+            scale = target_width / item_image.shape[1]
             item_image = self.scale_image(item_image, scale)
 
             # Randomly rotate item image
@@ -65,7 +67,12 @@ class DataGenerator:
             item_image = self.rotate_image(item_image, angle)
 
             # Blur item image
-            item_blur_kernel = random.choice(config.item_blur_kernel_range) 
+            if config.item_blur_kernel:
+                item_blur_kernel = config.item_blur_kernel
+            else:
+                item_blur_kernel = random.choice(config.item_blur_kernel_range) 
+                config.item_blur_kernel = item_blur_kernel
+
             item_image[:, :, :3] = cv2.GaussianBlur(item_image[:, :, :3], (item_blur_kernel, item_blur_kernel), 0)
 
             # Randomly place item image on background
@@ -116,9 +123,14 @@ class DataGenerator:
             self.logger.warning("No items placed on the image.")
             return None
         
-        # Apply full image augmentation
-        if config.apply_full_aug:
-            shear_factor = random.uniform(config.shear_range[0], config.shear_range[1])
+        # Apply shear operation
+        if config.apply_shear:
+            if config.shear:
+                shear_factor = config.shear
+            else:
+                shear_factor = random.uniform(config.shear_range[0], config.shear_range[1])
+                config.shear = shear_factor
+
             shear_matrix = np.array([[1, shear_factor, 0], [0, 1, 0]], dtype=np.float32)
             
             height, width = image.shape[:2]
@@ -170,9 +182,6 @@ class DataGenerator:
 
             # Brightness/Contrast on the sheared RGB part
             new_image = image_rgb_sheared.copy()
-            brightness_factor = random.uniform(config.brightness_range[0], config.brightness_range[1])
-            contrast_factor = random.uniform(config.contrast_range[0], config.contrast_range[1])
-            new_image = cv2.convertScaleAbs(new_image, alpha=contrast_factor, beta=(brightness_factor - 1) * 128)
 
             # Reconstruct final image
             if is_rgba and alpha_part_sheared is not None:
@@ -180,12 +189,28 @@ class DataGenerator:
             else:
                 image = new_image
         
+        # Apply brightness/contrast adjustment
+        if config.brightness:
+            brightness_factor = config.brightness
+        else:
+            brightness_factor = random.uniform(config.brightness_range[0], config.brightness_range[1])
+            config.brightness = brightness_factor
+        
+        if config.contrast:
+            contrast_factor = config.contrast
+        else:
+            contrast_factor = random.uniform(config.contrast_range[0], config.contrast_range[1])
+            config.contrast = contrast_factor
+
+        image = cv2.convertScaleAbs(image, alpha=contrast_factor, beta=(brightness_factor - 1) * 128)
+        
         # Prepare Data object
         data = Data(
             image=image,
             item_list=[ann[0] for ann in annotations],
             bboxes=[(ann[1], ann[2], ann[3], ann[4]) for ann in annotations],
-            annotations=annotations
+            annotations=annotations,
+            config=config
         )
 
         return data
