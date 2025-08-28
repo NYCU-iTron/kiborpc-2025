@@ -28,7 +28,6 @@ class DataConfig:
     image_size: tuple[int, int] = (160, 160)
 
     # Item control
-    item_num_range: tuple[int, int] = (1, 5)
     item_scale_range: tuple[float, float] = (0.05, 0.15)
     item_rotate_range: tuple[int, int] = (0, 360)
     item_blur_kernel_range: list[int] = (1, 3, 5)
@@ -57,6 +56,12 @@ class Data:
         self.item_list = item_list
         self.bboxes = bboxes
         self.annotations = annotations
+
+    def to_string(self) -> str:
+        return f"Data(image_shape={self.image.shape if self.image is not None else None}, " \
+               f"item_list={self.item_list}, " \
+               f"bboxes={self.bboxes}, " \
+               f"annotations={self.annotations})"
 
     def plot(self) -> None:
         if self.image is None:
