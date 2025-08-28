@@ -64,7 +64,7 @@ class DataGenerator:
             angle = random.uniform(config.item_rotate_range[0], config.item_rotate_range[1])
             item_image = self.rotate_image(item_image, angle)
 
-            # Item-specific blur is still applied before placing on background
+            # Blur item image
             item_blur_kernel = random.choice(config.item_blur_kernel_range) 
             item_image[:, :, :3] = cv2.GaussianBlur(item_image[:, :, :3], (item_blur_kernel, item_blur_kernel), 0)
 
@@ -83,9 +83,12 @@ class DataGenerator:
                 # Check for overlap with existing items
                 if len(bboxes) > 0:
                     ious = [self.calc_bbox_iou(new_bbox_coords, bbox) for bbox in bboxes]
+                    overlaps = [self.calc_bbox_max_overlap_ratio(new_bbox_coords, bbox) for bbox in bboxes]
+                    
                     max_iou = max(ious)
+                    max_overlap = max(overlaps)
 
-                    if max_iou > config.max_overlap:
+                    if max_iou > config.max_overlap or max_overlap > config.max_overlap:
                         continue
 
                     if config.force_overlap and max_iou == 0:
@@ -95,10 +98,13 @@ class DataGenerator:
                 annotations.append((item, x, y, x + item_width, y + item_height))
                 
                 # Place item image on background using alpha channel as mask
-                alpha_mask = item_image[:, :, 3] > 0
-                for c in range(3): # RGB channels
-                    image[y : y + item_height, x : x + item_width, c][alpha_mask] = item_image[:, :, c][alpha_mask]
-                
+                alpha = item_image[:, :, 3] / 255.0
+                for c in range(3):  # RGB channels
+                    image[y:y+item_height, x:x+item_width, c] = (
+                        alpha * item_image[:, :, c] +
+                        (1 - alpha) * image[y:y+item_height, x:x+item_width, c]
+                    ).astype(np.uint8)
+
                 success = True
                 break
 
@@ -187,13 +193,13 @@ class DataGenerator:
     # ------------------------------ Tool Functions ------------------------------ #
     def scale_image(self, image: np.ndarray, scale: float) -> np.ndarray:
         new_size = (int(image.shape[1] * scale), int(image.shape[0] * scale))
-        image = cv2.resize(image, new_size, interpolation=cv2.INTER_CUBIC)
+        
+        if scale < 1.0:
+            interp = cv2.INTER_AREA
+        else:
+            interp = cv2.INTER_CUBIC 
 
-        # Remove transparency noise
-        alpha = image[:, :, 3]
-        _, alpha = cv2.threshold(alpha, 127, 255, cv2.THRESH_BINARY)
-        image[:, :, 3] = alpha
-
+        image = cv2.resize(image, new_size, interpolation=interp)
         return image
 
     def rotate_image(self, image: np.ndarray, angle: float) -> np.ndarray:
@@ -219,13 +225,9 @@ class DataGenerator:
                                flags=cv2.INTER_CUBIC,
                                borderMode=cv2.BORDER_CONSTANT,
                                borderValue=(0, 0, 0, 0))
-        
-        # Remove transparency noise
-        alpha = image[:, :, 3]
-        _, alpha = cv2.threshold(alpha, 127, 255, cv2.THRESH_BINARY)
-        image[:, :, 3] = alpha
-        
+                
         # Find the bounding box of the non-transparent area
+        alpha = image[:, :, 3]
         rows = np.any(alpha > 0, axis=1)
         cols = np.any(alpha > 0, axis=0)
         rmin, rmax = np.where(rows)[0][[0, -1]]
@@ -257,3 +259,24 @@ class DataGenerator:
             return 0.0
         
         return inter_area / union_area
+    
+    def calc_bbox_max_overlap_ratio(self, box1, box2) -> float:
+        # box = (x1, y1, x2, y2)
+        xi1 = max(box1[0], box2[0])
+        yi1 = max(box1[1], box2[1])
+        xi2 = min(box1[2], box2[2])
+        yi2 = min(box1[3], box2[3])
+
+        # Calculate intersection
+        inter_width = max(xi2 - xi1, 0)
+        inter_height = max(yi2 - yi1, 0)
+        inter_area = inter_width * inter_height
+        
+        # Calculate areas
+        box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
+        box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
+
+        if box1_area == 0 or box2_area == 0:
+            return 0.0
+        
+        return inter_area / min(box1_area, box2_area)
