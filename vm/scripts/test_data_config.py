@@ -5,13 +5,12 @@ from config.logging_config import setup_logging
 
 if __name__ == "__main__":
     logger = logging.getLogger(__name__)
-
     setup_logging()
-    generator = DataGenerator()
 
+    generator = DataGenerator()
     config = DataConfig(
-        item_list=[ItemType.compass] * 4,
-        image_size=(200, 200),
+        item_list=[ItemType.shell, ItemType.diamond, ItemType.diamond],
+        image_size=(150, 150),
         force_overlap=False,
         apply_shear=False,
         max_overlap=0.3,
