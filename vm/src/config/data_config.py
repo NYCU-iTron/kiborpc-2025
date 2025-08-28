@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
 import numpy as np
-import matplotlib.pyplot as plt
+from PIL import Image, ImageDraw, ImageFont
+from matplotlib import pyplot as plt
 
 class ItemType(Enum):
     # Treasure items
@@ -28,9 +29,10 @@ class DataConfig:
     image_size: tuple[int, int] = (160, 160)
 
     # Item control
-    item_scale_range: tuple[float, float] = (0.05, 0.15)
+    item_scale_range: tuple[float, float] = (0.2, 0.4) # As a fraction of image size
     item_rotate_range: tuple[int, int] = (0, 360)
     item_blur_kernel_range: tuple[int] = (1, 3, 5)
+    item_blur_kernel: Optional[int] = None
     max_random_placement_trials: int = 50
 
     # Position control
@@ -38,10 +40,13 @@ class DataConfig:
     max_overlap: float = 0.3
 
     # Augmentation
-    apply_full_aug: bool = True
+    apply_shear: bool = True
     shear_range: tuple[float, float] = (-0.05, 0.05)
-    brightness_range: tuple[float, float] = (0.9, 1.3)
-    contrast_range: tuple[float, float] = (0.9, 1.1)
+    shear: Optional[float] = None
+    brightness_range: tuple[float, float] = (0.9, 1.2)
+    brightness: Optional[float] = None
+    contrast_range: tuple[float, float] = (0.8, 1)
+    contrast: Optional[float] = None
 
     # Reproducibility
     seed: Optional[int] = None
@@ -51,31 +56,45 @@ class Data:
                  image: Optional[np.ndarray] = None,
                  item_list: Optional[list[ItemType]] = None,
                  bboxes: Optional[list[tuple[float, float, float, float]]] = None,
-                 annotations: Optional[list[tuple[ItemType, float, float, float, float]]] = None) -> None:
+                 annotations: Optional[list[tuple[ItemType, float, float, float, float]]] = None,
+                 config: Optional[DataConfig] = None) -> None:
         self.image = image
         self.item_list = item_list
         self.bboxes = bboxes
         self.annotations = annotations
+        self.config = config
 
     def to_string(self) -> str:
         return f"Data(image_shape={self.image.shape if self.image is not None else None}, " \
                f"item_list={self.item_list}, " \
                f"bboxes={self.bboxes}, " \
-               f"annotations={self.annotations})"
+               f"annotations={self.annotations}), " \
+               f"config={self.config})"
 
     def plot(self) -> None:
         if self.image is None:
             raise ValueError("Image data is not available for plotting.")
+
+        image = Image.fromarray(self.image.astype('uint8'))
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.load_default()
         
-        plt.imshow(self.image)
+        draw.rectangle([0, 0, image.width-1, image.height-1], outline="black", width=3)
+
+        # Plot annotations
+        for annotation in self.annotations or []:
+            item_type, x_min, y_min, x_max, y_max = annotation
+            draw.rectangle([x_min, y_min, x_max, y_max], outline="red", width=2)
+            draw.text((x_min, y_min), item_type.name, fill="red", font=font)
+        
+        # Display the image
+        width, height = image.size
+        dpi = 100
+        figsize = width / dpi, height / dpi
+
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+
+        plt.imshow(image)
         plt.axis('off')
-        
-        if self.bboxes and self.item_list:
-            for bbox, item in zip(self.bboxes, self.item_list):
-                x_min, y_min, x_max, y_max = bbox
-                width, height = x_max - x_min, y_max - y_min
-                rect = plt.Rectangle((x_min, y_min), width, height, linewidth=2, edgecolor='r', facecolor='none')
-                plt.gca().add_patch(rect)
-                plt.text(x_min, y_min - 10, item.name, color='red', fontsize=12, weight='bold')
-        
+        plt.tight_layout(pad=0)
         plt.show()
