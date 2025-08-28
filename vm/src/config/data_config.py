@@ -21,12 +21,18 @@ class ItemType(Enum):
     shell = auto()
     treasure_box = auto()
 
+class DatasetSplit(Enum):
+    TRAIN = "train"
+    VALID = "valid"
+    TEST = "test"
+
 @dataclass
 class DataConfig:
     item_list: list[ItemType]
 
     # Image control
     image_size: tuple[int, int] = (160, 160)
+    split: DatasetSplit = DatasetSplit.TRAIN
 
     # Item control
     item_scale_range: tuple[float, float] = (0.2, 0.4) # As a fraction of image size
