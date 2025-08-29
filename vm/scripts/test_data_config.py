@@ -12,8 +12,7 @@ if __name__ == "__main__":
         item_list=[ItemType.shell, ItemType.diamond, ItemType.diamond],
         image_size=(150, 150),
         force_overlap=False,
-        apply_shear=False,
-        max_overlap=0.3,
+        seed=42,
     )
 
     data = generator.generate_single_data(config)
