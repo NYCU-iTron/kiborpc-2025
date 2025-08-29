@@ -66,9 +66,10 @@ class DataGenerator:
 
         bboxes = []
         for item in config.item_list:
+            item_image = self.item_dict[item].copy()
+
             # Randomly scale item image
             scale = random.uniform(config.item_scale_range[0], config.item_scale_range[1])
-            item_image = self.item_dict[item].copy()
             target_width = int(config.image_size[0] * scale)
             scale = target_width / item_image.shape[1]
             item_image = self.scale_image(item_image, scale)
@@ -327,16 +328,12 @@ class DataGenerator:
                                flags=cv2.INTER_CUBIC,
                                borderMode=cv2.BORDER_CONSTANT,
                                borderValue=(0, 0, 0, 0))
-                
-        # Find the bounding box of the non-transparent area
-        alpha = image[:, :, 3]
-        rows = np.any(alpha > 0, axis=1)
-        cols = np.any(alpha > 0, axis=0)
-        rmin, rmax = np.where(rows)[0][[0, -1]]
-        cmin, cmax = np.where(cols)[0][[0, -1]]
         
         # Crop the image to the bounding box
-        image = image[rmin:rmax+1, cmin:cmax+1]
+        alpha = image[:, :, 3]
+        mask = (alpha > 0).astype(np.uint8)
+        x, y, w, h = cv2.boundingRect(mask)
+        image = image[y:y+h, x:x+w]
         
         return image
 
