@@ -270,28 +270,18 @@ class DataGenerator:
                 else:
                     data.split = DatasetSplit.train
 
-                # Save image
                 count += 1
-                self.save_data(data, count)
-    
-    def save_data(self, data: Data, index: int) -> None:
-        if data.split is None:
-            raise ValueError("Data split is not set.")
-        if data.image is None:
-            raise ValueError("Image data is not available for saving.")
-        if data.annotations is None:
-            raise ValueError("Annotations are not available for saving.")
-        
-        # Save image
-        image_path = self.images_dir / data.split.name / f"{index:05d}.webp"
-        cv2.imwrite(image_path, data.image, [cv2.IMWRITE_WEBP_QUALITY, 75])
 
-        # Save labels
-        label_path = self.labels_dir / data.split.name / f"{index:05d}.txt"
-        with open(label_path, 'w') as f:
-            for annotation in data.annotations:
-                item, xc, yc, w, h = annotation
-                f.write(f"{item.value} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
+                # Save image
+                image_path = self.images_dir / data.split.name / f"{count:05d}.webp"
+                cv2.imwrite(image_path, data.image, [cv2.IMWRITE_WEBP_QUALITY, 75])
+
+                # Save labels
+                label_path = self.labels_dir / data.split.name / f"{count:05d}.txt"
+                with open(label_path, 'w') as f:
+                    for annotation in data.annotations:
+                        item, xc, yc, w, h = annotation
+                        f.write(f"{item.value} {xc:.6f} {yc:.6f} {w:.6f} {h:.6f}\n")
 
     # ------------------------------ Tool Functions ------------------------------ #
     def scale_image(self, image: np.ndarray, scale: float) -> np.ndarray:
