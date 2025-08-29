@@ -295,26 +295,29 @@ class DataGenerator:
         total_images = len(data_config_list)
         valid_count = min(round(total_images * config.valid_ratio), config.max_valid)
         train_count = total_images - valid_count
-        self.logger.info(f"Generating dataset with {total_images} images: {train_count} train, {valid_count} valid")
+        self.logger.info(f"Splitted {total_images} images into {train_count} train, {valid_count} valid")
 
         # Generate valid images
-        count = 0
-        for config in tqdm(data_config_list, desc="Generating dataset"):
-            data = self.generate_single_data(config)
-            if data is None:
-                self.logger.warning("Skipping image generation due to no items placed.")
-                continue
+        if config.save_images:
+            self.logger.info("Starting image generation and saving...")
 
-            # Determine dataset split
-            if valid_count > 0:
-                data.split = DatasetSplit.valid
-                valid_count -= 1
-            else:
-                data.split = DatasetSplit.train
+            count = 0
+            for config in tqdm(data_config_list, desc="Generating dataset"):
+                data = self.generate_single_data(config)
+                if data is None:
+                    self.logger.warning("Skipping image generation due to no items placed.")
+                    continue
 
-            # Save image
-            count += 1
-            self.save_data(data, count)
+                # Determine dataset split
+                if valid_count > 0:
+                    data.split = DatasetSplit.valid
+                    valid_count -= 1
+                else:
+                    data.split = DatasetSplit.train
+
+                # Save image
+                count += 1
+                self.save_data(data, count)
     
     def save_data(self, data: Data, index: int) -> None:
         if data.split is None:

@@ -4,7 +4,9 @@ from typing import Optional
 @dataclass
 class GeneratorConfig:
     image_size_range: tuple[int, int] = (80, 200)
-
+    seed: Optional[int] = None # Reproducibility
+    save_images: bool = True
+    
     # Single item images
     single_item_images_num: int = 10 # per landmark item
     single_item_num_choices: list[int] = field(default_factory=lambda: [2, 3, 4, 5])
@@ -26,9 +28,6 @@ class GeneratorConfig:
     train_ratio: float = 0.8
     valid_ratio: float = 0.2
     max_valid: int = 4000
-
-    # Reproducibility
-    seed: Optional[int] = None
 
     def __post_init__(self):
         if not (0 < self.train_ratio < 1):
