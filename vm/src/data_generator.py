@@ -140,63 +140,7 @@ class DataGenerator:
                 shear_factor = random.uniform(config.shear_range[0], config.shear_range[1])
                 config.shear = shear_factor
 
-            shear_matrix = np.array([[1, shear_factor, 0], [0, 1, 0]], dtype=np.float32)
-            
-            height, width = image.shape[:2]
-            is_rgba = image.shape[2] == 4
-            image_rgb_part = image[:,:,:3]
-            
-            alpha_part_sheared = None
-
-            # Shear alpha channel
-            if is_rgba:
-                alpha_part_sheared = cv2.warpAffine(image[:,:,3], shear_matrix, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-
-            # Shear RGB part
-            image_rgb_sheared = cv2.warpAffine(image_rgb_part, shear_matrix, (width, height))
-
-            # Adjust Bounding Boxes for Shear
-            new_bboxes = []
-            for bbox in bboxes:
-                x1, y1, x2, y2 = bbox
-                
-                corners = np.array([
-                    [x1, y1], [x2, y1], 
-                    [x1, y2], [x2, y2]])
-                
-                # Apply shear transformation to each corner: x_new = x_old + shear_factor * y_old; y_new = y_old
-                transformed_corners = np.array([
-                    [c[0] + shear_factor * c[1], c[1]] for c in corners
-                ])
-
-                # Calculate the new axis-aligned bounding box
-                new_x1 = np.min(transformed_corners[:, 0])
-                new_y1 = np.min(transformed_corners[:, 1]) # Should be original y1
-                new_x2 = np.max(transformed_corners[:, 0])
-                new_y2 = np.max(transformed_corners[:, 1]) # Should be original y2
-
-                # Clip to image boundaries
-                new_x1 = np.clip(new_x1, 0, width)
-                new_y1 = np.clip(new_y1, 0, height)
-                new_x2 = np.clip(new_x2, 0, width)
-                new_y2 = np.clip(new_y2, 0, height)
-
-                # Ensure x1 <= x2 and y1 <= y2
-                if new_x1 > new_x2: new_x1, new_x2 = new_x2, new_x1 
-                if new_y1 > new_y2: new_y1, new_y2 = new_y2, new_y1
-
-                new_bboxes.append((new_x1, new_y1, new_x2, new_y2))
-
-            bboxes = new_bboxes
-
-            # Brightness/Contrast on the sheared RGB part
-            new_image = image_rgb_sheared.copy()
-
-            # Reconstruct final image
-            if is_rgba and alpha_part_sheared is not None:
-                image = cv2.merge((new_image, alpha_part_sheared))
-            else:
-                image = new_image
+            image, bboxes = self.shear_image(image, bboxes, shear_factor)
         
         # Apply brightness/contrast adjustment
         if config.brightness:
@@ -395,6 +339,63 @@ class DataGenerator:
         image = image[rmin:rmax+1, cmin:cmax+1]
         
         return image
+
+    def shear_image(self, image: np.ndarray, bboxes: list[tuple[float, float, float, float]], shear_factor: float) -> tuple[np.ndarray, list]:
+        shear_matrix = np.array([[1, shear_factor, 0], [0, 1, 0]], dtype=np.float32)
+        
+        height, width = image.shape[:2]
+        is_rgba = image.shape[2] == 4
+        image_rgb_part = image[:,:,:3]
+        
+        alpha_part_sheared = None
+
+        # Shear alpha channel
+        if is_rgba:
+            alpha_part_sheared = cv2.warpAffine(image[:,:,3], shear_matrix, (width, height), borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+
+        # Shear RGB part
+        image_rgb_sheared = cv2.warpAffine(image_rgb_part, shear_matrix, (width, height))
+
+        # Adjust Bounding Boxes for Shear
+        new_bboxes = []
+        for bbox in bboxes:
+            x1, y1, x2, y2 = bbox
+            
+            corners = np.array([
+                [x1, y1], [x2, y1], 
+                [x1, y2], [x2, y2]])
+            
+            # Apply shear transformation to each corner: x_new = x_old + shear_factor * y_old; y_new = y_old
+            transformed_corners = np.array([
+                [c[0] + shear_factor * c[1], c[1]] for c in corners
+            ])
+
+            # Calculate the new axis-aligned bounding box
+            new_x1 = np.min(transformed_corners[:, 0])
+            new_y1 = np.min(transformed_corners[:, 1]) # Should be original y1
+            new_x2 = np.max(transformed_corners[:, 0])
+            new_y2 = np.max(transformed_corners[:, 1]) # Should be original y2
+
+            # Clip to image boundaries
+            new_x1 = np.clip(new_x1, 0, width)
+            new_y1 = np.clip(new_y1, 0, height)
+            new_x2 = np.clip(new_x2, 0, width)
+            new_y2 = np.clip(new_y2, 0, height)
+
+            # Ensure x1 <= x2 and y1 <= y2
+            if new_x1 > new_x2: new_x1, new_x2 = new_x2, new_x1 
+            if new_y1 > new_y2: new_y1, new_y2 = new_y2, new_y1
+
+            new_bboxes.append((new_x1, new_y1, new_x2, new_y2))
+
+        # Brightness/Contrast on the sheared RGB part
+        new_image = image_rgb_sheared.copy()
+
+        # Reconstruct final image
+        if is_rgba and alpha_part_sheared is not None:
+            new_image = cv2.merge((new_image, alpha_part_sheared))
+        
+        return new_image, new_bboxes
 
     def calc_bbox_iou(self, box1, box2) -> float:
         # box = (x1, y1, x2, y2)
