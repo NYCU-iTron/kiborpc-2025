@@ -12,7 +12,7 @@ if __name__ == "__main__":
     config = GeneratorConfig(
         single_item_images_num=0,
         multi_item_images_num=10000,
-        save_images=False,
+        generate_images=False,
     )
 
     generator.generate_dataset(config)

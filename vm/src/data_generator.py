@@ -298,7 +298,7 @@ class DataGenerator:
         self.logger.info(f"Splitted {total_images} images into {train_count} train, {valid_count} valid")
 
         # Generate valid images
-        if config.save_images:
+        if config.generate_images:
             self.logger.info("Starting image generation and saving...")
 
             count = 0

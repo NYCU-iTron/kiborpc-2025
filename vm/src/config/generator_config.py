@@ -5,8 +5,8 @@ from typing import Optional
 class GeneratorConfig:
     image_size_range: tuple[int, int] = (80, 200)
     seed: Optional[int] = None # Reproducibility
-    save_images: bool = True
-    
+    generate_images: bool = True
+
     # Single item images
     single_item_images_num: int = 10 # per landmark item
     single_item_num_choices: list[int] = field(default_factory=lambda: [2, 3, 4, 5])
