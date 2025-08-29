@@ -55,6 +55,11 @@ class DataGenerator:
 
     # ------------------------------ Main Functions ------------------------------ #
     def generate_single_data(self, config: DataConfig) -> Data:
+        if config.seed is not None:
+            random.seed(config.seed)
+            np.random.seed(config.seed)
+            self.logger.info(f"Random seed set to: {config.seed}")
+
         # Generate plane image
         image_size = config.image_size
         image = np.ones((image_size[1], image_size[0], 3), dtype=np.uint8) * 255
