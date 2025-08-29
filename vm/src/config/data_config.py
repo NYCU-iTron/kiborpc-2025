@@ -7,7 +7,7 @@ import matplotlib.patches as patches
 
 class ItemType(Enum):
     # Treasure items
-    crystal = 0
+    crystal = 0 # Important: the first item id should be 0 for yolo format
     diamond = auto()
     emerald = auto()
 
@@ -22,9 +22,8 @@ class ItemType(Enum):
     treasure_box = auto()
 
 class DatasetSplit(Enum):
-    TRAIN = "train"
-    VALID = "valid"
-    TEST = "test"
+    train = auto()
+    valid = auto()
 
 @dataclass
 class DataConfig:

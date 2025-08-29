@@ -33,15 +33,34 @@ class DataGenerator:
         self.images_dir = self.dataset_dir / "images"
         self.labels_dir = self.dataset_dir / "labels"
 
-        self.dataset_dir.mkdir(parents=True, exist_ok=True)
-        self.images_dir.mkdir(parents=True, exist_ok=True)
-        self.labels_dir.mkdir(parents=True, exist_ok=True)
-
+        for split in DatasetSplit:
+            (self.images_dir / split.name).mkdir(parents=True, exist_ok=True)
+            (self.labels_dir / split.name).mkdir(parents=True, exist_ok=True)
+        
+        self.logger.info(f"Prepared dataset directories under: {self.dataset_dir}")
+        
         # Generate classes.txt
         classes_file = self.dataset_dir / "classes.txt"
         with open(classes_file, "w") as f:
             for item_type in ItemType:
                 f.write(f"{item_type.value} {item_type.name}\n")
+        
+        self.logger.info(f"Generated classes file: {classes_file}")
+
+        # Generate yaml file
+        yaml_file = self.dataset_dir / "data.yaml"
+        with open(yaml_file, "w") as f:
+            f.write(
+                f"path: {self.dataset_dir.resolve()}\n"
+                f"train: images/train\n"
+                f"val: images/val\n\n"
+                f"names:\n"
+            )
+            for item_type in ItemType:
+                f.write(f"  {item_type.value}: {item_type.name}\n")
+
+        self.logger.info(f"Generated yaml file: {yaml_file}")
+        
     
     # ------------------------------ Main Functions ------------------------------ #
     def generate_single_data(self, config: DataConfig) -> Data:
@@ -259,13 +278,16 @@ class DataGenerator:
 
             # Determine dataset split
             if valid_count > 0:
-                data.split = DatasetSplit.VALID
+                data.split = DatasetSplit.valid
                 valid_count -= 1
             else:
-                data.split = DatasetSplit.TRAIN
+                data.split = DatasetSplit.train
 
             # Save image
             data.save()
+    
+    def save_data(self) -> None:
+        pass
 
     # ------------------------------ Tool Functions ------------------------------ #
     def scale_image(self, image: np.ndarray, scale: float) -> np.ndarray:
