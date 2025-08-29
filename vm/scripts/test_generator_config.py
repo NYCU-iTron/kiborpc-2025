@@ -10,8 +10,8 @@ if __name__ == "__main__":
     generator = DataGenerator()
 
     config = GeneratorConfig(
-        single_item_images_num=5,
-        multi_item_images_num=10,
+        single_item_images_num=1,
+        multi_item_images_num=5,
     )
 
     generator.generate_dataset(config)

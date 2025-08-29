@@ -38,14 +38,6 @@ class DataGenerator:
             (self.labels_dir / split.name).mkdir(parents=True, exist_ok=True)
         
         self.logger.info(f"Prepared dataset directories under: {self.dataset_dir}")
-        
-        # Generate classes.txt
-        classes_file = self.dataset_dir / "classes.txt"
-        with open(classes_file, "w") as f:
-            for item_type in ItemType:
-                f.write(f"{item_type.value} {item_type.name}\n")
-        
-        self.logger.info(f"Generated classes file: {classes_file}")
 
         # Generate yaml file
         yaml_file = self.dataset_dir / "data.yaml"
@@ -60,8 +52,7 @@ class DataGenerator:
                 f.write(f"  {item_type.value}: {item_type.name}\n")
 
         self.logger.info(f"Generated yaml file: {yaml_file}")
-        
-    
+
     # ------------------------------ Main Functions ------------------------------ #
     def generate_single_data(self, config: DataConfig) -> Data:
         # Generate plane image
@@ -69,7 +60,6 @@ class DataGenerator:
         image = np.ones((image_size[1], image_size[0], 3), dtype=np.uint8) * 255
 
         bboxes = []
-        annotations = []
         for item in config.item_list:
             # Randomly scale item image
             scale = random.uniform(config.item_scale_range[0], config.item_scale_range[1])
@@ -97,7 +87,7 @@ class DataGenerator:
             for trial in range(config.max_random_placement_trials):
                 x = random.randint(0, max(0, config.image_size[0] - item_width))
                 y = random.randint(0, max(0, config.image_size[1] - item_height))
-                new_bbox_coords = (x, y, x + item_width, y + item_height)
+                new_bbox = (x, y, x + item_width, y + item_height)
 
                 # Make sure the item is within the image bounds
                 if not (x >= 0 and y >= 0 and x + item_width <= config.image_size[0] and y + item_height <= config.image_size[1]):
@@ -105,8 +95,8 @@ class DataGenerator:
 
                 # Check for overlap with existing items
                 if len(bboxes) > 0:
-                    ious = [self.calc_bbox_iou(new_bbox_coords, bbox) for bbox in bboxes]
-                    overlaps = [self.calc_bbox_max_overlap_ratio(new_bbox_coords, bbox) for bbox in bboxes]
+                    ious = [self.calc_bbox_iou(new_bbox, bbox) for bbox in bboxes]
+                    overlaps = [self.calc_bbox_max_overlap_ratio(new_bbox, bbox) for bbox in bboxes]
                     
                     max_iou = max(ious)
                     max_overlap = max(overlaps)
@@ -117,9 +107,6 @@ class DataGenerator:
                     if config.force_overlap and max_iou == 0:
                         continue
 
-                bboxes.append(new_bbox_coords)
-                annotations.append((item, x, y, x + item_width, y + item_height))
-                
                 # Place item image on background using alpha channel as mask
                 alpha = item_image[:, :, 3] / 255.0
                 for c in range(3):  # RGB channels
@@ -128,6 +115,7 @@ class DataGenerator:
                         (1 - alpha) * image[y:y+item_height, x:x+item_width, c]
                     ).astype(np.uint8)
 
+                bboxes.append(new_bbox)
                 success = True
                 break
 
@@ -135,7 +123,7 @@ class DataGenerator:
                 self.logger.warning(f"Failed to place item '{item.name}' after {config.max_random_placement_trials} trials.")
                 continue
         
-        if len(annotations) == 0:
+        if len(bboxes) == 0:
             self.logger.warning("No items placed on the image.")
             return None
         
@@ -163,9 +151,9 @@ class DataGenerator:
             image_rgb_sheared = cv2.warpAffine(image_rgb_part, shear_matrix, (width, height))
 
             # Adjust Bounding Boxes for Shear
-            new_annotations = []
-            for annotation in annotations:
-                item, x1, y1, x2, y2 = annotation
+            new_bboxes = []
+            for bbox in bboxes:
+                x1, y1, x2, y2 = bbox
                 
                 corners = np.array([
                     [x1, y1], [x2, y1], 
@@ -192,9 +180,9 @@ class DataGenerator:
                 if new_x1 > new_x2: new_x1, new_x2 = new_x2, new_x1 
                 if new_y1 > new_y2: new_y1, new_y2 = new_y2, new_y1
 
-                new_annotations.append((item, new_x1, new_y1, new_x2, new_y2))
+                new_bboxes.append((new_x1, new_y1, new_x2, new_y2))
 
-            annotations = new_annotations
+            bboxes = new_bboxes
 
             # Brightness/Contrast on the sheared RGB part
             new_image = image_rgb_sheared.copy()
@@ -220,11 +208,21 @@ class DataGenerator:
 
         image = cv2.convertScaleAbs(image, alpha=contrast_factor, beta=(brightness_factor - 1) * 128)
         
+        # Prepare annotations
+        annotations = []
+        image_width, image_height = config.image_size
+        for item, bbox in zip(config.item_list, bboxes):
+            x1, y1, x2, y2 = bbox
+            xc, yc = (x1 + x2) / 2, (y1 + y2) / 2
+            item_width, item_height = x2 - x1, y2 - y1
+            annotation = (item, xc/image_width, yc/image_height, item_width/image_width, item_height/image_height)
+            annotations.append(annotation)
+        
         # Prepare Data object
         data = Data(
             image=image,
-            item_list=[ann[0] for ann in annotations],
-            bboxes=[(ann[1], ann[2], ann[3], ann[4]) for ann in annotations],
+            item_list=config.item_list,
+            bboxes=bboxes,
             annotations=annotations,
             config=config
         )

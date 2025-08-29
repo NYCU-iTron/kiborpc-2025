@@ -83,9 +83,6 @@ class Data:
                f"annotations={self.annotations}), " \
                f"config={self.config})"
     
-    def save(self) -> None:
-        pass
-
     def plot(self) -> None:
         if self.image is None:
             raise ValueError("Image data is not available for plotting.")
@@ -109,8 +106,8 @@ class Data:
         ax.add_patch(patches.Rectangle((0, 0), width-1, height-1, linewidth=3, edgecolor='black', facecolor='none'))
 
         # Plot annotations using matplotlib patches
-        for annotation in self.annotations or []:
-            item_type, x_min, y_min, x_max, y_max = annotation
+        for item, bbox in zip(self.item_list, self.bboxes):
+            x_min, y_min, x_max, y_max = bbox
             
             # Create a Rectangle patch for the bounding box
             rect = patches.Rectangle(
@@ -121,7 +118,7 @@ class Data:
             
             # Add a text label
             ax.text(
-                x_min, y_min, item_type.name,
+                x_min, y_min, item.name,
                 color='white', verticalalignment='top',
                 bbox=dict(facecolor='red', alpha=0.7, pad=1)
             )
