@@ -235,9 +235,10 @@ class DataGenerator:
         # Generate data configs for single item images
         for item in ItemType:
             for i in range(config.single_item_images_num):
+                image_size = random.randint(config.image_size_range[0], config.image_size_range[1])
                 data_config = DataConfig(
                     item_list=[item] * random.randint(config.single_item_num_range[0], config.single_item_num_range[1]),
-                    image_size=(160, 160),
+                    image_size=(image_size, image_size),
                     force_overlap=True if random.random() < config.single_force_overlap_ratio else False,
                     max_overlap=config.single_force_overlap_ratio,
                 )
@@ -249,9 +250,10 @@ class DataGenerator:
         # Generate data configs for multi item images
         item_pool = list(ItemType) * 5
         for i in range(config.multi_item_images_num):
+            image_size = random.randint(config.image_size_range[0], config.image_size_range[1])
             data_config = DataConfig(
                 item_list=random.choices(item_pool, k=random.randint(config.multi_item_num_range[0], config.multi_item_num_range[1])),
-                image_size=(160, 160),
+                image_size=(image_size, image_size),
                 force_overlap=True if random.random() < config.multi_force_overlap_ratio else False,
                 max_overlap=config.multi_force_overlap_ratio,
             )

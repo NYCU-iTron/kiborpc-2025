@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 @dataclass
 class GeneratorConfig:
+    image_size_range: tuple[int, int] = (80, 200)
+    
     # Single item images
     single_item_images_num: int = 10 # per item
     single_item_num_range: tuple[int, int] = (3, 6)
