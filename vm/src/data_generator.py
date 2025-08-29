@@ -230,6 +230,11 @@ class DataGenerator:
         return data
     
     def generate_dataset(self, config: GeneratorConfig) -> None:
+        if config.seed is not None:
+            random.seed(config.seed)
+            np.random.seed(config.seed)
+            self.logger.info(f"Random seed set to: {config.seed}")
+
         data_config_list = []
 
         type_count = {}
