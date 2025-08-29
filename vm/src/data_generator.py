@@ -232,35 +232,63 @@ class DataGenerator:
     def generate_dataset(self, config: GeneratorConfig) -> None:
         data_config_list = []
 
-        # Generate data configs for single item images
+        type_count = {}
         for item in ItemType:
-            for i in range(config.single_item_images_num):
+            type_count[item] = 0
+
+        treasure_items = [ItemType.crystal, ItemType.diamond, ItemType.emerald]
+        landmark_items = [item for item in ItemType if item not in treasure_items]
+
+        # Generate data configs for single item images
+        for item in landmark_items:
+            for _ in range(config.single_item_images_num):
                 image_size = random.randint(config.image_size_range[0], config.image_size_range[1])
+                num_repeats = random.choices(config.single_item_num_choices, weights=config.single_item_num_weights)[0]
                 data_config = DataConfig(
-                    item_list=[item] * random.randint(config.single_item_num_range[0], config.single_item_num_range[1]),
+                    item_list=[item] * num_repeats,
                     image_size=(image_size, image_size),
                     force_overlap=True if random.random() < config.single_force_overlap_ratio else False,
-                    max_overlap=config.single_force_overlap_ratio,
+                    max_overlap=config.single_force_max_overlap,
                 )
                 data_config_list.append(data_config)
+                type_count[item] += num_repeats
 
         single_item_count = len(data_config_list)
         self.logger.info(f"Generated {single_item_count} single item image configs.")
         
         # Generate data configs for multi item images
-        item_pool = list(ItemType) * 5
-        for i in range(config.multi_item_images_num):
+        for _ in range(config.multi_item_images_num):
+            item_num = random.choices(config.multi_item_num_choices, weights=config.multi_item_num_weights)[0]
+            item_type_num = random.choices(config.item_type_num_choices, weights=config.item_type_num_wieights)[0]
+
+            # Decide whether to include a treasure item
+            item_list = []
+            if random.random() < config.treasure_item_ratio:
+                treasure_item = random.choice(treasure_items)
+                item_list.append(treasure_item)
+                item_num -= 1
+                item_type_num -= 1
+                
+            item_pool = random.sample(landmark_items, k=item_type_num)
+            item_list += random.choices(item_pool, k=item_num)
             image_size = random.randint(config.image_size_range[0], config.image_size_range[1])
+            
             data_config = DataConfig(
-                item_list=random.choices(item_pool, k=random.randint(config.multi_item_num_range[0], config.multi_item_num_range[1])),
+                item_list=item_list,
                 image_size=(image_size, image_size),
                 force_overlap=True if random.random() < config.multi_force_overlap_ratio else False,
-                max_overlap=config.multi_force_overlap_ratio,
+                max_overlap=config.multi_force_max_overlap,
             )
             data_config_list.append(data_config)
+            for item in item_list:
+                type_count[item] += 1
         
         multi_item_count = len(data_config_list) - single_item_count
         self.logger.info(f"Generated {multi_item_count} multi item image configs.")
+        
+        self.logger.info(f"Total {len(data_config_list)} image configs generated.")
+        for item, count in type_count.items():
+            self.logger.info(f"  Item '{item.name}': {count} instances.")
         
         # Shuffle data configs
         random.shuffle(data_config_list)
