@@ -6,3 +6,4 @@ docs/doxygen/
 assets/test*
 __pycache__/
 vm/dataset/
+*.egg-info/
