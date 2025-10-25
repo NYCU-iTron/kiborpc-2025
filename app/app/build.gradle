@@ -15,8 +15,7 @@ android {
     compileSdkVersion 26
     buildToolsVersion "28.0.3"
     defaultConfig {
-        applicationId "jp.jaxa.iss.kibo.rpc.sampleapk" +
-                ""
+        applicationId "tw.kibo.rpc.taiwan"
         minSdkVersion 24
         targetSdkVersion 26
         versionCode 1
