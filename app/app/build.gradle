@@ -38,9 +38,9 @@ android {
         noCompress "tflite"
     }
 
-android.    applicationVariants.all { variant ->
+android.applicationVariants.all { variant ->
         variant.outputs.all { output ->
-            output.            outputFileName = "taiwan.apk"
+            output.outputFileName = "taiwan.apk"
         }
     }
 }
