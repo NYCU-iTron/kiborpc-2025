@@ -38,9 +38,9 @@ android {
         noCompress "tflite"
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all {
-            outputFileName = "KiboRPC_Taiwan_Team-${variant.name}.apk"
+android.    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            output.            outputFileName = "taiwan.apk"
         }
     }
 }
