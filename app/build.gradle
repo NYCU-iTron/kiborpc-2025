@@ -21,8 +21,14 @@ allprojects {
         maven {
             url "https://github.com/rosjava/rosjava_mvn_repo/raw/master"
         }
+        maven {
+            url "https://raw.githubusercontent.com/rosjava/rosjava_mvn_repo/master/"
+        }
         mavenCentral()
-        google()
+        maven {
+            url 'https://maven.google.com/'
+            name 'Google'
+        }
         maven {
             url "https://artifacts.camunda.com/artifactory/public/"
         }
