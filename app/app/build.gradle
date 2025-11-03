@@ -4,7 +4,7 @@ android {
     compileSdkVersion 26
     buildToolsVersion "28.0.3"
     defaultConfig {
-        applicationId "tw.kibo.rpc.taiwan"
+        applicationId "jp.jaxa.iss.kibo.rpc.taiwan"
         minSdkVersion 24
         targetSdkVersion 26
         versionCode 1
@@ -38,7 +38,7 @@ android {
         noCompress "tflite"
     }
 
-android.applicationVariants.all { variant ->
+    android.applicationVariants.all { variant ->
         variant.outputs.all { output ->
             output.outputFileName = "taiwan.apk"
         }
@@ -57,7 +57,7 @@ configurations {
 dependencies {
     implementation project(':guest_science_library')
     implementation project(':kibo_rpc_api')
-        implementation 'com.android.support:appcompat-v7:26.+'
+    implementation 'com.android.support:appcompat-v7:26.+'
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
 
     implementation fileTree(dir: 'libs', include: ['*.jar'])
@@ -67,7 +67,7 @@ dependencies {
     implementation files('libs/com.springsource.org.apache.commons.httpclient-3.1.0.jar')
     implementation files('libs/com.springsource.org.apache.commons.logging-1.1.1.jar')
     implementation files('libs/com.springsource.org.apache.commons.net-2.0.0.jar')
-
+    
     implementation('org.ros.rosjava_core:rosjava:[0.2,0.3)') {
         exclude group: 'xml-apis'
         exclude group: 'junit'
