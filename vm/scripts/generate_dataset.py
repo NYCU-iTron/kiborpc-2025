@@ -10,8 +10,8 @@ if __name__ == "__main__":
     generator = DataGenerator()
 
     config = GeneratorConfig(
-        single_item_images_num=20,
-        multi_item_images_num=100,
+        single_item_images_num=1500, # each item, times 8 get total
+        multi_item_images_num=78000,
         seed=42,
     )
 
