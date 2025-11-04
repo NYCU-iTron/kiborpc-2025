@@ -3,7 +3,6 @@ from typing import Optional
 
 @dataclass
 class GeneratorConfig:
-    image_size_range: tuple[int, int] = (80, 200)
     seed: Optional[int] = None # Reproducibility
     generate_images: bool = True
 
