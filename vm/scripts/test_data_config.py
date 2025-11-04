@@ -10,7 +10,7 @@ if __name__ == "__main__":
     generator = DataGenerator()
     config = DataConfig(
         item_list=[ItemType.shell, ItemType.diamond, ItemType.diamond],
-        image_size=(150, 150),
+        image_shape=(150, 150),
         force_overlap=False,
         seed=42,
     )
