@@ -1,0 +1,16 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*egg-info/
+.python-version
+
+# Windows
+Thumbs.db
+
+dataset/
+build/
+uv.lock
+
+runs/
