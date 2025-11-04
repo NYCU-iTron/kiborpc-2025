@@ -30,13 +30,12 @@ class DataConfig:
     item_list: list[ItemType]
 
     # Image control
-    image_size: tuple[int, int] = (160, 160)
+    image_shape_range: tuple[int, int] = (50, 200)
+    image_shape: Optional[tuple[int, int]] = None
 
     # Item control
     item_scale_range: tuple[float, float] = (0.2, 0.4) # As a fraction of image size
     item_rotate_range: tuple[int, int] = (0, 360)
-    item_blur_kernel_range: tuple[int] = (1, 3, 5)
-    item_blur_kernel: Optional[int] = None
     max_random_placement_trials: int = None # Depends on whether force_overlap is True or False
 
     # Position control
@@ -47,10 +46,12 @@ class DataConfig:
     apply_shear: bool = True
     shear_range: tuple[float, float] = (-0.05, 0.05)
     shear: Optional[float] = None
-    brightness_range: tuple[float, float] = (0.9, 1.2)
+    brightness_range: tuple[float, float] = (0.5, 1.5)
     brightness: Optional[float] = None
     contrast_range: tuple[float, float] = (0.8, 1)
     contrast: Optional[float] = None
+    noise_std_range: tuple[float, float] = (5, 20)
+    noise_std: Optional[float] = None
 
     # Reproducibility
     seed: Optional[int] = None
@@ -82,19 +83,19 @@ class Data:
                f"bboxes={self.bboxes}, " \
                f"annotations={self.annotations}), " \
                f"config={self.config})"
-    
+
     def plot(self) -> None:
         if self.image is None:
             raise ValueError("Image data is not available for plotting.")
 
         height, width, _ = self.image.shape
-        
+
         # Set DPI and calculate figure size to match image pixels 1:1
         dpi = 100
         figsize = width / float(dpi), height / float(dpi)
 
         fig, ax = plt.subplots(1, figsize=figsize, dpi=dpi)
-        
+
         # Display the image without scaling
         ax.imshow(self.image)
 
@@ -108,19 +109,19 @@ class Data:
         # Plot annotations using matplotlib patches
         for item, bbox in zip(self.item_list, self.bboxes):
             x_min, y_min, x_max, y_max = bbox
-            
+
             # Create a Rectangle patch for the bounding box
             rect = patches.Rectangle(
                 (x_min, y_min), x_max - x_min, y_max - y_min,
                 linewidth=2, edgecolor='r', facecolor='none'
             )
             ax.add_patch(rect)
-            
+
             # Add a text label
             ax.text(
                 x_min, y_min, item.name,
                 color='white', verticalalignment='top',
                 bbox=dict(facecolor='red', alpha=0.7, pad=1)
             )
-        
+
         plt.show()
