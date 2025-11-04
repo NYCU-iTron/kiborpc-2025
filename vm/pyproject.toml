@@ -9,7 +9,7 @@ requires-python = "==3.10.*"
 dependencies = [
     "ultralytics==8.3.133",
     "numpy",
-    "tqdm"
+    "tqdm",
 ]
 
 [tool.setuptools.packages.find]
