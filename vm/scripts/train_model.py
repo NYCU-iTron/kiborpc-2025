@@ -12,7 +12,7 @@ run_dir = base_dir / "runs"
 if not data_yaml.exists():
     raise FileNotFoundError(f"Dataset YAML file not found at {data_yaml.as_posix()}. Please generate the dataset first.")
 
-model_path = run_dir / "yolo11m.pt"
+model_path = run_dir / "yolo11l.pt"
 
 model = YOLO(model_path)
 device = 0 if torch.cuda.is_available() else "cpu"

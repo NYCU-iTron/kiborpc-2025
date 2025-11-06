@@ -33,8 +33,12 @@ class DataConfig:
     image_shape_range: tuple[int, int] = (50, 200)
     image_shape: Optional[tuple[int, int]] = None
 
+    small_image_probability: Optional[float] = 0.6
+    small_image_shape_range: tuple[int, int] = (50, 100)
+    normal_image_shape_range: tuple[int, int] = (101, 200)
+
     # Item control
-    item_scale_range: tuple[float, float] = (0.2, 0.4) # As a fraction of image size
+    item_scale_range: tuple[float, float] = (0.15, 0.4) # As a fraction of image size
     item_rotate_range: tuple[int, int] = (0, 360)
     max_random_placement_trials: int = None # Depends on whether force_overlap is True or False
 
@@ -59,9 +63,9 @@ class DataConfig:
     def __post_init__(self):
         if self.max_random_placement_trials is None:
             if self.force_overlap:
-                self.max_random_placement_trials = 100
+                self.max_random_placement_trials = 500
             else:
-                self.max_random_placement_trials = 50
+                self.max_random_placement_trials = 200
 
 class Data:
     def __init__(self,

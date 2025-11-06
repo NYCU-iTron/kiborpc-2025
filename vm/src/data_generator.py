@@ -62,7 +62,15 @@ class DataGenerator:
 
         # Generate plane image
         if config.image_shape is None:
-            length = random.randint(config.image_shape_range[0], config.image_shape_range[1])
+            # Use small/normal image size based on probability
+            if config.small_image_probability is not None:
+                if random.random() < config.small_image_probability:
+                    length = random.randint(config.small_image_shape_range[0], config.small_image_shape_range[1])
+                else:
+                    length = random.randint(config.normal_image_shape_range[0], config.normal_image_shape_range[1])
+            else:
+                length = random.randint(config.image_shape_range[0], config.image_shape_range[1])
+
             config.image_shape = (length, length)
         image = np.ones((config.image_shape[1], config.image_shape[0], 3), dtype=np.uint8) * 255
 
@@ -204,48 +212,58 @@ class DataGenerator:
         treasure_items = [ItemType.crystal, ItemType.diamond, ItemType.emerald]
         landmark_items = [item for item in ItemType if item not in treasure_items]
 
-        # Generate data configs for single item images
+        # Data configs for type 1 (only one type of landmark item)
         for item in landmark_items:
-            for _ in range(config.single_item_images_num):
-                num_repeats = random.choices(config.single_item_num_choices, weights=config.single_item_num_weights)[0]
+            for _ in range(config.type1_images_num_per_landmark):
+                num_repeats = random.choices(config.type1_landmark_num_choices, weights=config.type1_landmark_num_weights)[0]
                 data_config = DataConfig(
                     item_list=[item] * num_repeats,
-                    force_overlap=True if random.random() < config.single_force_overlap_ratio else False,
-                    max_overlap=config.single_force_max_overlap,
+                    force_overlap=True if random.random() < config.type1_force_overlap_ratio else False,
+                    max_overlap=config.type1_force_max_overlap,
                 )
                 data_config_list.append(data_config)
                 type_count[item] += num_repeats
 
-        single_item_count = len(data_config_list)
-        self.logger.info(f"Generated {single_item_count} single item image configs.")
+        type1_count = len(data_config_list)
+        self.logger.info(f"Generated {type1_count} image configs with single landmark items.")
 
-        # Generate data configs for multi item images
-        for _ in range(config.multi_item_images_num):
-            item_num = random.choices(config.multi_item_num_choices, weights=config.multi_item_num_weights)[0]
-            item_type_num = random.choices(config.item_type_num_choices, weights=config.item_type_num_wieights)[0]
+        # Data configs for type 2 (one treasure item + repeated one landmark item)
+        for treasure_item in treasure_items:
+            for _ in range(config.type2_images_num_per_treasure):
+                landmark_item = random.choice(landmark_items)
+                num_repeats = random.choices(config.type2_landmark_num_choices, weights=config.type2_landmark_num_weights)[0]
+                item_list = [treasure_item] + [landmark_item] * num_repeats
 
-            # Decide whether to include a treasure item
-            item_list = []
-            if random.random() < config.treasure_item_ratio:
-                treasure_item = random.choice(treasure_items)
-                item_list.append(treasure_item)
-                item_num -= 1
-                item_type_num -= 1
+                data_config = DataConfig(item_list=item_list)
 
-            item_pool = random.sample(landmark_items, k=item_type_num)
-            item_list += random.choices(item_pool, k=item_num)
+                data_config_list.append(data_config)
+                type_count[treasure_item] += 1
+                type_count[landmark_item] += num_repeats
 
-            data_config = DataConfig(
-                item_list=item_list,
-                force_overlap=True if random.random() < config.multi_force_overlap_ratio else False,
-                max_overlap=config.multi_force_max_overlap,
-            )
-            data_config_list.append(data_config)
-            for item in item_list:
-                type_count[item] += 1
+        type2_count = len(data_config_list) - type1_count
+        self.logger.info(f"Generated {type2_count} image configs with one treasure item + repeated one kind of landmark item.")
 
-        multi_item_count = len(data_config_list) - single_item_count
-        self.logger.info(f"Generated {multi_item_count} multi item image configs.")
+        # Data configs for type 3 (one treasure item + two different landmark items)
+        for treasure_item in treasure_items:
+            for _ in range(config.type3_item_images_num_per_treasure):
+                landmark_item_choices = random.choices(
+                    landmark_items,
+                    k=2
+                )
+                data_config = DataConfig(
+                    item_list=[
+                        treasure_item,
+                        landmark_item_choices[0],
+                        landmark_item_choices[1],
+                    ],
+                )
+                data_config_list.append(data_config)
+                type_count[treasure_item] += 1
+                type_count[landmark_item_choices[0]] += 1
+                type_count[landmark_item_choices[1]] += 1
+
+        type3_count = len(data_config_list) - type1_count - type2_count
+        self.logger.info(f"Generated {type3_count} image configs with one treasure item + two different landmark items.")
 
         self.logger.info(f"Total {len(data_config_list)} image configs generated.")
         for item, count in type_count.items():

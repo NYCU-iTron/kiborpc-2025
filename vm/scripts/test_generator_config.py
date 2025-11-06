@@ -10,9 +10,10 @@ if __name__ == "__main__":
     generator = DataGenerator()
 
     config = GeneratorConfig(
-        single_item_images_num=0,
-        multi_item_images_num=10000,
-        generate_images=False,
+        type1_images_num_per_landmark=7, # total = 7 * 8 = 56
+        type2_images_num_per_treasure=20, # total = 20 * 3 = 60
+        type3_item_images_num_per_treasure=20, # total = 20 * 3 = 60
+        generate_images=True,
     )
 
     generator.generate_dataset(config)

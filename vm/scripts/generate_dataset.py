@@ -9,9 +9,15 @@ if __name__ == "__main__":
     setup_logging()
     generator = DataGenerator()
 
+    total_images = 150000
+    type1_ratio = 0.3  # only one kind of landmark item
+    type2_ratio = 0.4  # one treasure item + repeated one kind of landmark item
+    type3_ratio = 0.3  # one treasure item + two different landmark items
+
     config = GeneratorConfig(
-        single_item_images_num=1500, # each item, times 8 get total
-        multi_item_images_num=78000,
+        type1_images_num_per_landmark=int(total_images * type1_ratio / 8),
+        type2_images_num_per_treasure=int(total_images * type2_ratio / 3),
+        type3_item_images_num_per_treasure=int(total_images * type3_ratio / 3),
         seed=42,
     )
 
