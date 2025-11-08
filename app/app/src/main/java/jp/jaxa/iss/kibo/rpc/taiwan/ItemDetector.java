@@ -150,7 +150,7 @@ public class ItemDetector {
   /**
    * Constructor for ItemDetector.
    * Sets up the model, label mappings, and image processor.
-   * 
+   *
    * @param apiRef  reference to the KiboRpcApi
    * @param context the application context
    */
@@ -159,7 +159,7 @@ public class ItemDetector {
     this.context = context;
 
     // Load models
-    InterpreterWrapper modelM61500 = new InterpreterWrapper("m_61500_0613.tflite", 1.0f, 0.5f);
+    InterpreterWrapper modelM61500 = new InterpreterWrapper("m_90000_1106.tflite", 1.0f, 0.5f);
 
     // Map model types to their respective interpreters
     modelMap = new HashMap<>();
@@ -185,7 +185,7 @@ public class ItemDetector {
 
   /**
    * Detect using multiple models with revised weighted box fusion method
-   * 
+   *
    * @param image The input image to be processed.
    * @return A list of Detection objects.
    */
@@ -200,7 +200,7 @@ public class ItemDetector {
         Log.e(TAG, "Model not found: " + modelType);
         continue;
       }
-      
+
       // Preprocess the image
       ByteBuffer imageBuffer = preprocess(image, interpreterWrapper);
 
@@ -212,7 +212,7 @@ public class ItemDetector {
 
       detectionAll.addAll(detections);
     }
-    
+
     // Apply revised Weighted Box Fusion
     float iouThreshold = 0.7f;
     float confThreshold = 0.5f;
@@ -229,7 +229,7 @@ public class ItemDetector {
 
   /**
    * Detect using a specific model type.
-   * 
+   *
    * @param image The input image to be processed.
    * @param modelType The type of model to be used for detection.
    * @return A list of Detection objects.
@@ -417,7 +417,7 @@ public class ItemDetector {
 
       // Create a rectangle from the top-left and bottom-right points
       Rect rect = new Rect(new Point(ix1, iy1), new Point(ix2, iy2));
-      
+
       // Define rectangle color (red) and thickness
       Scalar color = new Scalar(0, 0, 0); // Black
       int thickness = 1;
@@ -456,7 +456,7 @@ public class ItemDetector {
       AssetFileDescriptor fileDescriptor = context.getAssets().openFd(model_path);
       inputStream = new FileInputStream(fileDescriptor.getFileDescriptor());
       fileChannel = inputStream.getChannel();
-      
+
       long startOffset = fileDescriptor.getStartOffset();
       long declaredLength = fileDescriptor.getDeclaredLength();
       Log.i(TAG, "Model size: " + declaredLength / 1024.0 / 1024.0 + " MB");
@@ -523,7 +523,7 @@ public class ItemDetector {
 
   /**
    * Resizes the input image to fit the model input size while maintaining the aspect ratio.
-   * 
+   *
    * @param src The source Bitmap image.
    * @param targetWidth The target width for the resized image.
    * @param targetHeight The target height for the resized image.
@@ -637,7 +637,7 @@ public class ItemDetector {
    * This method is a modified version of the original WBF algorithm.
    * Instead of merging boxes by class, it merges all boxes of different classes first,
    * then chooses the best class based on the weighted average of the confidence scores.
-   * 
+   *
    * @param detections List of Detection objects to be fused.
    * @param iouThreshold IoU threshold for merging boxes.
    * @param confThreshold Confidence threshold for filtering boxes.
@@ -653,7 +653,7 @@ public class ItemDetector {
     Collections.sort(detections, new Comparator<Detection>() {
       @Override
       public int compare(Detection d1, Detection d2) {
-        return Float.compare(d2.confidence, d1.confidence); 
+        return Float.compare(d2.confidence, d1.confidence);
       }
     });
 
@@ -811,10 +811,10 @@ public class ItemDetector {
   /**
    * Checks if the inner bounding box is contained within the outer bounding box.
    * The function uses a threshold to determine if the inner box is sufficiently contained.
-   * 
+   *
    * @param box1 The first bounding box in the form [x1, y1, x2, y2].
    * @param box2 The second bounding box in the form [x1, y1, x2, y2].
-   * @return the highest percentage of the box be covered. 
+   * @return the highest percentage of the box be covered.
    */
   private float calculateContainment(float[] box1, float[] box2) {
     float x1_1 = box1[0], y1_1 = box1[1], x2_1 = box1[2], y2_1 = box1[3];
