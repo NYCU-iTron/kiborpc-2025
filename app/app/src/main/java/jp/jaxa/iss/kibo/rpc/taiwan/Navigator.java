@@ -26,11 +26,11 @@ public class Navigator {
   // Target poses in each area
   private static final Map<Integer, Pose> areaPoses = new HashMap<>();
   static {
-    areaPoses.put(1, new Pose(new Point(11.11, -9.49, 5.435), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));          // Area 1
+    areaPoses.put(1, new Pose(new Point(11.11, -9.49, 5.4), new Quaternion(0.0f, 0.0f, -0.707f, 0.707f)));          // Area 1
     areaPoses.put(2, new Pose(new Point(10.925, -8.6, 4.55), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));               // Area 2
     areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));            // Area 3
     areaPoses.put(4, new Pose(new Point(11.3, -6.76, 4.935), new Quaternion(0.0f, -1.0f, 0.0f, 0.0f)));              // Area 4
-    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.3), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)));            // Combined Area 2 3
+    areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.0), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)));            // Combined Area 2 3
     areaPoses.put(0, new Pose(new Point(11.25, -6.76, 4.935), new Quaternion(0.633f, 0.754f, -0.133f, 0.112f)));      // Report
   }
 
@@ -61,7 +61,7 @@ public class Navigator {
 
   /**
    * Constructor
-   * 
+   *
    * @param apiRef API reference from runPlan in YourService.java
    */
   public Navigator(KiboRpcApi apiRef) {
@@ -75,7 +75,7 @@ public class Navigator {
 
   /**
    * Process and return the measured pose.
-   * 
+   *
    * @return current pose.
    */
   public Pose getCurrentPose() {
@@ -98,12 +98,12 @@ public class Navigator {
       accOriZ += (double) orientation.getZ();
       accOriW += (double) orientation.getW();
     }
-    
+
     // Compute avergae
     double avgPosX = accPosX / numAttempts;
     double avgPosY = accPosY / numAttempts;
     double avgPosZ = accPosZ / numAttempts;
-    
+
     float avgOriX = (float) accOriX / numAttempts;
     float avgOriY = (float) accOriY / numAttempts;
     float avgOriZ = (float) accOriZ / numAttempts;
@@ -126,7 +126,7 @@ public class Navigator {
 
   /**
    * Move the robot to target pose.
-   * 
+   *
    * @param targetPose
    * @return The result of the last move command.
    */
@@ -141,7 +141,7 @@ public class Navigator {
     for (int retry = 1; retry <= retryMax; retry++) {
       Log.i(TAG, "Moving to targetPose " + targetPose.toString() + " (retry " + retry + ")");
       result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
-      
+
       if (result.hasSucceeded()) {
         return result;
       }
@@ -151,15 +151,15 @@ public class Navigator {
     if (!result.hasSucceeded()) {
       Log.w(TAG, "Failed to move to " + targetPose.toString() + " because " + result.getMessage());
     }
-    
+
     return result;
   }
 
   /**
    * Moves the robot to the pose of taking photo in given area.
-   * 
+   *
    * @return The result of the last move command.
-   * 
+   *
    * Example:
    * @code
    * // Area 1
@@ -209,13 +209,13 @@ public class Navigator {
     } catch (InterruptedException e) {
       Log.w(TAG, "Fail to sleep thread" + e);
     }
-    
+
     return result;
   }
 
   /**
    * Moves the robot to find the treasure item.
-   * 
+   *
    * @return The result of the last move command.
    */
   public Result navigateToTreasure(Item treasureItem) {
@@ -300,7 +300,7 @@ public class Navigator {
       default:
         // Handle error
         Log.w(TAG, String.format("Invalid areaId: %d. Using default final pose.", areaId));
-        
+
         // Guess the item is in the middle of area 4
         // Area 4: (9.866984, -7.34, 4.32, 9.866984, -6.365, 5.57)
         finalX = 9.866984 + safeDistance;
@@ -312,7 +312,7 @@ public class Navigator {
 
         break;
     }
-    
+
     // Set the final Pose
     Pose finalPose = new Pose(finalPoint, finalQuaternion);
     Log.i(TAG, "I'm goint to " + finalPose.toString());
@@ -329,7 +329,7 @@ public class Navigator {
 
   /**
    * Calculates the quaternion to rotate from the current point to face the target point.
-   * 
+   *
    * @param currentPoint The current point.
    * @param targetPoint The target point.
    * @return A new quaternion that rotates current point to face the target point.
@@ -423,13 +423,13 @@ public class Navigator {
 
   /**
    * Given the pose of Navcam, compute the body pose.
-   * 
+   *
    * @param cameraPose the pose of NavCam.
-   * @return The pose of center body. 
+   * @return The pose of center body.
    */
   public static Pose getBodyPoseFromCamera(Pose cameraPose) {
     Point cameraPoint = cameraPose.getPoint();
-    
+
     double bodyX = cameraPoint.getX() - 0.1177;
     double bodyY = cameraPoint.getY() + 0.0422;
     double bodyZ = cameraPoint.getZ() + 0.0826;
