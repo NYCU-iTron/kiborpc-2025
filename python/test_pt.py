@@ -8,7 +8,7 @@ base_dir = Path(__file__).resolve().parent
 test_set_dir = (base_dir / '../assets/test_set').resolve()
 test_results_dir = (base_dir / '../assets/test_result').resolve()
 test_answer_dir = (base_dir / '../assets/test_answer').resolve()
-model_path = (base_dir / '../assets/test_model/m_30000_0522.pt').resolve()
+model_path = (base_dir / '../vm/runs/detect/train/weights/best.pt').resolve()
 
 # 確保輸出資料夾存在
 test_results_dir.mkdir(parents=True, exist_ok=True)
@@ -29,7 +29,7 @@ for image_path in image_paths:
 
   # 推論
   height, width = img.shape[:2]
-  results = model.predict(source=img, conf=0.4, iou=0.7, verbose=False)
+  results = model.predict(source=img, conf=0.4, iou=0.7, device="cpu", verbose=False)
 
   txt_lines = []
 
@@ -63,9 +63,3 @@ for image_path in image_paths:
   output_path = test_results_dir / image_path.name
   cv2.imwrite(str(output_path), img)
   print(f"✅ 已輸出：{output_path.name}")
-
-  # # 儲存 txt（同名，不同副檔名）
-  # txt_output_path = test_answer_dir / (image_path.stem + ".txt")
-  # with open(txt_output_path, "w") as f:
-  #   f.write("\n".join(txt_lines))
-  # print(f"📝 已輸出標註：{txt_output_path.name}")
