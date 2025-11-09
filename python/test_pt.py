@@ -7,7 +7,6 @@ import numpy as np
 base_dir = Path(__file__).resolve().parent
 test_set_dir = (base_dir / '../assets/test_set').resolve()
 test_results_dir = (base_dir / '../assets/test_result').resolve()
-test_answer_dir = (base_dir / '../assets/test_answer').resolve()
 model_path = (base_dir / '../vm/runs/detect/train/weights/best.pt').resolve()
 
 # 確保輸出資料夾存在
