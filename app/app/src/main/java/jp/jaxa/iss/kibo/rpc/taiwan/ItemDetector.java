@@ -159,7 +159,7 @@ public class ItemDetector {
     this.context = context;
 
     // Load models
-    InterpreterWrapper modelM61500 = new InterpreterWrapper("m_90000_1106.tflite", 1.0f, 0.5f);
+    InterpreterWrapper modelM61500 = new InterpreterWrapper("m_150000_1118.tflite", 1.0f, 0.5f);
 
     // Map model types to their respective interpreters
     modelMap = new HashMap<>();
