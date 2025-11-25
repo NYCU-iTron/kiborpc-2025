@@ -1,4 +1,4 @@
-package jp.jaxa.iss.kibo.rpc.sampleapk;
+package jp.jaxa.iss.kibo.rpc.taiwan;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcService;
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcApi;
@@ -21,19 +21,9 @@ public class JitterHandler {
     private final String TAG = this.getClass().getSimpleName();
     private final KiboRpcApi api;
     private final Navigator navigator;
-    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-    private double currentAcceleration = 0.0;
-    private double accelerationThreshold = 0.05; // m/s^2
-    private final long monitorIntervalMs = 100; // ms
-
-    enum State {
-        IDLE,
-        MONITORING,
-        RECOVERING,
-    }
-    private State state = State.IDLE;
-    private boolean isJitterDetected = false;
+    private ScheduledExecutorService scheduler;
+    private long monitorIntervalMs = 1000;
+    private volatile boolean isRunning = false;
 
     /**
      * Constructor
@@ -44,76 +34,105 @@ public class JitterHandler {
     public JitterHandler(KiboRpcApi api, Navigator navigator) {
         this.api = api;
         this.navigator = navigator;
+
         Log.i(TAG, "Initialized.");
     }
 
-    private final Runnable monitorTask = () -> {
-        currentAcceleration = calculateAcceleration();
-        if (currentAcceleration > accelerationThreshold) {
-            isJitterDetected = true;
+    public void start() {
+        final Pose targetPose = navigator.getTargetPose();
+        if (targetPose == null) {
+            Log.w(TAG, "Jitter handler start failed: target pose is null.");
+            return;
         }
 
-        try {
-            if (isJitterDetected && state != State.RECOVERING) {
-                Log.w(TAG, "Jitter detected! Start recovery...");
-                state = State.RECOVERING;
-                // navigator.recoverFromJitter();
-            } else if (isJitterDetected && state == State.RECOVERING) {
-                Log.i(TAG, "Jitter detected! Still recovering...");
-                // Still in jitter state
-                isJitterDetected = false; // Reset for next check
-            } else if (state == State.RECOVERING) {
-                Log.i(TAG, "Jitter stopped. Resume normal task.");
-                state = State.MONITORING;
-                // navigator.resumeNormalTask();
+        final Point targetPoint = targetPose.getPoint();
+        final Quaternion targetQuat = targetPose.getQuaternion();
 
+        isRunning = true;
+
+        // Define the monitoring task
+        Runnable monitorTask = new Runnable() {
+            @Override
+            public void run() {
+                if (!isRunning) return;
+                if (navigator.isMoving()) return;
+                if (Thread.currentThread().isInterrupted()) return;
+
+                Kinematics kinematics = api.getRobotKinematics();
+                Point currentPoint = kinematics.getPosition();
+                Quaternion currentQuat = kinematics.getOrientation();
+
+                // Calculate distance deviation
+                double dist = Math.sqrt(
+                    Math.pow(currentPoint.getX() - targetPoint.getX(), 2) +
+                    Math.pow(currentPoint.getY() - targetPoint.getY(), 2) +
+                    Math.pow(currentPoint.getZ() - targetPoint.getZ(), 2)
+                );
+
+                // Calculate angle deviation (using quaternion dot product)
+                // Angle = 2 * acos(|q1 . q2|)
+                double dot = Math.abs(
+                    currentQuat.getX() * targetQuat.getX() +
+                    currentQuat.getY() * targetQuat.getY() +
+                    currentQuat.getZ() * targetQuat.getZ() +
+                    currentQuat.getW() * targetQuat.getW()
+                );
+                // Clamp dot product to [-1, 1] to avoid NaN
+                if (dot > 1.0) dot = 1.0;
+                double angleRad = 2.0 * Math.acos(dot);
+                double angleDeg = Math.toDegrees(angleRad);
+
+                // Thresholds
+                double MIN_DIST = 0.10; // 0.10 m
+                double MIN_ANGLE = 20; // 20 degrees
+
+                // Recover to the target pose
+                if (dist > MIN_DIST || angleDeg > MIN_ANGLE) {
+                    Log.w(TAG, String.format("Jitter detected! Dist: %.3f m, Angle: %.1f deg. Correcting...", dist, angleDeg));
+
+                    if (!isRunning) return;
+                    if (navigator.isMoving()) return;
+                    if (Thread.currentThread().isInterrupted()) return;
+
+                    navigator.moveTo(targetPose);
+                }
             }
-        } catch (Exception e) {
-            Log.e(TAG, "Monitor error: " + e.getMessage());
-        }
-    };
+        };
 
-    public void startMonitoring() {
-        scheduler.scheduleAtFixedRate(
+        if (scheduler == null || scheduler.isShutdown()) {
+            scheduler = Executors.newSingleThreadScheduledExecutor();
+        }
+
+        scheduler.scheduleWithFixedDelay(
             monitorTask,
             0, // initial delay
             monitorIntervalMs,
             TimeUnit.MILLISECONDS
         );
-        state = State.MONITORING;
-        Log.i(TAG, "Jitter monitor started.");
+
+        Log.i(TAG, "Jitter handler started.");
     }
 
-    public void stopMonitoring() {
+    public void stop() {
+        isRunning = false;
+
+        if (scheduler == null || scheduler.isShutdown()) {
+            Log.i(TAG, "Jitter handler is not running.");
+            return;
+        }
+
         try {
             scheduler.shutdown();
-            if (!scheduler.awaitTermination(500, TimeUnit.MILLISECONDS)) {
+            if (!scheduler.awaitTermination(10000, TimeUnit.MILLISECONDS)) {
+                Log.w(TAG, "Jitter handler did not terminate in time, forcing shutdown.");
                 scheduler.shutdownNow();
             }
         } catch (InterruptedException e) {
+            Log.e(TAG, "Interrupted while waiting for JitterHandler to stop.");
             scheduler.shutdownNow();
         }
-        state = State.IDLE;
-        Log.i(TAG, "Jitter monitor stopped.");
-    }
+        scheduler = null;
 
-    private double calculateAcceleration() {
-        Kinematics kinematics = api.getKinematics();
-        if (kinematics == null) {
-            Log.e(TAG, "Failed to get kinematics.");
-            return 0.0;
-        }
-
-        Vec3d linearAccel = kinematics.getLinearAcceleration();
-        if (linearAccel == null) {
-            Log.e(TAG, "Failed to get linear acceleration.");
-            return 0.0;
-        }
-
-        return Math.sqrt(
-            linearAccel.x * linearAccel.x +
-            linearAccel.y * linearAccel.y +
-            linearAccel.z * linearAccel.z
-        );
+        Log.i(TAG, "Jitter handler stopped.");
     }
 }
