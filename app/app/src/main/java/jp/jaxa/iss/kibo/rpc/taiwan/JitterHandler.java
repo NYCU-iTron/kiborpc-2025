@@ -23,6 +23,7 @@ public class JitterHandler {
     private final Navigator navigator;
     private ScheduledExecutorService scheduler;
     private long monitorIntervalMs = 1000;
+    private volatile boolean isRunning = false;
 
     /**
      * Constructor
@@ -47,12 +48,15 @@ public class JitterHandler {
         final Point targetPoint = targetPose.getPoint();
         final Quaternion targetQuat = targetPose.getQuaternion();
 
+        isRunning = true;
+
         // Define the monitoring task
         Runnable monitorTask = new Runnable() {
             @Override
             public void run() {
-                if (Thread.currentThread().isInterrupted()) return;
+                if (!isRunning) return;
                 if (navigator.isMoving()) return;
+                if (Thread.currentThread().isInterrupted()) return;
 
                 Kinematics kinematics = api.getRobotKinematics();
                 Point currentPoint = kinematics.getPosition();
@@ -79,26 +83,27 @@ public class JitterHandler {
                 double angleDeg = Math.toDegrees(angleRad);
 
                 // Thresholds
-                double MIN_DIST = 0.15; // 0.15 m
+                double MIN_DIST = 0.10; // 0.10 m
                 double MIN_ANGLE = 20; // 20 degrees
 
                 // Recover to the target pose
                 if (dist > MIN_DIST || angleDeg > MIN_ANGLE) {
                     Log.w(TAG, String.format("Jitter detected! Dist: %.3f m, Angle: %.1f deg. Correcting...", dist, angleDeg));
 
-                    // Only correct if not already moving (Navigator handles this check internally too, but good to check here)
-                    if (!navigator.isMoving()) {
-                        navigator.moveTo(targetPose);
-                    }
+                    if (!isRunning) return;
+                    if (navigator.isMoving()) return;
+                    if (Thread.currentThread().isInterrupted()) return;
+
+                    navigator.moveTo(targetPose);
                 }
             }
         };
 
         if (scheduler == null || scheduler.isShutdown()) {
-            scheduler = Executors.newScheduledThreadPool(1);
+            scheduler = Executors.newSingleThreadScheduledExecutor();
         }
 
-        scheduler.scheduleAtFixedRate(
+        scheduler.scheduleWithFixedDelay(
             monitorTask,
             0, // initial delay
             monitorIntervalMs,
@@ -109,17 +114,25 @@ public class JitterHandler {
     }
 
     public void stop() {
-        if (scheduler != null) {
-            try {
-                scheduler.shutdown();
-                if (!scheduler.awaitTermination(500, TimeUnit.MILLISECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
+        isRunning = false;
+
+        if (scheduler == null || scheduler.isShutdown()) {
+            Log.i(TAG, "Jitter handler is not running.");
+            return;
+        }
+
+        try {
+            scheduler.shutdown();
+            if (!scheduler.awaitTermination(10000, TimeUnit.MILLISECONDS)) {
+                Log.w(TAG, "Jitter handler did not terminate in time, forcing shutdown.");
                 scheduler.shutdownNow();
             }
-            scheduler = null;
+        } catch (InterruptedException e) {
+            Log.e(TAG, "Interrupted while waiting for JitterHandler to stop.");
+            scheduler.shutdownNow();
         }
+        scheduler = null;
+
         Log.i(TAG, "Jitter handler stopped.");
     }
 }
