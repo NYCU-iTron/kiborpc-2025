@@ -277,10 +277,12 @@ public class MainControl {
             areaItems = visionHandler.guessResult(areaId);
             treasureItem = areaItems.get(0);
         }
+        treasureItem = itemManager.getTreasureInfo(treasureItem);
 
-        Log.i(TAG, "Treasure Item is " + treasureItem.getItemName());
+        // Notify recognition
         api.notifyRecognitionItem();
 
+        // Stop jitter handler
         jitterHandler.stop();
 
         return treasureItem;

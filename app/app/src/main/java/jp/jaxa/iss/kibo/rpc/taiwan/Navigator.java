@@ -165,11 +165,20 @@ public class Navigator {
 
                 // Check result
                 if (result == null) {
-                    Log.e(TAG, "moveTo returned null.");
+                    Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost), stopping.");
+                    break;
                 } else if (result.hasSucceeded()) {
                     break;
                 } else {
                     Log.w(TAG, "moveTo failed because " + result.getMessage());
+
+                    // Wait before retrying
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        Log.w(TAG, "Interrupted during retry sleep.");
+                        break;
+                    }
                 }
             }
             return result;
@@ -247,6 +256,8 @@ public class Navigator {
 
         Pose treasurePose = treasureItem.getItemPose();
         Point treasurePoint = treasurePose.getPoint();
+
+        Log.i(TAG, "Navigating to treasure " + treasureItem.getItemName() + " in area " + areaId + " at position " + treasurePoint.toString());
 
         Point finalPoint = null;
         Quaternion finalQuaternion = null;
@@ -338,7 +349,6 @@ public class Navigator {
         }
 
         // Set target pose
-        Log.i(TAG, "Target pose set, ready to move to treasure at area " + areaId);
         Pose targetPose = new Pose(finalPoint, finalQuaternion);
         Result result = moveTo(targetPose);
 

@@ -22,7 +22,7 @@ public class JitterHandler {
     private final KiboRpcApi api;
     private final Navigator navigator;
     private ScheduledExecutorService scheduler;
-    private long monitorIntervalMs = 500;
+    private long monitorIntervalMs = 1000;
 
     /**
      * Constructor
@@ -52,10 +52,11 @@ public class JitterHandler {
             @Override
             public void run() {
                 if (Thread.currentThread().isInterrupted()) return;
+                if (navigator.isMoving()) return;
 
-                Pose currentPose = navigator.getCurrentPose();
-                Point currentPoint = currentPose.getPoint();
-                Quaternion currentQuat = currentPose.getQuaternion();
+                Kinematics kinematics = api.getRobotKinematics();
+                Point currentPoint = kinematics.getPosition();
+                Quaternion currentQuat = kinematics.getOrientation();
 
                 // Calculate distance deviation
                 double dist = Math.sqrt(
@@ -78,8 +79,8 @@ public class JitterHandler {
                 double angleDeg = Math.toDegrees(angleRad);
 
                 // Thresholds
-                double MIN_DIST = 0.05; // 0.05 m
-                double MIN_ANGLE = 7.5; // 7.5 degrees
+                double MIN_DIST = 0.15; // 0.15 m
+                double MIN_ANGLE = 20; // 20 degrees
 
                 // Recover to the target pose
                 if (dist > MIN_DIST || angleDeg > MIN_ANGLE) {
