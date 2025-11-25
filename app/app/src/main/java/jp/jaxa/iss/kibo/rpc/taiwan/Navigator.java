@@ -163,22 +163,30 @@ public class Navigator {
                 Log.i(TAG, "moveTo attempt " + retry + " to " + pose.toString());
                 result = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
 
-                // Check result
-                if (result == null) {
-                    Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost), stopping.");
+                // Check for success
+                if (result != null && result.hasSucceeded()) {
                     break;
-                } else if (result.hasSucceeded()) {
-                    break;
-                } else {
-                    Log.w(TAG, "moveTo failed because " + result.getMessage());
+                }
 
-                    // Wait before retrying
-                    try {
-                        Thread.sleep(200);
-                    } catch (InterruptedException e) {
-                        Log.w(TAG, "Interrupted during retry sleep.");
-                        break;
-                    }
+                // Log failure reason
+                if (result == null) {
+                    Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost).");
+                } else {
+                    Log.w(TAG, "moveTo failed: " + result.getMessage());
+                }
+
+                // Check for thread interruption
+                if (Thread.currentThread().isInterrupted()) {
+                    Log.w(TAG, "moveTo interrupted, stopping retry.");
+                    break;
+                }
+
+                // Wait before retrying
+                try {
+                    Thread.sleep(200);
+                } catch (InterruptedException e) {
+                    Log.w(TAG, "Interrupted during retry sleep.");
+                    break;
                 }
             }
             return result;
