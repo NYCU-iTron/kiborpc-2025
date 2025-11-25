@@ -64,6 +64,11 @@ public class Navigator {
         return isMoving;
     }
 
+    private volatile Pose targetPose = null;
+    public Pose getTargetPose() {
+        return targetPose;
+    }
+
     /**
      * Constructor
      *
@@ -132,29 +137,39 @@ public class Navigator {
     /**
      * Move the robot to target pose.
      *
-     * @param targetPose
+     * @param pose
      * @return The result of the last move command.
      */
-    public synchronized Result moveTo(Pose targetPose) {
-        if (isMoving) {
-            Log.w(TAG, "Reject moveTo: robot is already moving.");
-            return null;
+    public Result moveTo(Pose pose) {
+        // Check if already moving
+        synchronized (this) {
+            if (isMoving) {
+                Log.w(TAG, "moveTo rejected, robot is already moving.");
+                return null;
+            }
+            isMoving = true;
         }
 
-        isMoving = true;
         Result result = null;
+        int retryMax = 10;
         try {
-            int retryMax = 10;
             for (int retry = 1; retry <= retryMax; retry++) {
-                Log.i(TAG, "Moving to targetPose " + targetPose.toString() + " (retry " + retry + ")");
-                result = api.moveTo(targetPose.getPoint(), targetPose.getQuaternion(), false);
+                // Check for thread interruption
+                if (Thread.currentThread().isInterrupted()) {
+                    Log.w(TAG, "moveTo interrupted, stopping retry.");
+                    break;
+                }
 
+                Log.i(TAG, "moveTo attempt " + retry + " to " + pose.toString());
+                result = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
+
+                // Check result
                 if (result == null) {
                     Log.e(TAG, "moveTo returned null.");
                 } else if (result.hasSucceeded()) {
                     break;
                 } else {
-                    Log.w(TAG, "Failed to move to " + targetPose.toString() + " because " + result.getMessage());
+                    Log.w(TAG, "moveTo failed because " + result.getMessage());
                 }
             }
             return result;
@@ -182,13 +197,8 @@ public class Navigator {
      * visionHandler.inspectArea();
      * @endcode
      */
-    public synchronized Result navigateToArea(int areaId) {
-        if (isMoving) {
-            Log.w(TAG, "Reject navigateToArea: robot is already moving.");
-            return null;
-        }
-
-        Pose targetPose = areaPoses.get(areaId);
+    public Result navigateToArea(int areaId) {
+        targetPose = areaPoses.get(areaId);
 
         if (targetPose == null) {
             Log.w(TAG, "Unknown area Id: " + areaId + ", navigation aborted.");
@@ -201,13 +211,13 @@ public class Navigator {
         int stableTime = 0;
         switch (areaId) {
         case 0:
-            stableTime = 1200;
+            stableTime = 1000;
             break;
         case 1:
             stableTime = 1000;
             break;
         case 4:
-            stableTime = 2000;
+            stableTime = 1500;
             break;
         case 5:
             stableTime = 2400;
@@ -232,7 +242,7 @@ public class Navigator {
      *
      * @return The result of the last move command.
      */
-    public synchronized Result navigateToTreasure(Item treasureItem) {
+    public Result navigateToTreasure(Item treasureItem) {
         int areaId = treasureItem.getAreaId();
 
         Pose treasurePose = treasureItem.getItemPose();
@@ -327,13 +337,11 @@ public class Navigator {
             break;
         }
 
-        // Set the final Pose
-        Pose finalPose = new Pose(finalPoint, finalQuaternion);
-        Log.i(TAG, "I'm goint to " + finalPose.toString());
+        // Set target pose
+        Log.i(TAG, "Target pose set, ready to move to treasure at area " + areaId);
+        Pose targetPose = new Pose(finalPoint, finalQuaternion);
+        Result result = moveTo(targetPose);
 
-        Result result = moveTo(finalPose);
-
-        Log.i(TAG, "Move to find the treasure.");
         return result;
     }
 

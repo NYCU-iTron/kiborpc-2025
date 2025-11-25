@@ -246,17 +246,15 @@ public class MainControl {
     private Item meetAstronaut() {
         int areaId = 0;
 
-        // See the real treasure
+        // Meet astronaut
         navigator.navigateToArea(areaId);
+        jitterHandler.start();
         api.reportRoundingCompletion();
 
         // Recognize the treasure
         List<Item> areaItems = null;
         Item treasureItem = null;
-
-        jitterHandler.start(areaId);
-
-        int retryMax = 20;
+        int retryMax = 40;
         for (int retry = 1; retry <= retryMax; retry++) {
             areaItems = visionHandler.inspectArea(areaId);
 
@@ -274,20 +272,16 @@ public class MainControl {
             }
         }
 
-        jitterHandler.stop();
-
         if (treasureItem == null) {
             Log.w(TAG, "No treasure found, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
             treasureItem = areaItems.get(0);
         }
 
-        Log.i(TAG, "Treasure recognized: " + treasureItem.getItemName());
+        Log.i(TAG, "Treasure Item is " + treasureItem.getItemName());
         api.notifyRecognitionItem();
 
-        // Find the area of the treasure and the treasure item
-        treasureItem = itemManager.getTreasureInfo(treasureItem);
-        Log.i(TAG, "Treasure area: " + treasureItem.getAreaId());
+        jitterHandler.stop();
 
         return treasureItem;
     }
@@ -296,9 +290,31 @@ public class MainControl {
      * @brief Third part of the mission to find and capture treasure.
      */
     private void findAndCaptureTreasure(Item treasureItem) {
+        // Wait until the previous movement is finished
+        int maxWaitTimeMs = 10000;
+        int checkIntervalMs = 200;
+        int maxWaitCount = maxWaitTimeMs / checkIntervalMs;
+        while (navigator.isMoving() && maxWaitCount-- > 0) {
+            Log.i(TAG, "Waiting for previous movement to finish.");
+            try {
+                Thread.sleep(checkIntervalMs);
+            } catch (InterruptedException e) {
+                Log.e(TAG, "Fail to sleep thread: " + e);
+                return;
+            }
+        }
+
+        // Warn if previous movement not finished in time
+        if (navigator.isMoving()) {
+            Log.w(TAG, "Previous movement not finished in time, later movement may fail.");
+        }
+
+        // Navigate to the treasure
+        Log.i(TAG, "Navigating to the treasure.");
         navigator.navigateToTreasure(treasureItem);
-        Log.i(TAG, "Navigating to treasure " + treasureItem.getItemName() + " at " + treasureItem.getAreaId());
+
         // Capture the treasure image
+        Log.i(TAG, "Capturing the treasure image.");
         visionHandler.captureTreasureImage();
     }
 
