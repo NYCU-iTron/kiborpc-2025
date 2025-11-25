@@ -292,25 +292,6 @@ public class MainControl {
      * @brief Third part of the mission to find and capture treasure.
      */
     private void findAndCaptureTreasure(Item treasureItem) {
-        // Wait until the previous movement is finished
-        int maxWaitTimeMs = 10000;
-        int checkIntervalMs = 200;
-        int maxWaitCount = maxWaitTimeMs / checkIntervalMs;
-        while (navigator.isMoving() && maxWaitCount-- > 0) {
-            Log.i(TAG, "Waiting for previous movement to finish.");
-            try {
-                Thread.sleep(checkIntervalMs);
-            } catch (InterruptedException e) {
-                Log.e(TAG, "Fail to sleep thread: " + e);
-                return;
-            }
-        }
-
-        // Warn if previous movement not finished in time
-        if (navigator.isMoving()) {
-            Log.w(TAG, "Previous movement not finished in time, later movement may fail.");
-        }
-
         // Navigate to the treasure
         Log.i(TAG, "Navigating to the treasure.");
         navigator.navigateToTreasure(treasureItem);
