@@ -1,5 +1,6 @@
 docker/tmp/*
 venv/
+.venv/
 assets/dataset/
 assets/item_template_images/
 docs/doxygen/
@@ -7,3 +8,6 @@ assets/test*
 __pycache__/
 vm/dataset/
 *.egg-info/
+build/
+uv.lock
+runs/
