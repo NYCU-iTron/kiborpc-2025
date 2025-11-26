@@ -23,8 +23,8 @@ public class JitterHandler {
     private final Navigator navigator;
     private ScheduledExecutorService scheduler;
 
-    private long monitorIntervalMs = 800; // milliseconds
-    private final double minDist = 0.08; // meters
+    private long monitorIntervalMs = 1000; // milliseconds
+    private final double minDist = 0.10; // meters
     private final double minAngle = 20; // degrees
 
     private volatile boolean isRunning = false;
