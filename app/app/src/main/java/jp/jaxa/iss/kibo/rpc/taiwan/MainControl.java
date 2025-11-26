@@ -224,7 +224,6 @@ public class MainControl {
             }
 
             Log.w(TAG, "Exploration not completed, pause system for a short time then retry.");
-
             try {
                 Thread.sleep(200);
             } catch (Exception e) {
@@ -258,25 +257,28 @@ public class MainControl {
         for (int retry = 1; retry <= retryMax; retry++) {
             areaItems = visionHandler.inspectArea(areaId);
 
+            // Check if treasure found
             if (containsTreasure(areaItems)) {
                 treasureItem = areaItems.get(0);
                 break;
-            } else {
-                Log.w(TAG, "No treasure found, pause system for a short time then retry.");
+            }
 
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "Fail to sleep thread" + e);
-                }
+            Log.w(TAG, "No treasure found, pause system for a short time then retry.");
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Log.w(TAG, "Fail to sleep thread" + e);
             }
         }
 
+        // Guess the result if no valid result
         if (treasureItem == null) {
             Log.w(TAG, "No treasure found, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
             treasureItem = areaItems.get(0);
         }
+
+        // Match treasure info with stored data
         treasureItem = itemManager.getTreasureInfo(treasureItem);
 
         // Notify recognition
