@@ -22,7 +22,11 @@ public class JitterHandler {
     private final KiboRpcApi api;
     private final Navigator navigator;
     private ScheduledExecutorService scheduler;
-    private long monitorIntervalMs = 1000;
+
+    private long monitorIntervalMs = 800; // milliseconds
+    private final double minDist = 0.08; // meters
+    private final double minAngle = 20; // degrees
+
     private volatile boolean isRunning = false;
 
     /**
@@ -39,6 +43,7 @@ public class JitterHandler {
     }
 
     public void start() {
+        // Get the target pose to monitor
         final Pose targetPose = navigator.getTargetPose();
         if (targetPose == null) {
             Log.w(TAG, "Jitter handler start failed: target pose is null.");
@@ -58,6 +63,7 @@ public class JitterHandler {
                 if (navigator.isMoving()) return;
                 if (Thread.currentThread().isInterrupted()) return;
 
+                // Get current robot kinematics
                 Kinematics kinematics = api.getRobotKinematics();
                 Point currentPoint = kinematics.getPosition();
                 Quaternion currentQuat = kinematics.getOrientation();
@@ -77,18 +83,15 @@ public class JitterHandler {
                     currentQuat.getZ() * targetQuat.getZ() +
                     currentQuat.getW() * targetQuat.getW()
                 );
+
                 // Clamp dot product to [-1, 1] to avoid NaN
                 if (dot > 1.0) dot = 1.0;
-                double angleRad = 2.0 * Math.acos(dot);
-                double angleDeg = Math.toDegrees(angleRad);
-
-                // Thresholds
-                double MIN_DIST = 0.10; // 0.10 m
-                double MIN_ANGLE = 20; // 20 degrees
+                double angle = 2.0 * Math.acos(dot);
+                angle = Math.toDegrees(angle);
 
                 // Recover to the target pose
-                if (dist > MIN_DIST || angleDeg > MIN_ANGLE) {
-                    Log.w(TAG, String.format("Jitter detected! Dist: %.3f m, Angle: %.1f deg. Correcting...", dist, angleDeg));
+                if (dist > minDist || angle > minAngle) {
+                    Log.w(TAG, String.format("Jitter detected! Dist: %.3f m, Angle: %.1f deg. Correcting...", dist, angle));
 
                     if (!isRunning) return;
                     if (navigator.isMoving()) return;
@@ -99,10 +102,12 @@ public class JitterHandler {
             }
         };
 
+        // Initialize the scheduler
         if (scheduler == null || scheduler.isShutdown()) {
             scheduler = Executors.newSingleThreadScheduledExecutor();
         }
 
+        // Schedule the monitoring task at fixed delay after previous task completion
         scheduler.scheduleWithFixedDelay(
             monitorTask,
             0, // initial delay
@@ -115,7 +120,6 @@ public class JitterHandler {
 
     public void stop() {
         isRunning = false;
-
         if (scheduler == null || scheduler.isShutdown()) {
             Log.i(TAG, "Jitter handler is not running.");
             return;
@@ -123,6 +127,8 @@ public class JitterHandler {
 
         try {
             scheduler.shutdown();
+
+            // Wait for existing tasks to terminate
             if (!scheduler.awaitTermination(10000, TimeUnit.MILLISECONDS)) {
                 Log.w(TAG, "Jitter handler did not terminate in time, forcing shutdown.");
                 scheduler.shutdownNow();
@@ -131,6 +137,8 @@ public class JitterHandler {
             Log.e(TAG, "Interrupted while waiting for JitterHandler to stop.");
             scheduler.shutdownNow();
         }
+
+        // Clear the scheduler reference
         scheduler = null;
 
         Log.i(TAG, "Jitter handler stopped.");
