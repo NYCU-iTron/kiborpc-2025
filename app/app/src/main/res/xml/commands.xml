@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <apkInfo>
-    <shortName>SampleAPK</shortName> <!-- Optional -->
+    <shortName>taiwan</shortName> <!-- Optional -->
     <primary>true</primary> <!-- Required -->
     <commands>
         <command

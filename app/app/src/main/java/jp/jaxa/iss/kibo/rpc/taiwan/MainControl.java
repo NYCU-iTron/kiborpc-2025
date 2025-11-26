@@ -1,4 +1,4 @@
-package jp.jaxa.iss.kibo.rpc.sampleapk;
+package jp.jaxa.iss.kibo.rpc.taiwan;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcApi;
 
@@ -14,10 +14,10 @@ import android.content.Context;
 
 /**
  * @brief MainControl class for planning the mission.
- * 
+ *
  * @param context Context reference.
  * @param api API reference.
- * 
+ *
  * Example of using the MainControl class:
  * @code
  * MainControl mainControl = new MainControl(getApplicationContext(), api);
@@ -32,6 +32,7 @@ public class MainControl {
     private Navigator navigator;
     private VisionHandler visionHandler;
     private ItemManager itemManager;
+    private JitterHandler jitterHandler;
 
     public MainControl(Context context, KiboRpcApi api) {
         this.context = context;
@@ -39,16 +40,17 @@ public class MainControl {
         this.navigator = new Navigator(api);
         this.visionHandler = new VisionHandler(context, api);
         this.itemManager = new ItemManager(api);
+        this.jitterHandler = new JitterHandler(api, navigator);
     }
 
     /**
      * @brief Main method to control the mission.
-     * 
+     *
      * This method is called when the mission starts.
      * It will call other methods to explore all areas, meet astronauts, and find treasures.
-     * 
+     *
      * @note This method is intended to be called once with no following code.
-     * 
+     *
      * @todo maybe a more optimal pose can be used to take the picture of the treasure?
      */
     public void method1() {
@@ -66,7 +68,7 @@ public class MainControl {
     public void method2() {
         long startTime = System.currentTimeMillis();
         String time0 =  getElapsedTimeString(startTime);
-        
+
         api.startMission();
 
         // Explore Area 1
@@ -135,14 +137,14 @@ public class MainControl {
         }
 
         // Set treasure item
-        Item treasureItem = areaItems.get(0); 
+        Item treasureItem = areaItems.get(0);
         if (treasureItem.getItemId() / 10 == 1) {
             itemManager.storeTreasureInfo(treasureItem);
             Log.i(TAG, "Area " + areaId + ": Found treasure " + treasureItem.getItemName());
         } else {
             Log.w(TAG, "Area " + areaId + ": No treasure.");
         }
-        
+
         // Set landmark item
         Item landmarkItem = areaItems.get(1);
         if (landmarkItem.getItemId() / 10 == 2) {
@@ -159,21 +161,21 @@ public class MainControl {
         visionHandler.getCurrentPose(navigator.getCurrentPose());
         List<Item> area2Items = null;
         List<Item> area3Items = null;
-        
+
         boolean success2 = false;
         boolean success3 = false;
 
         int retryMax = 5;
         for (int retry = 1; retry <= retryMax; retry++) {
             Log.i(TAG, "Exploring area 2 and 3 together (try " + retry + ")");
-            
+
             if (success2 == true && success3 == true) break;
 
             if(success2 == false)
                 area2Items = visionHandler.inspectArea(2);
             if(success3 == false)
                 area3Items = visionHandler.inspectArea(3);
-            
+
             // Check area 2 items
             if (success2 == false && containsLandmark(area2Items)) {
                 // Treasure Item
@@ -184,7 +186,7 @@ public class MainControl {
                 } else {
                     Log.w(TAG, "Area 2: No treasure.");
                 }
-                
+
                 // Landmark Item
                 Item landmarkItem = area2Items.get(1);
                 if (landmarkItem.getItemId() / 10 == 2) {
@@ -200,14 +202,14 @@ public class MainControl {
             // Check area 3 items
             if (success3 == false && containsLandmark(area3Items)) {
                 // Treasure Item
-                Item treasureItem = area3Items.get(0); 
+                Item treasureItem = area3Items.get(0);
                 if (treasureItem.getItemId() / 10 == 1) {
                     itemManager.storeTreasureInfo(treasureItem);
                     Log.i(TAG, "Area 3: Found treasure " + treasureItem.getItemName());
                 } else {
                     Log.w(TAG, "Area 3: No treasure.");
                 }
-                
+
                 // Landmark Item
                 Item landmarkItem = area3Items.get(1);
                 if (landmarkItem.getItemId() / 10 == 2) {
@@ -218,7 +220,7 @@ public class MainControl {
                     Log.w(TAG, "Area 3: No landmark.");
                 }
 
-                success3 = true;               
+                success3 = true;
             }
 
             Log.w(TAG, "Exploration not completed, pause system for a short time then retry.");
@@ -244,15 +246,15 @@ public class MainControl {
     private Item meetAstronaut() {
         int areaId = 0;
 
-        // See the real treasure
+        // Meet astronaut
         navigator.navigateToArea(areaId);
+        jitterHandler.start();
         api.reportRoundingCompletion();
-        
+
         // Recognize the treasure
         List<Item> areaItems = null;
         Item treasureItem = null;
-
-        int retryMax = 20;
+        int retryMax = 40;
         for (int retry = 1; retry <= retryMax; retry++) {
             areaItems = visionHandler.inspectArea(areaId);
 
@@ -261,7 +263,7 @@ public class MainControl {
                 break;
             } else {
                 Log.w(TAG, "No treasure found, pause system for a short time then retry.");
-                    
+
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
@@ -275,13 +277,13 @@ public class MainControl {
             areaItems = visionHandler.guessResult(areaId);
             treasureItem = areaItems.get(0);
         }
+        treasureItem = itemManager.getTreasureInfo(treasureItem);
 
-        Log.i(TAG, "Treasure recognized: " + treasureItem.getItemName());
+        // Notify recognition
         api.notifyRecognitionItem();
 
-        // Find the area of the treasure and the treasure item
-        treasureItem = itemManager.getTreasureInfo(treasureItem);
-        Log.i(TAG, "Treasure area: " + treasureItem.getAreaId());
+        // Stop jitter handler
+        jitterHandler.stop();
 
         return treasureItem;
     }
@@ -290,9 +292,12 @@ public class MainControl {
      * @brief Third part of the mission to find and capture treasure.
      */
     private void findAndCaptureTreasure(Item treasureItem) {
+        // Navigate to the treasure
+        Log.i(TAG, "Navigating to the treasure.");
         navigator.navigateToTreasure(treasureItem);
-        Log.i(TAG, "Navigating to treasure " + treasureItem.getItemName() + " at " + treasureItem.getAreaId());
+
         // Capture the treasure image
+        Log.i(TAG, "Capturing the treasure image.");
         visionHandler.captureTreasureImage();
     }
 

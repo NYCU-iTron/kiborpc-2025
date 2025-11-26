@@ -1,4 +1,4 @@
-package jp.jaxa.iss.kibo.rpc.sampleapk;
+package jp.jaxa.iss.kibo.rpc.taiwan;
 
 import gov.nasa.arc.astrobee.types.Point;
 import gov.nasa.arc.astrobee.types.Quaternion;

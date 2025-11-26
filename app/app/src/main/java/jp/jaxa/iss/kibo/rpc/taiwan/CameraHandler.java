@@ -1,4 +1,4 @@
-package jp.jaxa.iss.kibo.rpc.sampleapk;
+package jp.jaxa.iss.kibo.rpc.taiwan;
 
 import jp.jaxa.iss.kibo.rpc.api.KiboRpcApi;
 
@@ -20,40 +20,39 @@ public class CameraHandler {
 
   /**
    * Constructor
-   * 
+   *
    * @param apiRef API reference.
    */
   public CameraHandler(KiboRpcApi apiRef) {
     this.api = apiRef;
     cameraMatrix = getCameraMatrix();
     distortionCoefficients = getDistortionCoefficients();
-    
+
     Log.i(TAG, "Initialized");
   }
 
   public Mat captureImage(int areaId) {
     switch (areaId) {
       case 1:
-        api.flashlightControlFront(0.15f);
+        api.flashlightControlFront(0.0f);
         break;
       case 2:
-        api.flashlightControlFront(0.3f);
+        api.flashlightControlFront(0.0f);
         break;
       case 3:
-        api.flashlightControlFront(0.3f);
+        api.flashlightControlFront(0.0f);
         break;
       case 4:
-        api.flashlightControlFront(0.35f);
+        api.flashlightControlFront(0.0f);
         break;
       case 5:
-        api.flashlightControlFront(0.3f);
+        api.flashlightControlFront(0.0f);
         break;
       default:
-        api.flashlightControlFront(0.01f);
+        api.flashlightControlFront(0.0f);
         break;
     }
 
-    // api.flashlightControlFront(0.35f);
     Mat image = api.getMatNavCam();
     api.flashlightControlFront(0.00f);
     return image;

@@ -1,25 +1,19 @@
-set-peoject-id:
-	gcloud config set project dd2424-project-459820
-
-connect:
-	gcloud compute ssh --zone "us-west4-b" "deeplearning-1-vm" --project "dd2424-project-459820"
-	# gcloud compute ssh --zone "us-central1-c" "kibo-v100-vm" --project "dd2424-project-459820"
-
 install:
-	python -m pip install -r $(CURDIR)/requirements.txt
+	uv sync
 
-gen:
-	python $(CURDIR)/gen-data.py
-	python $(CURDIR)/train.py
-
-sync-to-vm:
-	gcloud compute scp --recurse  $(CURDIR)/train.py alfonso@deeplearning-1-vm:/home/alfonso/vm/
-
-download-pt:
-	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/runs/detect/train/weights/best.pt $(CURDIR)/
-
-download-all:
-	gcloud compute scp alfonso@deeplearning-1-vm:/home/alfonso/vm/runs/detect/ $(CURDIR)/ --recurse
+run:
+	uv run scripts/generate_dataset.py
+	uv run scripts/train_model.py
 
 attach-tmux:
 	tmux attach -t 0
+
+rsync:
+	rsync -avz --progress --exclude-from='rsync_exclude.txt' \
+		-e "ssh -i ~/.ssh/kthcloud -p 20055" \
+		./ root@vm.cloud.cbh.kth.se:~/vm/
+
+pull-runs:
+	rsync -avz --progress \
+		-e "ssh -i ~/.ssh/kthcloud -p 20055" \
+		root@vm.cloud.cbh.kth.se:~/vm/runs .

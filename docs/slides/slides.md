@@ -36,6 +36,7 @@ K34-iTron
 1. Code Structure
 2. Image Pipeline
 3. Challenges & Solutions
+4. Simulation Result
 
 ---
 
@@ -78,7 +79,7 @@ K34-iTron
 
 <style scoped>
   table{
-    font-size:30px;
+    font-size:26px;
     text-align: left;
   }
 </style>
@@ -88,12 +89,17 @@ K34-iTron
 | --- | --- |
 | Programming Mannual has no detail about class `KiboRpcService` | Decompile code using android studio |
 | Fail simulation doesn't provide log | Test and record reasons of failure for future reference |
-| Training is slow on laptop | Ask Professor for a GPU instance on Google Cloud Platform |
+| Training is slow on laptop | Use remote GPU and transfer the image format to webp to decrease the dataset size |
+| Confuse `fossil` with `coin` on initial model | Add multiple dataset generation strategies |
 
 <!-- Append and adjust font size if there is more -->
 
 ---
 
-## Thank You for Listening!
+## Simulation Result
 
-![bg right 90%](./average-score-version-plot.png)
+![h:500](./average-score-version-plot.png)
+
+---
+
+## Thank you for listening!
