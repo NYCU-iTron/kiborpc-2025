@@ -31,7 +31,7 @@ public class Navigator {
         areaPoses.put(3, new Pose(new Point(10.925, -7.925, 4.462), new Quaternion(0.5f, 0.5f, -0.5f, 0.5f)));            // Area 3
         areaPoses.put(4, new Pose(new Point(11.15, -6.76, 4.935), new Quaternion(0.0f, -1.0f, 0.0f, 0.0f)));              // Area 4
         areaPoses.put(5, new Pose(new Point(10.925, -8.35, 5.0), new Quaternion(0.0f, 0.707f, 0.0f, 0.707f)));            // Combined Area 2 3
-        areaPoses.put(0, new Pose(new Point(11.25, -6.76, 4.935), new Quaternion(0.633f, 0.754f, -0.133f, 0.112f)));      // Report
+        areaPoses.put(0, new Pose(new Point(11.20, -6.76, 4.935), new Quaternion(0.633f, 0.754f, -0.133f, 0.112f)));      // Report
     }
 
     // Safety factors
