@@ -141,17 +141,36 @@ public class Navigator {
      * @return The result of the last move command.
      */
     public Result moveTo(Pose pose) {
-        // Check if already moving
+        // Resource locking to prevent concurrent move commands
         synchronized (this) {
-            if (isMoving) {
-                Log.w(TAG, "moveTo rejected, robot is already moving.");
-                return null;
+            long startTime = System.currentTimeMillis();
+            long timeoutMs = 20000; // 20 seconds timeout
+
+            while (isMoving) {
+                Log.w(TAG, "Robot is busy (isMoving), waiting for lock...");
+
+                if (System.currentTimeMillis() - startTime > timeoutMs) {
+                    Log.e(TAG, "Wait for robot lock timed out!");
+                    return null;
+                }
+
+                try {
+                    // Wait for 1 second before rechecking
+                    // will be waken up when notifyAll() is called in the finally block of moveTo
+                    this.wait(1000);
+                } catch (InterruptedException e) {
+                    Log.w(TAG, "Interrupted while waiting for lock.");
+                    Thread.currentThread().interrupt();
+                    return null;
+                }
             }
+
             isMoving = true;
         }
 
+        // Start move command with retry mechanism
         Result result = null;
-        int retryMax = 10;
+        int retryMax = 5;
         try {
             for (int retry = 1; retry <= retryMax; retry++) {
                 // Check for thread interruption
@@ -165,12 +184,13 @@ public class Navigator {
 
                 // Check for success
                 if (result != null && result.hasSucceeded()) {
-                    break;
+                    return result;
                 }
 
                 // Log failure reason
                 if (result == null) {
                     Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost).");
+                    break;
                 } else {
                     Log.w(TAG, "moveTo failed: " + result.getMessage());
                 }
@@ -182,17 +202,26 @@ public class Navigator {
                 }
 
                 // Wait before retrying
+                if (retry == retryMax) {
+                    Log.e(TAG, "Reached maximum retry attempts for moveTo.");
+                    break;
+                }
+
                 try {
-                    Thread.sleep(200);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
-                    Log.w(TAG, "Interrupted during retry sleep.");
+                    Log.w(TAG, "Sleep interrupted: " + e.getMessage());
+                    Thread.currentThread().interrupt();
                     break;
                 }
             }
             return result;
 
         } finally {
-            isMoving = false;
+            synchronized (this) {
+                isMoving = false;
+                this.notifyAll();
+            }
         }
     }
 
@@ -248,7 +277,8 @@ public class Navigator {
         try{
             Thread.sleep(stableTime);
         } catch (InterruptedException e) {
-            Log.w(TAG, "Fail to sleep thread" + e);
+            Log.w(TAG, "Sleep interrupted: " + e.getMessage());
+            Thread.currentThread().interrupt();
         }
 
         return result;
@@ -358,6 +388,8 @@ public class Navigator {
 
         // Set target pose
         Pose targetPose = new Pose(finalPoint, finalQuaternion);
+
+        // Move to the target pose
         Result result = moveTo(targetPose);
 
         return result;
