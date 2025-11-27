@@ -247,7 +247,6 @@ public class MainControl {
 
         // Meet astronaut
         navigator.navigateToArea(areaId);
-        jitterHandler.start();
         api.reportRoundingCompletion();
 
         // Recognize the treasure
@@ -255,6 +254,10 @@ public class MainControl {
         Item treasureItem = null;
         int retryMax = 40;
         for (int retry = 1; retry <= retryMax; retry++) {
+            // Check and recover from jitter
+            jitterHandler.checkAndRecover();
+
+            // Inspect area
             areaItems = visionHandler.inspectArea(areaId);
 
             // Check if treasure found
@@ -283,9 +286,6 @@ public class MainControl {
 
         // Notify recognition
         api.notifyRecognitionItem();
-
-        // Stop jitter handler
-        jitterHandler.stop();
 
         return treasureItem;
     }

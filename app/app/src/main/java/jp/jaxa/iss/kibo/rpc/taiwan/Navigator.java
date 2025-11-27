@@ -59,11 +59,6 @@ public class Navigator {
     private static final double area4MaxZ = 5.57;
     private static final double area4MinZ = 4.32;
 
-    private volatile boolean isMoving = false;
-    public boolean isMoving() {
-        return isMoving;
-    }
-
     private volatile Pose targetPose = null;
     public Pose getTargetPose() {
         return targetPose;
@@ -141,88 +136,40 @@ public class Navigator {
      * @return The result of the last move command.
      */
     public Result moveTo(Pose pose) {
-        // Resource locking to prevent concurrent move commands
-        synchronized (this) {
-            long startTime = System.currentTimeMillis();
-            long timeoutMs = 20000; // 20 seconds timeout
-
-            while (isMoving) {
-                Log.w(TAG, "Robot is busy (isMoving), waiting for lock...");
-
-                if (System.currentTimeMillis() - startTime > timeoutMs) {
-                    Log.e(TAG, "Wait for robot lock timed out!");
-                    return null;
-                }
-
-                try {
-                    // Wait for 1 second before rechecking
-                    // will be waken up when notifyAll() is called in the finally block of moveTo
-                    this.wait(1000);
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "Interrupted while waiting for lock.");
-                    Thread.currentThread().interrupt();
-                    return null;
-                }
-            }
-
-            isMoving = true;
-        }
-
-        // Start move command with retry mechanism
         Result result = null;
         int retryMax = 5;
-        try {
-            for (int retry = 1; retry <= retryMax; retry++) {
-                // Check for thread interruption
-                if (Thread.currentThread().isInterrupted()) {
-                    Log.w(TAG, "moveTo interrupted, stopping retry.");
-                    break;
-                }
+        for (int retry = 1; retry <= retryMax; retry++) {
+            Log.i(TAG, "moveTo attempt " + retry + " to " + pose.toString());
+            result = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
 
-                Log.i(TAG, "moveTo attempt " + retry + " to " + pose.toString());
-                result = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
-
-                // Check for success
-                if (result != null && result.hasSucceeded()) {
-                    return result;
-                }
-
-                // Log failure reason
-                if (result == null) {
-                    Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost).");
-                    break;
-                } else {
-                    Log.w(TAG, "moveTo failed: " + result.getMessage());
-                }
-
-                // Check for thread interruption
-                if (Thread.currentThread().isInterrupted()) {
-                    Log.w(TAG, "moveTo interrupted, stopping retry.");
-                    break;
-                }
-
-                // Wait before retrying
-                if (retry == retryMax) {
-                    Log.e(TAG, "Reached maximum retry attempts for moveTo.");
-                    break;
-                }
-
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "Sleep interrupted: " + e.getMessage());
-                    Thread.currentThread().interrupt();
-                    break;
-                }
+            // Check for success
+            if (result != null && result.hasSucceeded()) {
+                return result;
             }
-            return result;
 
-        } finally {
-            synchronized (this) {
-                isMoving = false;
-                this.notifyAll();
+            // Log failure reason
+            if (result == null) {
+                Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost).");
+                break;
+            } else {
+                Log.w(TAG, "moveTo failed: " + result.getMessage());
+            }
+
+            // Wait before retrying
+            if (retry == retryMax) {
+                Log.e(TAG, "Reached maximum retry attempts for moveTo.");
+                break;
+            }
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Log.w(TAG, "Sleep interrupted: " + e.getMessage());
+                Thread.currentThread().interrupt();
+                break;
             }
         }
+        return result;
     }
 
     /**
