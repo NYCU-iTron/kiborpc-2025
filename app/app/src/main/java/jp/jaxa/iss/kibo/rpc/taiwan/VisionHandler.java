@@ -102,8 +102,8 @@ public class VisionHandler {
         }
 
         // Check overexposure
-        if (isOverexposed(undistortedImage)) {
-            Log.w(TAG, "Undistorted image is overexposed.");
+        if (isOverexposed(clippedImage)) {
+            Log.w(TAG, "Clipped image is overexposed.");
             return new ArrayList<>();
         }
 
