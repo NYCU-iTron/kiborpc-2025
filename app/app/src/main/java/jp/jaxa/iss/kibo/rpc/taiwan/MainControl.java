@@ -109,19 +109,22 @@ public class MainControl {
 
     private void handleSingleArea(int areaId) {
         navigator.navigateToArea(areaId);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
         List<Item> areaItems = null;
 
-        int retryMax = 5;
+        int retryMax = 10;
         for (int retry = 1; retry <= retryMax; retry++) {
+            // Check and recover from jitter
+            jitterHandler.checkAndRecover();
+
             Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
+            visionHandler.getCurrentPose(navigator.getCurrentPose());
             areaItems = visionHandler.inspectArea(areaId);
 
             if (containsLandmark(areaItems)) break;
 
             Log.w(TAG, "No landmark found, pause system for a short time then retry.");
             try {
-                Thread.sleep(200);
+                Thread.sleep(500);
             } catch (Exception e) {
                 Log.w(TAG, "Fail to sleep thread" + e);
             }
@@ -158,16 +161,19 @@ public class MainControl {
 
     private void handleCombinedArea() {
         navigator.navigateToArea(5);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
         List<Item> area2Items = null;
         List<Item> area3Items = null;
 
         boolean success2 = false;
         boolean success3 = false;
 
-        int retryMax = 5;
+        int retryMax = 10;
         for (int retry = 1; retry <= retryMax; retry++) {
+            // Check and recover from jitter
+            jitterHandler.checkAndRecover();
+
             Log.i(TAG, "Exploring area 2 and 3 together (try " + retry + ")");
+            visionHandler.getCurrentPose(navigator.getCurrentPose());
 
             if (success2 == true && success3 == true) break;
 
@@ -225,7 +231,7 @@ public class MainControl {
 
             Log.w(TAG, "Exploration not completed, pause system for a short time then retry.");
             try {
-                Thread.sleep(200);
+                Thread.sleep(500);
             } catch (Exception e) {
                 Log.w(TAG, "Fail to sleep thread" + e);
             }
