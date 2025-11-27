@@ -129,7 +129,7 @@ public class JitterHandler {
             scheduler.shutdown();
 
             // Wait for existing tasks to terminate
-            if (!scheduler.awaitTermination(10000, TimeUnit.MILLISECONDS)) {
+            if (!scheduler.awaitTermination(30, TimeUnit.SECONDS)) {
                 Log.w(TAG, "Jitter handler did not terminate in time, forcing shutdown.");
                 scheduler.shutdownNow();
             }
