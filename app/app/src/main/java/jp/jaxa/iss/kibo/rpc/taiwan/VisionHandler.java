@@ -102,10 +102,10 @@ public class VisionHandler {
         }
 
         // Check overexposure
-        if (isOverexposed(clippedImage)) {
-            Log.w(TAG, "Clipped image is overexposed.");
-            return new ArrayList<>();
-        }
+        // if (isOverexposed(clippedImage)) {
+        //     Log.w(TAG, "Clipped image is overexposed.");
+        //     return new ArrayList<>();
+        // }
 
         api.saveMatImage(undistortedImage, String.format("area%d_undistorted.png", areaId));
         api.saveMatImage(clippedImage, String.format("area%d_clipped.png", areaId));
