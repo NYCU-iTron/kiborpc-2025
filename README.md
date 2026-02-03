@@ -45,19 +45,20 @@ A reproducible, competition-proven Astrobee autonomy system that pairs high-prec
 ```
 .
 ├─ app/                     # Android app sources
-│ └─ app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/
-│ ├─ CameraHandler.java     # camera capture + undistortion
-│ ├─ ARTagDetector.java     # ARTag detection + image clipping
-│ ├─ ItemDetector.java      # YOLOv11 wrapper + Image and Result Processing
-│ ├─ VisionHandler.java     # integrates Camera/ARTag/YOLO
-│ ├─ Navigator.java         # motion, planning, sensor handling
-│ ├─ ItemManager.java       # item state store
-│ └─ MainControl.java       # top-level state machine
-├─ assets/                  # screenshots, photos, sample data
-├─ docker/                  # dev container / compose files
-├─ docs/                    # slides, notes, progress, Doxygen cfg
-├─ python/                  # scripts or helpers
-├─ vm/                      # model artifacts / training/export
+│ └─ app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan
+│    ├─ CameraHandler.java     # camera capture + undistortion
+│    ├─ ARTagDetector.java     # ARTag detection + image clipping
+│    ├─ ItemDetector.java      # YOLOv11 wrapper + Image and Result Processing
+│    ├─ VisionHandler.java     # integrates Camera/ARTag/YOLO
+│    ├─ Navigator.java         # motion, planning, sensor handling
+│    ├─ ItemManager.java       # item state store
+|    ├─ JitterHandler.java     # handle gravity jitter events
+│    └─ MainControl.java       # top-level state machine
+├─ assets/                     # screenshots, photos, sample data
+├─ docker/                     # dev container / compose files
+├─ docs/                       # slides, notes, progress, Doxygen cfg
+├─ python/                     # scripts or helpers
+├─ vm/                         # model artifacts / training/export
 ├─ Makefile
 └─ README.md
 ```
