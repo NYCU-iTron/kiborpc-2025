@@ -125,21 +125,21 @@ Image pipeline:
 
 <img src="docs/slides/image-pipeline.svg" alt="Cover" width="75%">
 
-- [CameraHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/CameraHandler.java)
+- [CameraHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/CameraHandler.java)
   - Take pictures and process the image.
-- [ARTagDetector](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ARTagDetector.java)
+- [ARTagDetector](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/ARTagDetector.java)
   - Detect AR tags.
-- [ItemDetector](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ItemDetector.java)
+- [ItemDetector](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/ItemDetector.java)
   - Detect items using yolo model.
-- [VisionHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/VisionHandler.java)
+- [VisionHandler](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/VisionHandler.java)
   - Integrate CameraHandler, ARTagDetector and ItemDetector.
-- [Navigator](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/Navigator.java)
+- [Navigator](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/Navigator.java)
   - Move to the target.
   - Path planning.
   - Deal with the sensor error.
-- [ItemManager](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/ItemManager.java)
+- [ItemManager](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/ItemManager.java)
   - Store the items information.
-- [MainControl](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/sampleapk/MainControl.java)
+- [MainControl](./app/app/src/main/java/jp/jaxa/iss/kibo/rpc/taiwan/MainControl.java)
   - Integrate Navigator, VisionHandler and ItemManager.
   - Determine the current state.
 
