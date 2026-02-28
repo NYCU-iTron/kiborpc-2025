@@ -59,11 +59,6 @@ public class Navigator {
     private static final double area4MaxZ = 5.57;
     private static final double area4MinZ = 4.32;
 
-    private volatile boolean isMoving = false;
-    public boolean isMoving() {
-        return isMoving;
-    }
-
     private volatile Pose targetPose = null;
     public Pose getTargetPose() {
         return targetPose;
@@ -141,59 +136,40 @@ public class Navigator {
      * @return The result of the last move command.
      */
     public Result moveTo(Pose pose) {
-        // Check if already moving
-        synchronized (this) {
-            if (isMoving) {
-                Log.w(TAG, "moveTo rejected, robot is already moving.");
-                return null;
-            }
-            isMoving = true;
-        }
-
         Result result = null;
-        int retryMax = 10;
-        try {
-            for (int retry = 1; retry <= retryMax; retry++) {
-                // Check for thread interruption
-                if (Thread.currentThread().isInterrupted()) {
-                    Log.w(TAG, "moveTo interrupted, stopping retry.");
-                    break;
-                }
+        int retryMax = 5;
+        for (int retry = 1; retry <= retryMax; retry++) {
+            Log.i(TAG, "moveTo attempt " + retry + " to " + pose.toString());
+            result = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
 
-                Log.i(TAG, "moveTo attempt " + retry + " to " + pose.toString());
-                result = api.moveTo(pose.getPoint(), pose.getQuaternion(), false);
-
-                // Check for success
-                if (result != null && result.hasSucceeded()) {
-                    break;
-                }
-
-                // Log failure reason
-                if (result == null) {
-                    Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost).");
-                } else {
-                    Log.w(TAG, "moveTo failed: " + result.getMessage());
-                }
-
-                // Check for thread interruption
-                if (Thread.currentThread().isInterrupted()) {
-                    Log.w(TAG, "moveTo interrupted, stopping retry.");
-                    break;
-                }
-
-                // Wait before retrying
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "Interrupted during retry sleep.");
-                    break;
-                }
+            // Check for success
+            if (result != null && result.hasSucceeded()) {
+                return result;
             }
-            return result;
 
-        } finally {
-            isMoving = false;
+            // Log failure reason
+            if (result == null) {
+                Log.e(TAG, "moveTo returned null (possibly interrupted or connection lost).");
+                break;
+            } else {
+                Log.w(TAG, "moveTo failed: " + result.getMessage());
+            }
+
+            // Wait before retrying
+            if (retry == retryMax) {
+                Log.e(TAG, "Reached maximum retry attempts for moveTo.");
+                break;
+            }
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Log.w(TAG, "Sleep interrupted: " + e.getMessage());
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
+        return result;
     }
 
     /**
@@ -248,7 +224,8 @@ public class Navigator {
         try{
             Thread.sleep(stableTime);
         } catch (InterruptedException e) {
-            Log.w(TAG, "Fail to sleep thread" + e);
+            Log.w(TAG, "Sleep interrupted: " + e.getMessage());
+            Thread.currentThread().interrupt();
         }
 
         return result;
@@ -358,6 +335,8 @@ public class Navigator {
 
         // Set target pose
         Pose targetPose = new Pose(finalPoint, finalQuaternion);
+
+        // Move to the target pose
         Result result = moveTo(targetPose);
 
         return result;

@@ -109,19 +109,22 @@ public class MainControl {
 
     private void handleSingleArea(int areaId) {
         navigator.navigateToArea(areaId);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
         List<Item> areaItems = null;
 
-        int retryMax = 5;
+        int retryMax = 10;
         for (int retry = 1; retry <= retryMax; retry++) {
+            // Check and recover from jitter
+            jitterHandler.checkAndRecover();
+
             Log.i(TAG, "Exploring area " + areaId + " (try " + retry + ")");
+            visionHandler.getCurrentPose(navigator.getCurrentPose());
             areaItems = visionHandler.inspectArea(areaId);
 
             if (containsLandmark(areaItems)) break;
 
             Log.w(TAG, "No landmark found, pause system for a short time then retry.");
             try {
-                Thread.sleep(200);
+                Thread.sleep(500);
             } catch (Exception e) {
                 Log.w(TAG, "Fail to sleep thread" + e);
             }
@@ -158,16 +161,19 @@ public class MainControl {
 
     private void handleCombinedArea() {
         navigator.navigateToArea(5);
-        visionHandler.getCurrentPose(navigator.getCurrentPose());
         List<Item> area2Items = null;
         List<Item> area3Items = null;
 
         boolean success2 = false;
         boolean success3 = false;
 
-        int retryMax = 5;
+        int retryMax = 10;
         for (int retry = 1; retry <= retryMax; retry++) {
+            // Check and recover from jitter
+            jitterHandler.checkAndRecover();
+
             Log.i(TAG, "Exploring area 2 and 3 together (try " + retry + ")");
+            visionHandler.getCurrentPose(navigator.getCurrentPose());
 
             if (success2 == true && success3 == true) break;
 
@@ -224,9 +230,8 @@ public class MainControl {
             }
 
             Log.w(TAG, "Exploration not completed, pause system for a short time then retry.");
-
             try {
-                Thread.sleep(200);
+                Thread.sleep(500);
             } catch (Exception e) {
                 Log.w(TAG, "Fail to sleep thread" + e);
             }
@@ -248,7 +253,6 @@ public class MainControl {
 
         // Meet astronaut
         navigator.navigateToArea(areaId);
-        jitterHandler.start();
         api.reportRoundingCompletion();
 
         // Recognize the treasure
@@ -256,34 +260,38 @@ public class MainControl {
         Item treasureItem = null;
         int retryMax = 40;
         for (int retry = 1; retry <= retryMax; retry++) {
+            // Check and recover from jitter
+            jitterHandler.checkAndRecover();
+
+            // Inspect area
             areaItems = visionHandler.inspectArea(areaId);
 
+            // Check if treasure found
             if (containsTreasure(areaItems)) {
                 treasureItem = areaItems.get(0);
                 break;
-            } else {
-                Log.w(TAG, "No treasure found, pause system for a short time then retry.");
+            }
 
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e) {
-                    Log.w(TAG, "Fail to sleep thread" + e);
-                }
+            Log.w(TAG, "No treasure found, pause system for a short time then retry.");
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Log.w(TAG, "Fail to sleep thread" + e);
             }
         }
 
+        // Guess the result if no valid result
         if (treasureItem == null) {
             Log.w(TAG, "No treasure found, leaving to fate.");
             areaItems = visionHandler.guessResult(areaId);
             treasureItem = areaItems.get(0);
         }
+
+        // Match treasure info with stored data
         treasureItem = itemManager.getTreasureInfo(treasureItem);
 
         // Notify recognition
         api.notifyRecognitionItem();
-
-        // Stop jitter handler
-        jitterHandler.stop();
 
         return treasureItem;
     }
