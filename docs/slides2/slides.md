@@ -33,7 +33,7 @@ style: |
 
 <!-- _class: lead -->
 
-![w:105](../slides/itron.png)
+![w:200](../slides/itron.png)
 
 # Kibo-RPC 2025 分享
 
@@ -44,7 +44,7 @@ style: |
 
 ---
 
-## 總覽
+## Overview
 
 1. **系統**｜任務如何拆成流程與模組
 2. **計算**｜座標、位姿與安全目標
