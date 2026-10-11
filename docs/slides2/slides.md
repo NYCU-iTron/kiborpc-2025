@@ -29,6 +29,15 @@ style: |
   .lead { text-align: left; background: #143a52; color: white; }
   .lead h1, .lead h2, .lead strong { color: white; }
   .lead::after { color: #d7e6ed; }
+
+    .takeaways ol {
+        font-size: 27px;
+        line-height: 1.9;
+    }
+    .takeaways li {
+        margin-bottom: 12px;
+    }
+
 ---
 
 <!-- _class: lead -->
@@ -71,9 +80,9 @@ Astrobee 執行 moveTo
   ↓
 讀取目前位置、姿態與任務回傳
   ↓
-檢查執行結果與偏移
+檢查執行結果
   ├─ 正常 → 下一狀態
-  └─ 異常 → 重試 / 恢復 / 降級處理
+  └─ 異常 → 重試 / 恢復
 ```
 
 **程式依照「觀測 → 決策 → 動作 → 驗證」的循環推進**
@@ -297,16 +306,32 @@ Python 用於離線驗證，Java 負責實際部署，模擬器則用來測試�
 
 ---
 
+<!-- _class: takeaways -->
+
 ## Key Takeaways
 
+![bg right:55% contain](mountains.png)
+
 1. **追求穩定而不是單次高分**
-2. **用實驗數據驗證每次優化**
-3. **將失敗處理納入系統設計**
+2. **將失敗處理納入系統設計**
+3. **用實驗數據驗證每次優化**
 4. **局部最佳不代表整體最佳**
 
 ---
 
-## A little more about iTron
+## 關於 iTron
+
+**不只學習理論，更要親手打造機器人！**
+
+- **團隊理念**：透過實作、交流與競賽，持續挑戰自我
+- **機構組**：3D 建模、機構設計、加工與組裝
+- **軟體組**：程式設計、電腦視覺、路徑規劃、機器學習
+- **學習方式**：新生入門教學 → 分組訓練 → 專案實戰
+- **參與競賽**：TDK、ASME、Kibo-RPC
+
+---
+
+![](./itron-qr.png)
 
 ---
 
